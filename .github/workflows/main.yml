@@ -1,0 +1,41 @@
+
+name: Korece APK Olustur
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZIP dosyasini ac
+        run: unzip -q HANGEUL_Korece_APK_Projesi.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Android SDK kur
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: APK dosyasini olustur
+        working-directory: HANGEUL_Android_Studio_Projesi
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: APK dosyasini kaydet
+        uses: actions/upload-artifact@v4
+        with:
+          name: HANGEUL-Korece-APK
+          path: HANGEUL_Android_Studio_Projesi/app/build/outputs/apk/debug/app-debug.apk
