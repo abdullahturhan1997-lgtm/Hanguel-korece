@@ -295,7 +295,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 /* Giriş ekranı */
 .splash { position: fixed; inset: 0; z-index: 1000; background: linear-gradient(180deg, #3f95e6 0%, #8fcaf2 45%, #6fae3c 75%, #3d7a22 100%); transition: opacity .55s; cursor: pointer; }
 .splash.out { opacity: 0; pointer-events: none; }
-.spbox { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100vw, calc(100vh * 941 / 1672)); aspect-ratio: 941 / 1672; }
+.splash { overflow: hidden; }
+.spbox { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max(100vw, calc(100vh * 941 / 1672)); aspect-ratio: 941 / 1672; }
 .spbox img { display: block; width: 100%; height: 100%; }
 .spbar { position: absolute; left: 18.49%; top: 95.16%; width: 62.06%; height: 2.03%; border-radius: 999px; background: #1f2a18; overflow: hidden; }
 .spbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: linear-gradient(180deg, #d8ff8a 0%, #6ed61e 40%, #2f9a0e 100%); box-shadow: inset 0 -2px 0 rgba(0,0,0,.18); animation: spfill 2.1s cubic-bezier(.3,.1,.3,1) forwards; }
@@ -353,6 +354,20 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .splash.charge.in { animation: chargein .3s ease-out both; }
 @keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .splash.charge.in { animation: none; } }
+
+/* Savaş ekranı tek sayfa */
+#vBattle { display: flex; flex-direction: column; overflow: hidden; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+#vBattle[hidden] { display: none; }
+#vBattle .stage { flex: none; align-self: center; max-width: 100%; }
+#vBattle .console { flex: none; margin-top: 8px; padding: 9px 10px; gap: 7px; }
+#vBattle .battlehud { gap: 4px; }
+#vBattle .chipx { padding: 2px 9px; }
+#vBattle .qtext { min-height: 0; font-size: clamp(1rem, 4.2vw, 1.3rem); line-height: 1.22; }
+#vBattle .boosters { gap: 12px; }
+#vBattle .boost { width: 44px; height: 44px; padding: 5px; }
+#vBattle .answers { gap: 8px; }
+#vBattle .ans { min-height: 46px; padding: 6px 38px; font-size: 1.08rem; }
+#vBattle .feedback { min-height: 1.2em; font-size: .85rem; line-height: 1.25; }
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -441,7 +456,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
         <div class="qhead"><span class="qlabel" id="qlabel">Hazır</span><div class="timer"><i id="tbar"></i></div><b id="qsec" class="qlabel">20 sn</b></div>
         <p class="qtext" id="qtext"></p>
         <div class="boosters" id="boosters">
-          <button class="boost" id="bBomb" type="button" aria-label="Bomba: iki yanlış şıkkı sil"><svg><use href="#i-bomb"/></svg><i id="nBomb">0</i></button>
+          <button class="boost" id="bBomb" type="button" aria-label="Bomba: bir yanlış şıkkı sil"><svg><use href="#i-bomb"/></svg><i id="nBomb">0</i></button>
           <button class="boost" id="bCheck" type="button" aria-label="Doğru cevabı işaretle"><svg><use href="#i-check"/></svg><i id="nCheck">0</i></button>
           <button class="boost" id="bTime" type="button" aria-label="Kum saati: 10 saniye ekle"><svg><use href="#i-hourglass"/></svg><i id="nTime">0</i></button>
           <button class="boost" id="bShield" type="button" aria-label="Kalkan: bir sonraki yanlışta asker kaybetme"><svg><use href="#i-shield"/></svg><i id="nShield">0</i></button>
@@ -450,7 +465,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
           <button class="ans" id="a0" type="button" disabled><kbd>A</kbd><span></span></button>
           <button class="ans" id="a1" type="button" disabled><kbd>B</kbd><span></span></button>
           <button class="ans" id="a2" type="button" disabled><kbd>C</kbd><span></span></button>
-          <button class="ans" id="a3" type="button" disabled><kbd>D</kbd><span></span></button>
         </div>
         <p class="feedback" id="feedback"></p>
       </section>
@@ -870,7 +884,7 @@ const ui = {
   overlay: $("overlay"), ovTitle: $("ovTitle"), ovText: $("ovText"), ovMain: $("ovMain"), ovAlt: $("ovAlt"),
   teamCount: $("teamCount"), score: $("score"), road: $("road"), battleConsole: $("battleConsole"),
   qlabel: $("qlabel"), tbar: $("tbar"), qtext: $("qtext"), feedback: $("feedback"),
-  ans: [0, 1, 2, 3].map(i => $("a" + i)),
+  ans: [0, 1, 2].map(i => $("a" + i)),
 };
 
 /* ---------- Kayıt ---------- */
@@ -1530,7 +1544,7 @@ function questDay() { if (save.quests.day !== today()) save.quests = { day: toda
 function questAdd(k, n = 1) { questDay(); save.quests[k] = (save.quests[k] || 0) + n; persist(); renderBadges(); }
 const questReady = () => { questDay(); return QUESTS.filter(q => save.quests[q.k] >= q.n && !save.quests.claimed.includes(q.k)).length; };
 const SHOP = [
-  { k: "bomb", name: "Bomba", desc: "Bir soruda iki yanlış şıkkı siler.", price: 60, icon: "i-bomb" },
+  { k: "bomb", name: "Bomba", desc: "Bir soruda bir yanlış şıkkı siler.", price: 60, icon: "i-bomb" },
   { k: "check", name: "Doğru Cevap", desc: "Doğru şıkkı senin yerine seçer.", price: 120, icon: "i-check" },
   { k: "time", name: "Kum Saati", desc: "Soru süresine 10 saniye ekler.", price: 40, icon: "i-hourglass" },
   { k: "shield", name: "Kalkan", desc: "Şeytan ya da canavar karşısında bir yanlışta asker kaybetmezsin.", price: 90, icon: "i-shield" },
@@ -2542,7 +2556,7 @@ function later(sec, fn) { const g = G; G.timers.push({ t: sec, fn: () => { if (G
 function nextQuestion() {
   if (!G.deck.length) G.deck = shuffle(QUESTIONS.slice());
   const [text, right, ...wrong] = G.deck.pop();
-  const opts = shuffle([right, ...wrong]);
+  const opts = shuffle([right, ...shuffle(wrong.slice()).slice(0, 2)]);
   return { text, opts, right: opts.indexOf(right) };
 }
 const devilsAlive = () => G.devils.filter(d => !d.dying);
@@ -4126,7 +4140,16 @@ CREATURE.sphinx = function (spec, t, b, out) {
 };
 
 /* ---------- Ölçekleme ve döngü ---------- */
-function resize() {
+function fitStage() {
+  const vb = $("vBattle"), st = $("stage"), con = ui.battleConsole;
+  if (vb.hidden) return;
+  const cs = getComputedStyle(vb), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const avail = vb.clientHeight - padY - con.offsetHeight - 10, maxW = vb.clientWidth - padX;
+  st.style.width = Math.round(Math.max(180, Math.min(maxW, avail * 960 / 588))) + "px";
+}
+new ResizeObserver(() => { if (view === "battle") { fitStage(); resize0(); } }).observe(ui.battleConsole);
+function resize() { fitStage(); resize0(); }
+function resize0() {
   const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = bc.width = Math.max(1, Math.round(r.width * dpr)); cv.height = bc.height = Math.max(1, Math.round(r.height * dpr));
 }
@@ -4164,7 +4187,7 @@ function boosterUI() {
 $("bBomb").addEventListener("click", () => {
   if (!G || G.locked || !G.q || G.q.bombed || !save.items.bomb) return;
   save.items.bomb--; persist(); G.q.bombed = true;
-  shuffle([0, 1, 2, 3].filter(k => k !== G.q.right)).slice(0, 2).forEach(k => { ui.ans[k].classList.add("gone"); ui.ans[k].disabled = true; });
+  shuffle([0, 1, 2].filter(k => k !== G.q.right)).slice(0, 1).forEach(k => { ui.ans[k].classList.add("gone"); ui.ans[k].disabled = true; });
   sfx.shot(); boosterUI();
 });
 $("bCheck").addEventListener("click", () => { if (!G || G.locked || !G.q || !save.items.check) return; save.items.check--; persist(); answer(G.q.right); boosterUI(); });
@@ -4191,7 +4214,7 @@ window.addEventListener("pointerdown", () => Music.init(), { once: true });
 window.addEventListener("keydown", e => {
   if (e.key === "Escape" && !$("modal").hidden) return closeModal();
   if (view !== "battle" || !G || !ui.overlay.hidden || e.target.tagName === "INPUT") return;
-  const map = { a: 0, b: 1, c: 2, d: 3, "1": 0, "2": 1, "3": 2, "4": 3 }, k = e.key.toLowerCase();
+  const map = { a: 0, b: 1, c: 2, "1": 0, "2": 1, "3": 2 }, k = e.key.toLowerCase();
   if (k in map && !ui.ans[map[k]].disabled) { e.preventDefault(); answer(map[k]); }
 });
 
