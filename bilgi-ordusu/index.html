@@ -77,6 +77,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .lbl3 .nm { margin-top: -2px; font-family: var(--display); font-weight: 700; font-size: .78rem; white-space: nowrap; padding: 1px 8px; border-radius: 10px; background: rgba(16, 42, 87, .78); color: #fff; display: none; }
 .lbl3.sel .nm, .lbl3:hover .nm, .lbl3:focus-visible .nm, .lbl3.done .nm, .lbl3.open .nm { display: block; }
 .lbl3.locked .nm { background: rgba(60, 60, 70, .7); }
+.lbl3.name3 .pin { display: none; }
+.lbl3.name3 .nm { display: block; font-size: .85rem; padding: 3px 10px; background: rgba(16, 42, 87, .82); border: 2px solid rgba(255, 255, 255, .85); box-shadow: 0 3px 6px rgba(0, 0, 0, .35); }
+.lbl3.name3.sel .nm { background: linear-gradient(180deg, #ffd040, #f0a91a); color: #3a2000; border-color: #fff; transform: scale(1.12); }
+.lbl3.name3.done .nm::before { content: "✓ "; color: #8ef05a; }
+.lbl3.name3.sel.done .nm::before { color: #2f6e12; }
+.lbl3.world { display: none !important; }
 .lbl3.small .pin { width: 22px; height: 28px; }
 .lbl3.small .pl { top: 4px; font-size: .55rem; }
 .lbl3.sel .pin { animation: bob 1s ease-in-out infinite; }
@@ -85,6 +91,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .lbl3.world .nm { display: block; }
 .homeTop { position: absolute; left: 0; right: 0; top: 10px; display: flex; justify-content: center; pointer-events: none; z-index: 4; }
 .banner { pointer-events: auto; font-family: var(--display); font-weight: 700; font-size: 1rem; padding: 8px 16px; border-radius: 18px; background: linear-gradient(180deg, #fffaf0, #f3e3bf); color: var(--ink); border: 3px solid var(--gold); box-shadow: 0 4px 0 var(--gold3); max-width: 86%; text-align: center; }
+.sheet[hidden] { display: none !important; }
 .sheet {
   position: absolute; left: 10px; right: 10px; bottom: 182px; z-index: 4; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center;
   padding: 10px 12px; border-radius: 20px; background: linear-gradient(180deg, #fffaf0, var(--cream2)); border: 3px solid var(--gold); box-shadow: 0 5px 0 var(--gold3), 0 12px 24px rgba(0, 0, 0, .35);
@@ -260,7 +267,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .closebtn { position: absolute; right: 12px; top: 10px; z-index: 4; width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--gold); background: radial-gradient(circle at 40% 30%, #ff7a8a, var(--red2)); color: #fff; font-size: 1.4rem; font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 var(--gold3); }
 .carousel { position: absolute; left: 0; right: 0; bottom: 0; height: 200px; display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, #1c3ea0, #0e2468); border-top: 4px solid var(--gold); box-sizing: border-box; }
 .chap { flex: none; width: 170px; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; border: 0; background: none; cursor: pointer; padding: 0; }
-.chap canvas { width: 110px; height: 96px; }
+.chap .chflag { width: 112px; height: 75px; border-radius: 10px; object-fit: cover; border: 3px solid #fff; box-shadow: 0 6px 12px rgba(0, 0, 0, .45); margin-bottom: 8px; }
+.chap svg.chflag { width: 86px; height: 86px; border: 0; box-shadow: none; }
 .chap .cl { display: flex; align-items: center; width: 100%; border-radius: 12px; overflow: hidden; border: 3px solid var(--gold); box-shadow: 0 3px 0 var(--gold3); font-family: var(--display); font-weight: 700; color: #fff; }
 .chap .cl i { font-style: normal; padding: 6px 9px; background: rgba(0, 0, 0, .25); }
 .chap .cl span { flex: 1; padding: 6px 8px; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(180deg, #c42c46, #8c1730); }
@@ -326,8 +334,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
       <svg class="map" id="map" viewBox="0 0 1000 437" preserveAspectRatio="xMidYMid meet" hidden aria-label="Türkiye haritası"><path id="landp" d=""></path><g id="pins"></g></svg>
       <div class="homeTop"><div class="banner" id="homeBanner" hidden></div></div>
       <span class="mapprog" id="mapProg"></span>
-      <span class="maphint">Sürükle · yakınlaş · iğneye dokun</span>
-      <div class="sheet" id="citySheet">
+      <span class="maphint">Sürükle · yakınlaş · ile dokun</span>
+      <div class="sheet" id="citySheet" hidden>
         <canvas id="sheetCv" width="64" height="64"></canvas>
         <div>
           <span class="sub" id="sheetSub"></span>
@@ -801,6 +809,7 @@ let save = { tr: { start: null, done: [] }, world: { unlocked: 0, done: [] }, sc
 try {
   const s4 = JSON.parse(localStorage.getItem("bilgi-ordusu-v4") || "null");
   if (s4 && s4.tr) save = { ...save, ...s4, items: { ...save.items, ...(s4.items || {}) } };
+  if (!save.r5) { save.tr = { start: "tr3", done: [] }; save.r5 = true; }
   else {
     const s3 = JSON.parse(localStorage.getItem("bilgi-ordusu-v3") || "null");
     if (s3 && s3.tr) { save.tr = { start: (s3.tr.done || [])[0] || null, done: s3.tr.done || [] }; save.world = { unlocked: 0, done: (s3.world && s3.world.done) || [] }; save.score = s3.score || 0; }
@@ -975,7 +984,8 @@ function createMap3D(box, labelsEl, kind) {
   box.insertBefore(renderer.domElement, labelsEl);
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(kind === "tr" ? 40 : 34, 1, 1, 8000);
   const root = new THREE.Group(); scene.add(root);
-  let cloudLayer = null;
+  let cloudLayer = null, landMesh = null, ring = null; const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+  let onLand = null;
   let running = false, labels = [], water = null, clouds = [], marks = [], sel = -1, onPick = null;
   // kamera durumu
   const cam = { x: 0, z: 0, tx: 0, tz: 0, zoom: 1, tzoom: 1, ry: 0, rx: .5, try: null, trx: null };
@@ -996,11 +1006,19 @@ function createMap3D(box, labelsEl, kind) {
     if (kind === "tr") { cam.tx = clampX(drag.cx - dx * k); cam.tz = clampZ2(drag.cz - dy * k * 1.2); }
     else { cam.ry = drag.ry + dx * .006; cam.rx = Math.max(-1.2, Math.min(1.2, drag.rx + dy * .006)); cam.try = null; }
   });
-  const endTouch = e => { touches.delete(e.pointerId); if (!touches.size) drag = null; };
+  const endTouch = e => {
+    const d = drag; touches.delete(e.pointerId); if (!touches.size) drag = null;
+    if (e.type === "pointerup" && d && kind === "tr" && landMesh && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && onLand) {
+      const r = el.getBoundingClientRect(); ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+      ray.setFromCamera(ptr, camera); const hit = ray.intersectObject(landMesh)[0];
+      if (hit) onLand(hit.point.x, hit.point.z);
+    }
+  };
   el.addEventListener("pointerup", endTouch); el.addEventListener("pointercancel", endTouch);
   el.addEventListener("wheel", e => { e.preventDefault(); cam.tzoom = clampZ(cam.tzoom * (e.deltaY > 0 ? 1.1 : .9)); }, { passive: false });
-  const clampZ = z => Math.max(kind === "tr" ? .35 : .85, Math.min(kind === "tr" ? 1.4 : 1.6, z));
-  const clampX = x => Math.max(-520, Math.min(520, x)), clampZ2 = z => Math.max(-260, Math.min(300, z));
+  const clampZ = z => Math.max(kind === "tr" ? .3 : .85, Math.min(kind === "tr" ? bounds.maxZ : 1.6, z));
+  let bounds = { x0: -520, x1: 520, z0: -260, z1: 300, maxZ: 1.4 };
+  const clampX = x => Math.max(bounds.x0, Math.min(bounds.x1, x)), clampZ2 = z => Math.max(bounds.z0, Math.min(bounds.z1, z));
   function resize() { const w = box.clientWidth || 400, h = box.clientHeight || 600; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   new ResizeObserver(resize).observe(box);
 
@@ -1013,6 +1031,7 @@ function createMap3D(box, labelsEl, kind) {
   function makeLabel(i, text, plate) {
     const b = document.createElement("button"); b.type = "button"; b.className = "lbl3" + (kind === "globe" ? " world" : "");
     b.innerHTML = `<span class="pin"><svg viewBox="0 0 30 38"><use href="#i-pin"/></svg><span class="pl"></span></span><span class="nm"></span>`;
+    if (kind === "tr") b.classList.add("name3");
     b.querySelector(".pl").textContent = plate || ""; b.querySelector(".nm").textContent = text;
     b.setAttribute("aria-label", plate ? `${plate} ${text}` : text);
     b.addEventListener("click", () => onPick && onPick(i, false));
@@ -1067,7 +1086,9 @@ function createMap3D(box, labelsEl, kind) {
     shallow.rotation.x = -Math.PI / 2; shallow.position.y = -2.7; root.add(shallow);
     const land = new THREE.Mesh(new THREE.ExtrudeGeometry(tr.map(shp), { depth: 16, bevelEnabled: true, bevelThickness: 4, bevelSize: 2.5, bevelSegments: 3 }),
       [new THREE.MeshStandardMaterial({ map: grass, roughness: .8 }), new THREE.MeshStandardMaterial({ color: 0xb98a4e, roughness: .95 })]);
-    land.rotation.x = -Math.PI / 2; land.castShadow = true; land.receiveShadow = true; root.add(land);
+    land.rotation.x = -Math.PI / 2; land.castShadow = true; land.receiveShadow = true; root.add(land); landMesh = land;
+    ring = new THREE.Mesh(new THREE.RingGeometry(14, 19, 40), new THREE.MeshBasicMaterial({ color: 0xffd040, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 20.6; root.add(ring);
     const lakeMat = new THREE.MeshStandardMaterial({ color: 0x3aa8ea, roughness: .2, metalness: .1 });
     [[42.9, 38.65, 46, 22, -25], [33.38, 38.78, 16, 26, -15], [30.85, 37.85, 7, 14, -10], [31.55, 37.75, 9, 7, 0]].forEach(([lon, lat, rx, ry, rr]) => {
       const [x, y] = MODES.tr.proj(lon, lat); const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), lakeMat);
@@ -1173,6 +1194,7 @@ function createMap3D(box, labelsEl, kind) {
       const d = 1050 * cam.zoom, el = 1.08;
       camera.position.set(cam.x, d * Math.sin(el), cam.z + d * Math.cos(el)); camera.lookAt(cam.x, 0, cam.z);
       if (water) water.material.map.offset.set(t * .006, t * .004);
+      if (ring) { const k = 1 + Math.sin(t * 4) * .08; ring.scale.set(k, k, k); ring.material.opacity = .65 + Math.sin(t * 4) * .25; }
       clouds.forEach(cl => {
         cl.cur += (cl.target - cl.cur) * Math.min(1, dt * 2.2);
         cl.sprites.forEach(s => {
@@ -1203,9 +1225,16 @@ function createMap3D(box, labelsEl, kind) {
     setStates(sts, selected) {
       sel = selected;
       const open = labels.filter((lb, i) => sts[i] === "open" || sts[i] === "done").map(lb => lb.pos);
-      clouds.forEach(cl => cl && cl.sprites.forEach(s => { const b = s.userData.base; let f = 1; open.forEach(p => { const d = Math.hypot(b.x - p.x, b.z - p.z); f = Math.min(f, Math.max(0, Math.min(1, (d - 42) / 50))); }); s.userData.fade = f; }));
+      if (kind === "tr" && open.length && sts[0] !== "pick") {
+        const xs = open.map(p => p.x), zs = open.map(p => p.z), pad = 40;
+        bounds = { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, z0: Math.min(...zs) - pad, z1: Math.max(...zs) + pad };
+        bounds.maxZ = Math.max(.42, Math.min(1.4, (Math.max(bounds.x1 - bounds.x0, (bounds.z1 - bounds.z0) * 1.6) + 220) / 900));
+        cam.tx = clampX(cam.tx); cam.tz = clampZ2(cam.tz); cam.tzoom = clampZ(cam.tzoom);
+      } else if (kind === "tr") bounds = { x0: -520, x1: 520, z0: -260, z1: 300, maxZ: 1.4 };
+      if (ring && labels[selected]) ring.position.set(labels[selected].pos.x, 20.6, labels[selected].pos.z);
+      clouds.forEach(cl => cl && cl.sprites.forEach(s => { const b = s.userData.base; let f = 1; open.forEach(p => { const d = Math.hypot(b.x - p.x, b.z - p.z); f = Math.min(f, Math.max(0, Math.min(1, (d - 58) / 46))); }); s.userData.fade = f; }));
       labels.forEach((lb, i) => {
-        const st = sts[i]; lb.className = "lbl3" + (kind === "globe" ? " world" : "") + " " + st + (i === selected ? " sel" : "");
+        const st = sts[i]; lb.className = "lbl3" + (kind === "globe" ? " world" : " name3") + " " + st + (i === selected ? " sel" : "");
         lb.querySelector(".pin").style.color = PIN_COL[st] || PIN_COL.open;
         if (kind === "tr") {
           const pl = lb.querySelector(".pl");
@@ -1213,8 +1242,7 @@ function createMap3D(box, labelsEl, kind) {
           if (st !== "locked") pl.textContent = pad2(LIST[i].plate);
           setCloud(i, st === "locked" ? 1 : st === "pick" ? .55 : 0);
           const frontier = st === "locked" && NEIGH[i].some(j => sts[j] === "open" || sts[j] === "done");
-          lb.dataset.hide = st === "locked" && !frontier && i !== selected ? "1" : "";
-          lb.classList.toggle("small", st === "pick" || st === "locked");
+          lb.dataset.hide = st === "locked" ? "1" : "";
           if (st === "done" && !marks[i]) { marks[i] = landmarkSprite(LIST[i]); marks[i].position.copy(lb.pos).setY(20); root.add(marks[i]); }
         }
       });
@@ -1226,6 +1254,8 @@ function createMap3D(box, labelsEl, kind) {
     },
     overview() { cam.tx = 0; cam.tz = 20; cam.tzoom = 1; },
     onPick(fn) { onPick = fn; },
+    onLand(fn) { onLand = fn; },
+    pos(i) { return labels[i] && labels[i].pos; },
     start() { if (running) return; running = true; resize(); requestAnimationFrame(resize); requestAnimationFrame(t => { last = t; loop(t); }); },
     stop() { running = false; },
   };
@@ -1417,15 +1447,15 @@ function renderWorld() {
   if (!box.childElementCount) {
     CHAPTERS.forEach((ch, i) => {
       const b = elx("button", "chap" + (ch.key === "tr" ? "" : ch.locked ? " locked" : " preview")); b.type = "button";
-      const cvs = document.createElement("canvas"); const cl = elx("span", "cl"); cl.append(elx("i", null, i + 1), elx("span", null, ch.name));
+      const cvs = document.createElement("img"); cvs.className = "chflag"; cvs.alt = ""; const cl = elx("span", "cl"); cl.append(elx("i", null, i + 1), elx("span", null, ch.name));
       b.append(cvs, cl, elx("small", null, ch.sub));
       b.addEventListener("click", () => chooseChapter(i)); box.appendChild(b); ch.btn = b; ch.cvs = cvs;
     });
-    requestAnimationFrame(() => CHAPTERS.forEach(ch => {
-      if (ch.key === "tr") withCanvas(ch.cvs, (w, h) => { ctx.save(); ctx.translate(w / 2, h * .98); ctx.scale(.32, .32); ctx.translate(0, -302); LANDMARK.istanbul("#e8d6a8", "#ffe8a0"); ctx.restore(); });
-      else if (ch.city) drawCreatureThumb(ch.cvs, ch.city.boss);
-      else withCanvas(ch.cvs, (w, h) => { ctx.font = `700 ${h * .6}px 'Baloo 2', Nunito, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#c8d6ff"; ctx.fillText("?", w / 2, h * .75); });
-    }));
+    CHAPTERS.forEach(ch => {
+      if (ch.key === "tr") ch.cvs.src = flagUrl("TR");
+      else if (ch.city) ch.cvs.src = flagUrl(ch.city.flag);
+      else { const sv = document.createElementNS("http://www.w3.org/2000/svg", "svg"); sv.setAttribute("class", "chflag globeic"); sv.innerHTML = '<use href="#i-globe"/>'; ch.cvs.replaceWith(sv); }
+    });
   }
   CHAPTERS.forEach((ch, i) => ch.btn.classList.toggle("sel", i === worldSel));
   const done = save.world.done.length;
@@ -3712,6 +3742,11 @@ if (use3d) {
   try {
     homeMap = createMap3D($("map3d"), $("labels3"), "tr"); homeMap.buildTR(TR_CITIES);
     homeMap.onPick((i, dbl) => { selectCity(i); if (dbl) playSelected(); });
+    homeMap.onLand((x, z) => {
+      let best = -1, bd = 70;
+      TR_CITIES.forEach((c, i) => { const st = trState(i); if (st === "locked") return; const p = homeMap.pos(i); const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) selectCity(best);
+    });
     globeMap = createMap3D($("globe3d"), $("globeLabels"), "globe"); globeMap.buildGlobe(CHAPTERS.slice(0, -1));
     globeMap.onPick(i => chooseChapter(i));
   } catch (e) { homeMap = globeMap = null; }
