@@ -1380,16 +1380,27 @@ function createMap3D(box, labelsEl, kind) {
       lb.hidden = !visible || v.z > 1 || lb.dataset.hide === "1";
       if (!lb.hidden) pl.push(lb);
     });
+    let ks = 1;
     if (kind === "tr") {
-      pl.forEach(lb => { if (!lb._w) { lb._w = lb.offsetWidth; lb._h = lb.offsetHeight; } });
-      pl.sort((a, b) => b.classList.contains("sel") - a.classList.contains("sel"));
-      for (let it = 0; it < 5; it++) for (let a = 0; a < pl.length; a++) for (let b = a + 1; b < pl.length; b++) {
-        const A = pl[a], B = pl[b]; if ((A._w + B._w) / 2 + 4 - Math.abs(A._x - B._x) <= 0) continue;
-        const ay = A._y + A._oy, by = B._y + B._oy, oy = (A._h + B._h) / 2 + 2 - Math.abs(ay - by); if (oy <= 0) continue;
-        B._oy += (by >= ay ? 1 : -1) * oy;
-      }
+      ks = Math.max(.62, Math.min(1, .7 / cam.zoom));
+      pl.forEach(lb => { if (!lb._w) { lb._w = lb.offsetWidth; lb._h = lb.offsetHeight; } lb._ox = 0; lb._show = true; });
+      const pri = lb => lb.classList.contains("sel") ? 0 : lb.classList.contains("open") ? 1 : 2;
+      pl.sort((a, b) => pri(a) - pri(b) || a._y - b._y);
+      const placed = [];
+      const hit = (x, y, w, h2) => placed.some(q => Math.abs(q.x - x) < (q.w + w) / 2 + 3 && Math.abs(q.y - y) < (q.h + h2) / 2 + 2);
+      pl.forEach(lb => {
+        const w2 = lb._w * ks, h2 = lb._h * ks;
+        const cand = [[0, 0], [0, -h2 - 2], [0, h2 + 2], [w2 * .55, 0], [-w2 * .55, 0], [w2 * .4, -h2 - 2], [-w2 * .4, h2 + 2], [-w2 * .4, -h2 - 2], [w2 * .4, h2 + 2]];
+        const c = cand.find(([dx, dy]) => !hit(lb._x + dx, lb._y + dy, w2, h2));
+        if (!c) { lb._show = false; return; }
+        lb._ox = c[0]; lb._oy = c[1]; placed.push({ x: lb._x + c[0], y: lb._y + c[1], w: w2, h: h2 });
+      });
     }
-    pl.forEach(lb => { lb.style.transform = `translate(${lb._x.toFixed(1)}px, ${(lb._y + lb._oy).toFixed(1)}px) translate(-50%, -88%)`; });
+    pl.forEach(lb => {
+      if (lb._show === false) { lb.style.visibility = "hidden"; return; }
+      lb.style.visibility = "";
+      lb.style.transform = `translate(${(lb._x + (lb._ox || 0)).toFixed(1)}px, ${(lb._y + lb._oy).toFixed(1)}px) translate(-50%, -50%) scale(${ks.toFixed(3)})`;
+    });
   }
   return {
     buildTR, buildGlobe, setCloud, paintGlobe,
@@ -1413,7 +1424,7 @@ function createMap3D(box, labelsEl, kind) {
           mtns.forEach(mg => mg.list.forEach(m => { m.visible = !(mg.k >= 0 && sts[mg.k] === "locked"); }));
         }
       }
-      if (kind === "tr" && labels[selected] && sts[selected] === "open") { placeCastle(selected); if (castle) castle.visible = true; if (glowMesh) glowMesh.visible = true; }
+      if (false) { placeCastle(selected); if (castle) castle.visible = true; if (glowMesh) glowMesh.visible = true; }
       else if (kind === "tr") { if (castle) castle.visible = false; if (glowMesh) glowMesh.visible = false; }
       if (glowMesh) glowMesh.visible = false;
       if (ring && labels[selected]) ring.position.set(labels[selected].pos.x, 20.6, labels[selected].pos.z);
@@ -1426,7 +1437,7 @@ function createMap3D(box, labelsEl, kind) {
           pl.innerHTML = st === "locked" ? '<svg viewBox="0 0 24 24" style="width:16px;height:16px;margin-top:-1px"><use href="#i-lock"/></svg>' : "";
           if (st !== "locked") pl.textContent = pad2(LIST[i].plate);
           setCloud(i, st === "locked" && !isFront(i) ? 1 : st === "pick" ? .55 : 0);
-          lb.off = i === selected && st === "open" ? new THREE.Vector3(0, 0, 30) : null; lb._w = 0;
+          lb.off = null; lb._w = 0;
           const frontier = st === "locked" && NEIGH[i].some(j => sts[j] === "open" || sts[j] === "done");
           lb.dataset.hide = st === "locked" ? "1" : "";
           if (false && st === "done" && !marks[i]) { marks[i] = landmarkSprite(LIST[i]); marks[i].position.copy(lb.pos).setY(20); root.add(marks[i]); }
