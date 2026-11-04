@@ -1632,7 +1632,7 @@ function playSelected() {
   // 3 saniyelik hücum ekranı, sonra savaş
   const ch = $("charge"); if (!ch.hidden) return;
   ch.hidden = false; ch.classList.remove("out"); void ch.offsetWidth; ch.classList.add("in");
-  Music.play && sfx.join && sfx.join();
+  Music.horn();
   setTimeout(() => { beginBattle("tr", i); ch.classList.add("out"); setTimeout(() => { ch.hidden = true; ch.classList.remove("in", "out"); }, 550); }, 3000);
 }
 function beginBattle(m, i) {
@@ -2252,20 +2252,6 @@ const Music = (() => {
   try { on = localStorage.getItem("bilgi-ordusu-muzik") !== "0"; } catch (e) {}
   const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
   const _ = null;
-  // Marş: Do majör, 8 ölçü, sekizlik notalar (özgün melodi)
-  const MARCH = {
-    bpm: 116,
-    mel: [67, 67, 72, 72, 76, 76, 74, 72, 74, _, 67, _, 71, 74, 79, _, 76, 76, 77, 76, 74, 72, 74, 76, 72, _, 67, _, 72, _, _, _,
-          69, 69, 72, 72, 77, 77, 76, 74, 76, _, 72, _, 67, 72, 76, _, 74, 74, 76, 77, 79, 77, 76, 74, 72, _, 79, _, 84, _, _, _],
-    roots: [48, 43, 48, 48, 41, 48, 43, 48],
-  };
-  // Savaş: La minör, 4 ölçü, hızlı ve sert
-  const BATTLE = {
-    bpm: 150,
-    arp: [69, 72, 76, 72, 81, 76, 72, 76, 65, 69, 72, 69, 77, 72, 69, 72, 67, 71, 74, 71, 79, 74, 71, 74, 64, 68, 71, 68, 76, 71, 68, 71],
-    lead: [[76, 4], [74, 4], [72, 4], [69, 4], [74, 4], [71, 4], [68, 8]],
-    roots: [45, 41, 43, 40],
-  };
   function init() {
     if (ac) return;
     try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; return; }
@@ -2295,29 +2281,66 @@ const Music = (() => {
   }
   function tom(t, n) { tone(t, n, .25, "sine", .5, 900); noise(t, .08, .12, 200, 2000); }
   const snare = (t, v = .45) => { noise(t, .14, v, 1200, 8000); tone(t, 50, .08, "triangle", .2, 1200); };
-  function scheduleMarch(s, t, sp) { // s: 16'lık adım (0..127)
-    const bar = s >> 4, inBar = s % 16;
-    if (s % 2 === 0) { const n = MARCH.mel[s >> 1]; if (n) { tone(t, n, sp * 1.8, "sawtooth", .16, 2200, 3); tone(t, n - 12, sp * 1.8, "square", .05, 1400); } }
-    if (inBar % 4 === 0) { const beat = inBar >> 2, r = MARCH.roots[bar]; tone(t, beat % 2 ? r + 7 : r, sp * 3, "triangle", .32, 900); }
-    if (inBar === 0 || inBar === 8) kick(t, .8);
-    if (inBar === 4 || inBar === 12) snare(t, .4);
-    if (inBar === 6 || inBar === 14) snare(t, .12);
-    if ((bar === 3 || bar === 7) && inBar >= 12) snare(t, .16 + (inBar - 12) * .06);
-    if (s === 0 || s === 64) noise(t, .9, .12, 4000, 12000);
+  // Yol müziği: Hicaz makamında (Re), 9/8 aksak (2+2+2+3), bağlama ve davul (özgün ezgi)
+  const MARCH = {
+    bpm: 132, // sekizlik = 60/(132*2.25) sn; aşağıda sp ile ayarlanır
+    mel: [69, _, 67, 66, 67, _, 69, _, _,   70, 69, 67, 66, 63, _, 62, _, _,
+          62, 66, 67, 69, _, 70, 69, 67, _,  66, 67, 66, 63, 62, _, _, _, _,
+          69, 69, 72, 70, 69, _, 67, 69, _,  70, 72, 74, 72, 70, 69, 67, _, _,
+          69, 70, 69, 67, 66, 67, 63, _, _,  66, 63, 62, _, _, _, 62, _, _],
+    roots: [50, 50, 50, 50, 45, 48, 50, 50],
+  };
+  // Savaş müziği: Hicaz halay, 2/4, zurna ve davul (özgün ezgi)
+  const BATTLE = {
+    bpm: 138,
+    mel: [74, 75, 78, 75, 74, _, 72, 70, 72, 70, 69, 70, 69, _, 66, _,
+          69, 70, 72, 74, 75, 74, 72, 70, 69, 67, 66, 67, 62, _, 62, _],
+    roots: [50, 50, 48, 50, 50, 48, 45, 50],
+  };
+  // Bağlama: çift tel, hızlı sönen tezene vuruşu
+  function saz(t, n, dur, vol) {
+    [0, 12].forEach((o, k) => {
+      const os = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
+      os.type = "sawtooth"; os.frequency.setValueAtTime(mtof(n + o) * 1.012, t); os.frequency.exponentialRampToValueAtTime(mtof(n + o), t + .03); os.detune.value = k ? 6 : -4;
+      f.type = "lowpass"; f.frequency.setValueAtTime(3600, t); f.frequency.exponentialRampToValueAtTime(900, t + Math.min(dur, .4)); f.Q.value = 3;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * (k ? .45 : 1), t + .004); g.gain.exponentialRampToValueAtTime(.0008, t + Math.max(.18, dur));
+      os.connect(f).connect(g).connect(out); os.start(t); os.stop(t + dur + .05);
+    });
   }
-  function scheduleBattle(s, t, sp) { // 4 ölçü × 16 adım
-    const bar = s >> 4, inBar = s % 16, r = BATTLE.roots[bar];
-    if (s % 2 === 0) tone(t, BATTLE.arp[s >> 1], sp * 1.6, "sawtooth", .07, 3000);
-    tone(t, inBar % 4 === 2 ? r + 12 : r, sp * .9, "sawtooth", .16, 700);
-    let acc = 0; for (const [n, len] of BATTLE.lead) { if (s === acc * 2) tone(t, n, sp * len * 2 * .95, "square", .07, 1800, 4); acc += len; }
-    if (inBar === 0 || inBar === 6 || inBar === 8 || inBar === 10) kick(t);
-    if (inBar === 4 || inBar === 12) snare(t, .5);
-    if (inBar % 2 === 1) noise(t, .04, .08, 7000, 14000);
-    if (bar === 3 && inBar >= 12) tom(t, [52, 50, 47, 45][inBar - 12]);
+  // Zurna: genizden gelen, titrek ses
+  function zurna(t, n, dur, vol) {
+    const os = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(), bp = ac.createBiquadFilter(), l = ac.createOscillator(), lg = ac.createGain();
+    os.type = "square"; o2.type = "sawtooth"; os.frequency.value = o2.frequency.value = mtof(n); o2.detune.value = 8;
+    l.frequency.value = 6.2; lg.gain.value = mtof(n) * .012; l.connect(lg); lg.connect(os.frequency); lg.connect(o2.frequency);
+    bp.type = "bandpass"; bp.frequency.value = 1700; bp.Q.value = 1.4;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .02); g.gain.setValueAtTime(vol, t + dur * .8); g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    os.connect(bp); o2.connect(bp); bp.connect(g).connect(out);
+    [os, o2, l].forEach(x => { x.start(t); x.stop(t + dur + .03); });
+  }
+  // Davul: tokmak (bas) ve çubuk (tiz)
+  const dum = (t, v = .9) => { kick(t, v); noise(t, .06, v * .18, 80, 900); };
+  const tek = (t, v = .3) => { noise(t, .07, v, 2500, 9000); tone(t, 76, .05, "triangle", v * .3, 4000); };
+  function scheduleMarch(s, t, sp) { // s: sekizlik adım (0..71), 9'luk ölçüler
+    const bar = Math.floor(s / 9), i = s % 9, n = MARCH.mel[s];
+    if (n) { let len = 1; while (s + len < 72 && MARCH.mel[s + len] === _ && (s + len) % 9 !== 0) len++; saz(t, n, sp * len * 1.1, .2); if (len >= 2) for (let k = 1; k < len; k++) saz(t + k * sp, n, sp * 1.1, .08); }
+    if (i === 0) { tone(t, MARCH.roots[bar], sp * 9, "triangle", .16, 700); tone(t, MARCH.roots[bar] + 7, sp * 9, "sawtooth", .025, 900); }
+    if (i === 0 || i === 4) dum(t, i ? .55 : .85); else if (i === 6) dum(t, .5);
+    if (i === 2 || i === 7 || i === 8) tek(t, i === 8 ? .16 : .26);
+    if ((i === 0 || i === 2 || i === 4 || i === 6) && n == null) saz(t, 50, sp, .05);
+  }
+  function scheduleBattle(s, t, sp) { // 16'lık adım (0..127): 8 ölçü × 16
+    const bar = s >> 4, inBar = s % 16, q = s >> 2, n = BATTLE.mel[q % 32];
+    if (s % 4 === 0 && n) { let len = 1; while (BATTLE.mel[(q + len) % 32] === _ && len < 3) len++; zurna(t, n, sp * 4 * len * .95, .1); }
+    if (s % 4 === 3 && n && BATTLE.mel[(q + 1) % 32] !== _ && q % 2 === 1) zurna(t, BATTLE.mel[(q + 1) % 32], sp * .8, .05); // süsleme
+    if (inBar === 0) tone(t, 62, sp * 16, "sawtooth", .03, 1200); // zurna demi
+    if (s % 2 === 0) tone(t, inBar % 8 === 0 ? BATTLE.roots[bar % 8] : BATTLE.roots[bar % 8] + 12, sp * 1.6, "sawtooth", .1, 650);
+    if (inBar % 8 === 0) dum(t, .95); else if (inBar % 8 === 6) dum(t, .55);
+    if (inBar % 4 === 2 || inBar % 8 === 3) tek(t, .3);
+    if (bar % 4 === 3 && inBar >= 12) tek(t, .18 + (inBar - 12) * .06);
   }
   function tick() {
     if (!ac || !cur) return;
-    const song = cur === "march" ? MARCH : BATTLE, len = cur === "march" ? 128 : 64, sp = 60 / song.bpm / 4;
+    const len = cur === "march" ? 72 : 128, sp = cur === "march" ? 60 / MARCH.bpm / 2.25 : 60 / BATTLE.bpm / 4;
     if (nextT < ac.currentTime) nextT = ac.currentTime + .05;
     while (nextT < ac.currentTime + .15) {
       if (on) (cur === "march" ? scheduleMarch : scheduleBattle)(step, nextT, sp);
@@ -2333,6 +2356,28 @@ const Music = (() => {
       if (!ac || !name) return;
       nextT = ac.currentTime + .08;
       if (!timer) timer = setInterval(tick, 25);
+    },
+    horn() { // hücum borazanı: 3 saniye
+      init(); if (!ac || !on) return; try { ac.resume && ac.resume(); } catch (e) {}
+      const t0 = ac.currentTime + .05;
+      const brass = (t, n, dur, vol) => {
+        [-5, 5].forEach(dt => {
+          const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(), l = ac.createOscillator(), lg = ac.createGain();
+          o.type = "sawtooth"; o.frequency.value = mtof(n); o.detune.value = dt;
+          l.frequency.value = 5.2; lg.gain.value = dur > .3 ? mtof(n) * .006 : 0; l.connect(lg).connect(o.frequency);
+          f.type = "lowpass"; f.Q.value = 2; f.frequency.setValueAtTime(500, t); f.frequency.linearRampToValueAtTime(3800, t + .04); f.frequency.exponentialRampToValueAtTime(2200, t + Math.min(dur, .3));
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .025); g.gain.setValueAtTime(vol * .85, t + dur * .85); g.gain.exponentialRampToValueAtTime(.0008, t + dur + .06);
+          o.connect(f).connect(g).connect(out); [o, l].forEach(x => { x.start(t); x.stop(t + dur + .1); });
+        });
+      };
+      // borazan: yükselen hücum çağrısı (doğal sesler)
+      [[0, 67, .1], [.12, 67, .1], [.24, 72, .1], [.36, 76, .28], [.7, 72, .1], [.82, 76, .1], [.94, 79, .42], [1.42, 76, .1], [1.54, 79, .1], [1.66, 84, 1.05], [2.2, 79, .12], [2.34, 84, .5]]
+        .forEach(([dt, n, d]) => brass(t0 + dt, n, d, .2));
+      [[1.66, 76, 1.05], [2.34, 76, .5]].forEach(([dt, n, d]) => brass(t0 + dt, n, d, .11));
+      // davul gümbürtüsü ve zil
+      for (let k = 0; k < 22; k++) noise(t0 + k * .075, .06, .05 + k * .009, 1500, 8000);
+      [0, .94, 1.66, 2.34, 2.84].forEach((dt, k) => kick(t0 + dt, k === 4 ? 1 : .8));
+      [1.66, 2.84].forEach(dt => noise(t0 + dt, 1.1, .2, 4000, 14000));
     },
     bell() { // ring zili: üç vuruş
       if (!ac || !on) return;
