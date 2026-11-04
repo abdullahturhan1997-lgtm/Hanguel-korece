@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Bilgi Ordusu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column "field radio" — HUD strip, wide canvas battlefield, answer console below. Single dusk look on purpose. */
+:root {
+  --ink: #1b1428;
+  --panel: #271d3a;
+  --line: #3d2f57;
+  --paper: #fbf1e1;
+  --muted: #b9a9cf;
+  --ember: #ff7a3d;
+  --sun: #ffc857;
+  --ok: #4fd18b;
+  --bad: #ff4d6a;
+  --display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --body: "Rubik", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--body);
+  font-size: 16px;
+}
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+}
+.brand {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  letter-spacing: .02em;
+  color: var(--sun);
+  margin: 0;
+  line-height: 1;
+}
+.brand span { color: var(--ember); }
+.stats { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.stat {
+  display: flex; align-items: center; gap: 8px;
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.stat b {
+  font-family: var(--display); font-size: 1.05rem; letter-spacing: 0; color: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+.road { display: flex; gap: 4px; align-items: center; }
+.road i {
+  width: 12px; height: 12px; border-radius: 3px; background: var(--line);
+  display: block; transition: background .3s;
+}
+.road i.won { background: var(--ok); }
+.road i.lost { background: var(--bad); }
+.road i.now { outline: 2px solid var(--sun); outline-offset: 1px; }
+.road i.boss { width: 22px; background: #5a2f6e; }
+.road i.boss.now { background: var(--ember); }
+
+.stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  aspect-ratio: 960 / 420;
+  max-width: 100%;
+  background: #2b1e4a;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.bosshp {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  width: min(60%, 420px);
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+  pointer-events: none;
+}
+.bosshp small {
+  font-family: var(--display); font-size: .8rem; letter-spacing: .06em; color: var(--paper);
+  text-shadow: 0 2px 0 rgba(0,0,0,.5);
+}
+.bar { width: 100%; height: 12px; border-radius: 6px; background: rgba(0,0,0,.45); border: 2px solid rgba(0,0,0,.6); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--bad), var(--ember)); transition: width .4s ease; }
+
+.overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 16px;
+  background: rgba(20, 12, 32, .62);
+  backdrop-filter: blur(2px);
+}
+.overlay h2 {
+  font-family: var(--display); margin: 0; font-weight: 400;
+  font-size: clamp(1.6rem, 6vw, 3.4rem); line-height: 1; color: var(--sun);
+  text-shadow: 0 4px 0 #7a2e1b;
+  text-wrap: balance;
+}
+.overlay p { margin: 0; max-width: 46ch; color: var(--paper); line-height: 1.45; font-size: clamp(.85rem, 2.2vw, 1rem); text-wrap: balance; }
+.btn {
+  font-family: var(--display); font-size: 1rem; letter-spacing: .03em;
+  border: 0; border-radius: 10px; padding: 12px 26px; cursor: pointer;
+  background: var(--ember); color: var(--ink);
+  box-shadow: 0 4px 0 #9c3a14;
+  transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #9c3a14; }
+.btn:focus-visible, .ans:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+
+.console {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.qhead { display: flex; align-items: center; gap: 12px; }
+.qlabel {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+  white-space: nowrap;
+}
+.timer { flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--sun); transform-origin: left; }
+.timer i.low { background: var(--bad); }
+.qtext {
+  margin: 0; font-size: clamp(1.05rem, 2.6vw, 1.3rem); font-weight: 500; line-height: 1.35;
+  min-height: 2.7em; text-wrap: balance;
+}
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .answers { grid-template-columns: 1fr; } }
+.ans {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  min-width: 0;
+  font-family: var(--body); font-size: 1rem; color: var(--paper);
+  background: #33274b; border: 2px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; cursor: pointer;
+  transition: background .15s, border-color .15s, transform .08s;
+}
+.ans kbd {
+  font-family: var(--display); font-size: .8rem; color: var(--ink); background: var(--muted);
+  border-radius: 5px; padding: 3px 7px; flex: none;
+}
+.ans:hover:not(:disabled) { border-color: var(--sun); background: #3c2e57; }
+.ans:active:not(:disabled) { transform: translateY(2px); }
+.ans:disabled { cursor: default; opacity: .55; }
+.ans.right { border-color: var(--ok); background: #1f4a3a; opacity: 1; }
+.ans.right kbd { background: var(--ok); }
+.ans.wrong { border-color: var(--bad); background: #4d1f2c; opacity: 1; }
+.ans.wrong kbd { background: var(--bad); }
+.feedback { margin: 0; min-height: 1.4em; font-weight: 500; color: var(--muted); }
+.feedback.ok { color: var(--ok); }
+.feedback.bad { color: var(--bad); }
+.hint { margin: 0; font-size: .8rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .bar i, .road i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="hud">
+    <h1 class="brand">Bilgi <span>Ordusu</span></h1>
+    <div class="stats">
+      <div class="stat">Ekip <b id="teamCount">1</b></div>
+      <div class="stat">Yol <div class="road" id="road"></div></div>
+      <div class="stat">Skor <b id="score">0</b></div>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" width="960" height="420" aria-label="Oyun sahnesi"></canvas>
+    <div class="bosshp" id="bossHp" hidden>
+      <small>KARANLIK DEV</small>
+      <div class="bar"><i id="bossBar"></i></div>
+    </div>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">Bilgi Ordusu</h2>
+      <p id="ovText">Elinde silahınla yola çıkıyorsun. Karşına çıkan her yabancı bir soru soracak: bilirsen ekibine katılır. Yolun sonunda dev bir yaratık bekliyor. Her doğru cevapta ekipçe ateş edersiniz, her yanlışta bir arkadaşını kaybedersin.</p>
+      <button class="btn" id="startBtn" type="button">Yola Çık</button>
+    </div>
+  </div>
+
+  <section class="console" aria-live="polite">
+    <div class="qhead">
+      <span class="qlabel" id="qlabel">Hazır</span>
+      <div class="timer"><i id="tbar"></i></div>
+    </div>
+    <p class="qtext" id="qtext">Yola çıkmak için butona bas.</p>
+    <div class="answers" id="answers">
+      <button class="ans" id="a0" type="button" disabled><kbd>A</kbd><span></span></button>
+      <button class="ans" id="a1" type="button" disabled><kbd>B</kbd><span></span></button>
+      <button class="ans" id="a2" type="button" disabled><kbd>C</kbd><span></span></button>
+      <button class="ans" id="a3" type="button" disabled><kbd>D</kbd><span></span></button>
+    </div>
+    <p class="feedback" id="feedback"></p>
+    <p class="hint">Klavyede A–D ya da 1–4 tuşlarıyla da cevap verebilirsin.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- Sorular: [soru, doğru cevap, yanlış1, yanlış2, yanlış3] ---------- */
+const QUESTIONS = [
+  ["Türkiye'nin başkenti neresidir?", "Ankara", "İstanbul", "İzmir", "Bursa"],
+  ["Dünyanın en büyük okyanusu hangisidir?", "Pasifik Okyanusu", "Atlas Okyanusu", "Hint Okyanusu", "Arktik Okyanusu"],
+  ["Deniz seviyesinde su kaç derecede kaynar?", "100 °C", "90 °C", "80 °C", "120 °C"],
+  ["İstiklal Marşı'nın şairi kimdir?", "Mehmet Akif Ersoy", "Namık Kemal", "Yahya Kemal Beyatlı", "Ziya Gökalp"],
+  ["Güneş Sistemi'nin en büyük gezegeni hangisidir?", "Jüpiter", "Satürn", "Neptün", "Uranüs"],
+  ["\"Kızıl Gezegen\" olarak bilinen gezegen hangisidir?", "Mars", "Venüs", "Merkür", "Jüpiter"],
+  ["İstanbul hangi yıl fethedildi?", "1453", "1071", "1299", "1517"],
+  ["Malazgirt Savaşı hangi yıl yapıldı?", "1071", "1453", "1176", "1243"],
+  ["TBMM hangi yıl açıldı?", "1920", "1923", "1919", "1921"],
+  ["Türkiye Cumhuriyeti hangi yıl ilan edildi?", "1923", "1920", "1922", "1938"],
+  ["Mona Lisa tablosunu kim yaptı?", "Leonardo da Vinci", "Michelangelo", "Raffaello", "Vincent van Gogh"],
+  ["Suyun kimyasal formülü nedir?", "H₂O", "CO₂", "O₂", "NaCl"],
+  ["Altının kimyasal simgesi nedir?", "Au", "Ag", "Al", "Fe"],
+  ["Tamamı Türkiye sınırları içinde kalan en uzun nehir hangisidir?", "Kızılırmak", "Sakarya", "Yeşilırmak", "Seyhan"],
+  ["Türkiye'nin en yüksek dağı hangisidir?", "Ağrı Dağı", "Erciyes Dağı", "Uludağ", "Süphan Dağı"],
+  ["Türkiye'nin en büyük gölü hangisidir?", "Van Gölü", "Tuz Gölü", "Beyşehir Gölü", "Eğirdir Gölü"],
+  ["Bir futbol takımı sahaya kaç oyuncuyla çıkar?", "11", "10", "9", "12"],
+  ["Japonya'nın başkenti neresidir?", "Tokyo", "Kyoto", "Osaka", "Seul"],
+  ["Avustralya'nın başkenti neresidir?", "Kanberra", "Sidney", "Melbourne", "Perth"],
+  ["Kanada'nın başkenti neresidir?", "Ottawa", "Toronto", "Vancouver", "Montreal"],
+  ["Brezilya'nın resmi dili nedir?", "Portekizce", "İspanyolca", "İngilizce", "Fransızca"],
+  ["Işığın boşluktaki hızı yaklaşık kaçtır?", "300.000 km/sn", "30.000 km/sn", "3.000 km/sn", "3.000.000 km/sn"],
+  ["İnsan vücudunun en büyük organı hangisidir?", "Deri", "Karaciğer", "Akciğer", "Beyin"],
+  ["Yetişkin bir insanın iskeletinde kaç kemik bulunur?", "206", "186", "226", "256"],
+  ["Dünyanın en hızlı kara hayvanı hangisidir?", "Çita", "Aslan", "Antilop", "At"],
+  ["Penisilini kim keşfetti?", "Alexander Fleming", "Louis Pasteur", "Marie Curie", "Robert Koch"],
+  ["Telefonun mucidi olarak kim bilinir?", "Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "Guglielmo Marconi"],
+  ["\"Romeo ve Juliet\" kimin eseridir?", "William Shakespeare", "Charles Dickens", "Victor Hugo", "Goethe"],
+  ["\"Suç ve Ceza\" romanının yazarı kimdir?", "Fyodor Dostoyevski", "Lev Tolstoy", "Anton Çehov", "Maksim Gorki"],
+  ["\"Nutuk\" kimin eseridir?", "Mustafa Kemal Atatürk", "İsmet İnönü", "Kazım Karabekir", "Ziya Gökalp"],
+  ["Belirgin halkalarıyla ünlü gezegen hangisidir?", "Satürn", "Mars", "Merkür", "Venüs"],
+  ["Bir saatte kaç saniye vardır?", "3600", "360", "6000", "1440"],
+  ["Standart bir piyanoda kaç tuş bulunur?", "88", "76", "64", "92"],
+  ["Olimpiyat bayrağında kaç halka vardır?", "5", "4", "6", "7"],
+  ["Dünyanın en yüksek dağı hangisidir?", "Everest", "K2", "Kilimanjaro", "Mont Blanc"],
+  ["Türkiye'de kaç il vardır?", "81", "79", "80", "82"],
+  ["Eyfel Kulesi hangi şehirdedir?", "Paris", "Londra", "Roma", "Berlin"],
+  ["Gökkuşağında geleneksel olarak kaç renk sayılır?", "7", "5", "6", "8"],
+  ["Bitki hücresinde fotosentez hangi organelde gerçekleşir?", "Kloroplast", "Mitokondri", "Ribozom", "Çekirdek"],
+  ["Ay'a ayak basan ilk insan kimdir?", "Neil Armstrong", "Yuri Gagarin", "Buzz Aldrin", "Michael Collins"],
+  ["Oda sıcaklığında sıvı olan metal hangisidir?", "Cıva", "Demir", "Bakır", "Kurşun"],
+  ["Bir üçgenin iç açıları toplamı kaç derecedir?", "180", "360", "90", "270"],
+  ["Karadeniz'i Marmara Denizi'ne bağlayan boğaz hangisidir?", "İstanbul Boğazı", "Çanakkale Boğazı", "Cebelitarık Boğazı", "Hürmüz Boğazı"],
+  ["Ege Denizi'ni Marmara Denizi'ne bağlayan boğaz hangisidir?", "Çanakkale Boğazı", "İstanbul Boğazı", "Kerç Boğazı", "Bab-ül Mendep"],
+  ["Artık yıllar kaç yılda bir gelir?", "4", "3", "5", "2"],
+  ["En küçük asal sayı kaçtır?", "2", "1", "3", "0"],
+  ["\"Güneşin doğduğu ülke\" olarak bilinen ülke hangisidir?", "Japonya", "Çin", "Hindistan", "Tayland"],
+  ["Ses hangi ortamda yayılamaz?", "Boşlukta", "Suda", "Havada", "Demirde"],
+  ["Evrensel çekim yasasıyla tanınan bilim insanı kimdir?", "Isaac Newton", "Galileo Galilei", "Albert Einstein", "Johannes Kepler"],
+  ["Görelilik kuramını kim geliştirdi?", "Albert Einstein", "Isaac Newton", "Niels Bohr", "Stephen Hawking"],
+  ["Mevlana Türbesi hangi ildedir?", "Konya", "Bursa", "Kayseri", "Sivas"],
+  ["Kapadokya hangi coğrafi bölgemizdedir?", "İç Anadolu", "Ege", "Karadeniz", "Doğu Anadolu"],
+  ["Dünyanın en büyük sıcak çölü hangisidir?", "Sahra", "Gobi", "Kalahari", "Atacama"],
+  ["İnsan kalbinde kaç odacık bulunur?", "4", "2", "3", "6"],
+  ["Bir satranç tahtasında kaç kare vardır?", "64", "48", "81", "100"],
+  ["\"Sefiller\" romanının yazarı kimdir?", "Victor Hugo", "Émile Zola", "Honoré de Balzac", "Alexandre Dumas"],
+  ["Hangi gezegen Güneş'e en yakındır?", "Merkür", "Venüs", "Mars", "Dünya"],
+  ["Mısır'daki ünlü büyük piramitler hangi şehir yakınındadır?", "Gize", "İskenderiye", "Luksor", "Asvan"],
+  ["Dünya Kupası'nı en çok kazanan ülke hangisidir?", "Brezilya", "Almanya", "İtalya", "Arjantin"],
+  ["Oksijenin kimyasal simgesi nedir?", "O", "Ok", "Ox", "Os"],
+  ["Hangisi bir memelidir?", "Yunus", "Köpekbalığı", "Timsah", "Penguen"],
+  ["\"Çalıkuşu\" romanının yazarı kimdir?", "Reşat Nuri Güntekin", "Halide Edib Adıvar", "Yakup Kadri Karaosmanoğlu", "Sait Faik Abasıyanık"],
+  ["Kurtuluş Savaşı'ndaki Büyük Taarruz hangi yıl başladı?", "1922", "1919", "1921", "1923"],
+  ["Pi sayısının yaklaşık değeri nedir?", "3,14", "2,71", "1,61", "4,13"],
+  ["Bir yüzyıl kaç yıldır?", "100", "10", "1000", "50"],
+];
+
+/* ---------- Ayarlar ---------- */
+const W = 960, H = 420, GROUND = 336;
+const ENCOUNTERS = 8;
+const BOSS_HP = 200;
+const Q_TIME = 20;
+const COLORS = ["#ff7a3d", "#3fb6ff", "#ffd23f", "#4fd18b", "#c77dff", "#ff5fa2", "#7ae0d6", "#f4a259", "#a3e635"];
+const NAMES = ["Sen", "Kaan", "Ece", "Mert", "Zeynep", "Burak", "Elif", "Deniz", "Arda"];
+const SKIN = ["#f1c27d", "#e0ac69", "#c68642", "#ffdbac", "#8d5524"];
+const WALK_SPEED = 130;
+const dmgFor = n => 12 + 8 * n;
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const ui = {
+  overlay: $("overlay"), ovTitle: $("ovTitle"), ovText: $("ovText"), startBtn: $("startBtn"),
+  teamCount: $("teamCount"), score: $("score"), road: $("road"),
+  bossHp: $("bossHp"), bossBar: $("bossBar"),
+  qlabel: $("qlabel"), tbar: $("tbar"), qtext: $("qtext"), feedback: $("feedback"),
+  ans: [0, 1, 2, 3].map(i => $("a" + i)),
+};
+
+/* ---------- Ses ---------- */
+let actx = null;
+function beep(freq, dur, type = "square", vol = 0.05, slide = 0) {
+  if (!actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+}
+const sfx = {
+  right: () => { beep(523, .12, "square"); setTimeout(() => beep(784, .18, "square"), 110); },
+  wrong: () => beep(220, .35, "sawtooth", .05, -120),
+  shot: () => beep(900, .07, "square", .03, -600),
+  hit: () => beep(120, .2, "triangle", .08, -60),
+  roar: () => beep(90, .9, "sawtooth", .07, -40),
+  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, .2, "square"), i * 140)),
+};
+
+/* ---------- Oyun durumu ---------- */
+let G;
+function newGame() {
+  G = {
+    phase: "walk",           // walk | approach | question | resolve | bossIntro | boss | win | lose
+    t: 0, worldX: 0, walkLeft: 260,
+    team: [makeMember(0)],
+    stranger: null, boss: null,
+    encounter: 0, results: [],
+    deck: shuffle(QUESTIONS.slice()),
+    q: null, qTimer: 0, locked: true,
+    score: 0, shake: 0,
+    bullets: [], fireballs: [], sparks: [], floaters: [], timers: [],
+  };
+  layoutTeam(true);
+  ui.bossHp.hidden = true;
+  clearQuestion("Yolda ilerliyorsun…");
+  renderHud();
+}
+
+function makeMember(i) {
+  return {
+    name: NAMES[i % NAMES.length], color: COLORS[i % COLORS.length],
+    skin: SKIN[i % SKIN.length], x: -60, tx: 0, y: GROUND,
+    phase: Math.random() * 6, dying: 0, alpha: 1, recoil: 0, joined: true,
+  };
+}
+function frontX() { return G.boss ? 470 : 560; }
+function layoutTeam(snap) {
+  const n = G.team.length, gap = n > 6 ? 42 : 50;
+  G.team.forEach((m, i) => { m.tx = frontX() - i * gap; if (snap) m.x = m.tx; });
+}
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function later(sec, fn) { G.timers.push({ t: sec, fn }); }
+function nextQuestion() {
+  if (!G.deck.length) G.deck = shuffle(QUESTIONS.slice());
+  const [text, right, ...wrong] = G.deck.pop();
+  const opts = shuffle([right, ...wrong]);
+  return { text, opts, right: opts.indexOf(right) };
+}
+
+/* ---------- HUD ---------- */
+function renderHud() {
+  ui.teamCount.textContent = G.team.length;
+  ui.score.textContent = G.score;
+  let html = "";
+  for (let i = 0; i < ENCOUNTERS; i++) {
+    const r = G.results[i];
+    const cls = r === true ? "won" : r === false ? "lost" : (i === G.encounter && !G.boss ? "now" : "");
+    html += `<i class="${cls}" title="Yabancı ${i + 1}"></i>`;
+  }
+  html += `<i class="boss ${G.boss ? "now" : ""}" title="Dev yaratık"></i>`;
+  ui.road.innerHTML = html;
+  if (G.boss) ui.bossBar.style.width = Math.max(0, G.boss.hp / BOSS_HP * 100) + "%";
+}
+function clearQuestion(msg) {
+  ui.qlabel.textContent = G.boss ? "Dev yaratık" : `Yabancı ${Math.min(G.encounter + 1, ENCOUNTERS)} / ${ENCOUNTERS}`;
+  ui.qtext.textContent = msg;
+  ui.tbar.style.transform = "scaleX(0)";
+  ui.ans.forEach(b => { b.disabled = true; b.classList.remove("right", "wrong"); b.querySelector("span").textContent = "—"; });
+}
+function askQuestion() {
+  G.q = nextQuestion();
+  G.qTimer = Q_TIME; G.locked = false;
+  ui.qlabel.textContent = G.boss
+    ? `Saldırı sorusu · hasar ${dmgFor(G.team.length)}`
+    : `Yabancı ${G.encounter + 1} / ${ENCOUNTERS}`;
+  ui.qtext.textContent = G.q.text;
+  ui.feedback.textContent = G.boss ? "Bil ve ateş et! Yanlış cevap bir arkadaşına mal olur." : "Doğru bilirsen bu yabancı ekibine katılır.";
+  ui.feedback.className = "feedback";
+  ui.ans.forEach((b, i) => {
+    b.disabled = false; b.classList.remove("right", "wrong");
+    b.querySelector("span").textContent = G.q.opts[i];
+  });
+}
+function answer(i) {
+  if (G.locked || !G.q) return;
+  G.locked = true;
+  const ok = i === G.q.right;
+  ui.ans.forEach((b, k) => {
+    b.disabled = true;
+    if (k === G.q.right) b.classList.add("right");
+    else if (k === i) b.classList.add("wrong");
+  });
+  const rightText = G.q.opts[G.q.right];
+  if (G.boss) bossResolve(ok, i < 0, rightText);
+  else strangerResolve(ok, i < 0, rightText);
+}
+
+/* ---------- Karşılaşmalar ---------- */
+function spawnStranger() {
+  const idx = G.team.length;
+  G.stranger = { ...makeMember(idx + G.encounter), x: W + 40, y: GROUND, joined: false, leaving: false, bubble: "?" };
+  G.stranger.name = NAMES[idx % NAMES.length];
+  G.stranger.color = COLORS[idx % COLORS.length];
+  G.phase = "approach";
+}
+function strangerResolve(ok, timeout, rightText) {
+  const s = G.stranger;
+  G.results[G.encounter] = ok;
+  if (ok) {
+    sfx.right();
+    G.score += 100;
+    s.joined = true; s.bubble = "!";
+    G.team.push(s); G.stranger = null;
+    layoutTeam(false);
+    float(s.x, s.y - 90, `${s.name} katıldı!`, "#4fd18b");
+    ui.feedback.textContent = `Doğru! ${s.name} ekibine katıldı. Ekip: ${G.team.length} kişi.`;
+    ui.feedback.className = "feedback ok";
+  } else {
+    sfx.wrong();
+    s.leaving = true; s.bubble = "✕";
+    float(s.x, s.y - 90, "Yanlış!", "#ff4d6a");
+    ui.feedback.textContent = `${timeout ? "Süre doldu!" : "Yanlış!"} Doğru cevap: ${rightText}. Yabancı yoluna gitti.`;
+    ui.feedback.className = "feedback bad";
+  }
+  G.phase = "resolve";
+  G.encounter++;
+  renderHud();
+  later(1.8, () => {
+    G.phase = "walk";
+    G.walkLeft = G.encounter >= ENCOUNTERS ? 520 : 300 + Math.random() * 120;
+    clearQuestion(G.encounter >= ENCOUNTERS ? "Yerde titreşimler var… Bir şey yaklaşıyor." : "Yolda ilerliyorsun…");
+  });
+}
+
+/* ---------- Boss ---------- */
+function spawnBoss() {
+  G.boss = { x: W + 260, tx: 790, hp: BOSS_HP, flash: 0, hurt: 0, attack: 0, dead: 0 };
+  G.phase = "bossIntro";
+  layoutTeam(false);
+  ui.bossHp.hidden = false;
+  renderHud();
+  clearQuestion("KARANLIK DEV yolunu kesti!");
+  ui.feedback.textContent = `Ekibin ${G.team.length} kişi. Her doğru cevap ${dmgFor(G.team.length)} hasar verir.`;
+  ui.feedback.className = "feedback";
+  later(0.9, () => { sfx.roar(); G.shake = 0.8; float(G.boss.tx - 40, 120, "GRAAAHH!", "#ffc857", 30); });
+  later(2.4, () => { G.phase = "boss"; askQuestion(); });
+}
+function bossResolve(ok, timeout, rightText) {
+  const b = G.boss;
+  if (ok) {
+    sfx.right();
+    const dmg = dmgFor(G.team.length);
+    G.score += 50 * G.team.length;
+    G.team.forEach((m, i) => later(0.08 * i, () => {
+      if (!G.team.includes(m)) return;
+      m.recoil = 1; sfx.shot();
+      G.bullets.push({ x: m.x + 30, y: m.y - 44, vx: 900, dmg: i === 0 ? dmg : 0 });
+    }));
+    ui.feedback.textContent = `Doğru! Ekip ateş açtı: ${dmg} hasar.`;
+    ui.feedback.className = "feedback ok";
+    later(0.08 * G.team.length + 0.6, () => {
+      if (b.hp <= 0) return winGame();
+      ui.feedback.textContent += ` Devin canı: ${Math.max(0, b.hp)}.`;
+      later(0.9, () => askQuestion());
+    });
+  } else {
+    sfx.wrong();
+    b.attack = 1;
+    const victim = G.team[G.team.length - 1];
+    later(0.35, () => G.fireballs.push({ x: b.x - 90, y: GROUND - 120, target: victim }));
+    ui.feedback.textContent = `${timeout ? "Süre doldu!" : "Yanlış!"} Doğru cevap: ${rightText}. Dev saldırıyor!`;
+    ui.feedback.className = "feedback bad";
+  }
+  renderHud();
+}
+function onFireballHit(fb) {
+  const m = fb.target;
+  sfx.hit(); G.shake = 0.5;
+  burst(m.x, m.y - 40, "#ff7a3d", 26);
+  m.dying = 0.0001;
+  float(m.x, m.y - 100, m === G.team[0] ? "Kahraman düştü!" : `${m.name} düştü!`, "#ff4d6a");
+  later(1.0, () => {
+    G.team = G.team.filter(t => t !== m);
+    renderHud();
+    if (!G.team.length) return loseGame();
+    layoutTeam(false);
+    ui.feedback.textContent = `${m.name} düştü. Ekip: ${G.team.length} kişi. Yeni hasar: ${dmgFor(G.team.length)}.`;
+    later(0.8, () => askQuestion());
+  });
+}
+function winGame() {
+  G.phase = "win"; G.boss.dead = 0.0001; sfx.win();
+  G.score += 200 * G.team.length;
+  renderHud();
+  clearQuestion("Dev yaratık yenildi!");
+  later(1.6, () => showOverlay("Zafer!", `KARANLIK DEV yenildi. ${G.team.length} kişilik ekibinle hayatta kaldın. Skor: ${G.score}.`, "Tekrar Oyna"));
+}
+function loseGame() {
+  G.phase = "lose";
+  clearQuestion("Ekibin tamamı düştü.");
+  later(1.0, () => showOverlay("Yenildin", `Dev yaratık son askeri de devirdi. Devin kalan canı: ${Math.max(0, G.boss.hp)}. Daha fazla yabancıyı ekibine katarsan ateş gücün artar. Skor: ${G.score}.`, "Tekrar Dene"));
+}
+function showOverlay(title, text, btn) {
+  ui.ovTitle.textContent = title; ui.ovText.textContent = text; ui.startBtn.textContent = btn;
+  ui.overlay.hidden = false; ui.startBtn.focus();
+}
+
+/* ---------- Efektler ---------- */
+function burst(x, y, color, n = 14) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 260;
+    G.sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, life: .5 + Math.random() * .4, color });
+  }
+}
+function float(x, y, text, color, size = 20) { G.floaters.push({ x, y, text, color, size, life: 1.4 }); }
+
+/* ---------- Güncelleme ---------- */
+function update(dt) {
+  G.t += dt;
+  for (let i = G.timers.length - 1; i >= 0; i--) {
+    const tm = G.timers[i]; tm.t -= dt;
+    if (tm.t <= 0) { G.timers.splice(i, 1); tm.fn(); }
+  }
+
+  const walking = G.phase === "walk" || G.phase === "approach";
+  if (walking) {
+    const d = WALK_SPEED * dt;
+    G.worldX += d;
+    if (G.phase === "walk") {
+      G.walkLeft -= d;
+      if (G.walkLeft <= 0) {
+        if (G.encounter < ENCOUNTERS) spawnStranger(); else spawnBoss();
+      }
+    }
+  }
+  if (G.stranger) {
+    const s = G.stranger;
+    if (s.leaving) { s.x += 150 * dt; s.alpha -= dt * 0.6; s.phase += dt * 10; if (s.alpha <= 0) G.stranger = null; }
+    else if (G.phase === "approach") {
+      s.x -= WALK_SPEED * dt;
+      if (s.x <= 720) { s.x = 720; G.phase = "question"; askQuestion(); }
+    }
+  }
+  G.team.forEach(m => {
+    const dx = m.tx - m.x;
+    const moving = Math.abs(dx) > 1;
+    if (moving) m.x += Math.sign(dx) * Math.min(Math.abs(dx), 220 * dt);
+    m.walking = walking || moving;
+    m.facing = moving && !walking ? Math.sign(dx) : 1;
+    if (m.walking) m.phase += dt * 10;
+    m.recoil = Math.max(0, m.recoil - dt * 6);
+    if (m.dying) { m.dying += dt; m.alpha = Math.max(0, 1 - m.dying); }
+  });
+
+  if (G.boss) {
+    const b = G.boss;
+    if (b.x > b.tx) b.x = Math.max(b.tx, b.x - 260 * dt);
+    b.flash = Math.max(0, b.flash - dt * 4);
+    b.attack = Math.max(0, b.attack - dt * 1.6);
+    if (b.dead) b.dead += dt;
+  }
+
+  // mermiler
+  for (let i = G.bullets.length - 1; i >= 0; i--) {
+    const bl = G.bullets[i]; bl.x += bl.vx * dt;
+    if (G.boss && bl.x >= G.boss.x - 110) {
+      G.bullets.splice(i, 1);
+      burst(bl.x, bl.y + (Math.random() * 40 - 20), "#ffc857", 8);
+      G.boss.flash = 1; G.shake = Math.max(G.shake, .15);
+      if (bl.dmg) {
+        G.boss.hp -= bl.dmg;
+        float(G.boss.x - 40, GROUND - 230, `-${bl.dmg}`, "#ffc857", 28);
+        sfx.hit(); renderHud();
+      }
+    } else if (bl.x > W + 20) G.bullets.splice(i, 1);
+  }
+  // ateş topları
+  for (let i = G.fireballs.length - 1; i >= 0; i--) {
+    const fb = G.fireballs[i], tx = fb.target.x, ty = fb.target.y - 40;
+    const dx = tx - fb.x, dy = ty - fb.y, dist = Math.hypot(dx, dy);
+    const sp = 620 * dt;
+    if (dist <= sp) { G.fireballs.splice(i, 1); onFireballHit(fb); }
+    else { fb.x += dx / dist * sp; fb.y += dy / dist * sp; if (Math.random() < .7) G.sparks.push({ x: fb.x, y: fb.y, vx: 40, vy: -20 + Math.random() * 40, life: .35, color: "#ff7a3d" }); }
+  }
+  for (let i = G.sparks.length - 1; i >= 0; i--) {
+    const p = G.sparks[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt;
+    if (p.life <= 0) G.sparks.splice(i, 1);
+  }
+  for (let i = G.floaters.length - 1; i >= 0; i--) {
+    const f = G.floaters[i]; f.life -= dt; f.y -= 40 * dt; if (f.life <= 0) G.floaters.splice(i, 1);
+  }
+  G.shake = Math.max(0, G.shake - dt);
+
+  // soru süresi
+  if (!G.locked && G.q) {
+    G.qTimer -= dt;
+    const r = Math.max(0, G.qTimer / Q_TIME);
+    ui.tbar.style.transform = `scaleX(${r})`;
+    ui.tbar.classList.toggle("low", r < .3);
+    if (G.qTimer <= 0) answer(-1);
+  }
+}
+
+/* ---------- Çizim ---------- */
+function draw() {
+  ctx.save();
+  if (G.shake > 0) ctx.translate((Math.random() - .5) * 14 * G.shake, (Math.random() - .5) * 10 * G.shake);
+  const bossy = G.boss ? Math.min(1, (W + 260 - G.boss.x) / 260) : 0;
+
+  // gökyüzü
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+  sky.addColorStop(0, mix("#2b1e4a", "#1a0f22", bossy));
+  sky.addColorStop(.65, mix("#a2496b", "#5a1f3c", bossy));
+  sky.addColorStop(1, mix("#f2a25c", "#b8432e", bossy));
+  ctx.fillStyle = sky; ctx.fillRect(-20, -20, W + 40, GROUND + 20);
+
+  // yıldızlar
+  ctx.fillStyle = "rgba(255,240,220,.7)";
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 197 + 31) % W, y = (i * 71) % 150;
+    const tw = .5 + .5 * Math.sin(G.t * 2 + i);
+    ctx.globalAlpha = .25 + .5 * tw; ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  // güneş
+  ctx.fillStyle = mix("#ffc857", "#ff5a3d", bossy);
+  ctx.beginPath(); ctx.arc(W * .72, GROUND - 70, 64, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = mix("#a2496b", "#5a1f3c", bossy);
+  for (let i = 0; i < 4; i++) ctx.fillRect(W * .72 - 70, GROUND - 92 + i * 14, 140, 4 + i);
+
+  // dağlar
+  ridge(G.worldX * .15, 190, 80, mix("#5b2d5e", "#3a1630", bossy), .006, 1);
+  ridge(G.worldX * .35, 250, 55, mix("#3e2249", "#2a0f22", bossy), .011, 2);
+  ridge(G.worldX * .6, 300, 30, mix("#2a1838", "#1d0a18", bossy), .02, 3);
+
+  // zemin
+  ctx.fillStyle = "#d9a35a"; ctx.fillRect(-20, GROUND, W + 40, H - GROUND + 20);
+  ctx.fillStyle = "#b9803f"; ctx.fillRect(-20, GROUND, W + 40, 6);
+  ctx.fillStyle = "#c28d4a";
+  for (let i = 0; i < 24; i++) {
+    const x = ((i * 113 - G.worldX) % (W + 60) + W + 60) % (W + 60) - 30;
+    ctx.fillRect(x, GROUND + 18 + (i % 4) * 16, 18 + (i % 3) * 10, 4);
+  }
+
+  // kaktüsler (ön plan dekoru)
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 347 + 120 - G.worldX * .9) % (W + 200) + W + 200) % (W + 200) - 100;
+    cactus(x, GROUND + 4, .7 + (i % 2) * .3);
+  }
+
+  if (G.boss) drawBoss(G.boss);
+  if (G.stranger) drawPerson(G.stranger, !G.stranger.leaving && G.phase === "approach");
+  for (let i = G.team.length - 1; i >= 0; i--) drawPerson(G.team[i], G.team[i].walking, i === 0);
+
+  // mermiler
+  ctx.fillStyle = "#ffe08a";
+  G.bullets.forEach(b => { ctx.fillRect(b.x - 14, b.y - 2, 18, 4); });
+  G.fireballs.forEach(f => {
+    const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, 22);
+    g.addColorStop(0, "#fff3b0"); g.addColorStop(.4, "#ff7a3d"); g.addColorStop(1, "rgba(255,60,60,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, 22, 0, Math.PI * 2); ctx.fill();
+  });
+  G.sparks.forEach(p => { ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); });
+  ctx.globalAlpha = 1;
+  G.floaters.forEach(f => {
+    ctx.globalAlpha = Math.min(1, f.life);
+    ctx.font = `${f.size}px Bungee, Impact, sans-serif`; ctx.textAlign = "center";
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(27,20,40,.85)"; ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function ridge(off, base, amp, color, freq, seed) {
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-20, GROUND);
+  for (let x = -20; x <= W + 20; x += 12) {
+    const u = (x + off) * freq;
+    const y = base - amp * (.55 * Math.sin(u + seed) + .3 * Math.sin(u * 2.3 + seed * 3) + .15 * Math.sin(u * 5.1));
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W + 20, GROUND); ctx.closePath(); ctx.fill();
+}
+function cactus(x, y, s) {
+  ctx.fillStyle = "#3b5d3a";
+  ctx.fillRect(x - 6 * s, y - 60 * s, 12 * s, 60 * s);
+  ctx.fillRect(x - 20 * s, y - 40 * s, 8 * s, 22 * s);
+  ctx.fillRect(x - 20 * s, y - 24 * s, 16 * s, 7 * s);
+  ctx.fillRect(x + 12 * s, y - 50 * s, 8 * s, 24 * s);
+  ctx.fillRect(x + 4 * s, y - 32 * s, 16 * s, 7 * s);
+}
+
+function drawPerson(m, walking, isHero) {
+  const x = m.x, y = m.y;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, m.alpha ?? 1);
+  ctx.translate(x, y);
+  if (m.dying) { ctx.rotate(-Math.min(1, m.dying * 2) * 1.4); }
+  const face = m.facing || 1;
+  ctx.scale(face < 0 ? -1 : 1, 1);
+  const sw = walking ? Math.sin(m.phase) : 0;
+  const bob = walking ? Math.abs(Math.sin(m.phase)) * -2 : 0;
+  const cloth = m.joined ? m.color : "#8b7f99";
+
+  // gölge
+  ctx.fillStyle = "rgba(0,0,0,.18)";
+  ctx.beginPath(); ctx.ellipse(0, 2, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+  // bacaklar
+  ctx.strokeStyle = "#2b2236"; ctx.lineWidth = 7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-3, -24 + bob); ctx.lineTo(-3 + sw * 10, -2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -24 + bob); ctx.lineTo(4 - sw * 10, -2); ctx.stroke();
+
+  // gövde
+  ctx.translate(0, bob);
+  ctx.fillStyle = cloth;
+  roundRect(-11, -56, 22, 34, 6); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(-11, -30, 22, 5);
+
+  // silah
+  const rc = m.recoil * -6;
+  ctx.fillStyle = "#1f1a26";
+  ctx.fillRect(2 + rc, -46, 34, 7);
+  ctx.fillRect(10 + rc, -41, 6, 9);
+  ctx.fillStyle = "#4a4157"; ctx.fillRect(30 + rc, -45, 8, 4);
+  if (m.recoil > .6) { ctx.fillStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(42 + rc, -43, 6, 0, Math.PI * 2); ctx.fill(); }
+  // kol
+  ctx.strokeStyle = cloth; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(12 + rc, -40); ctx.stroke();
+
+  // kafa
+  ctx.fillStyle = m.skin;
+  ctx.beginPath(); ctx.arc(1, -67, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#2b2236"; ctx.fillRect(4, -69, 3, 3);
+  // bandana / kask
+  ctx.fillStyle = isHero ? "#2b2236" : shade(cloth, -.35);
+  ctx.beginPath(); ctx.arc(1, -69, 10.5, Math.PI, 0); ctx.fill();
+  if (isHero) { ctx.fillStyle = "#ffc857"; ctx.fillRect(-9, -70, 20, 3); }
+  ctx.restore();
+
+  // konuşma balonu
+  if (m.bubble && !m.joined || (m.bubble && m.leaving)) {
+    ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha);
+    const bx = x, by = y - 104 + Math.sin(G.t * 4) * 3;
+    ctx.fillStyle = "#fbf1e1";
+    roundRect(bx - 16, by - 18, 32, 30, 8); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx - 5, by + 12); ctx.lineTo(bx, by + 20); ctx.lineTo(bx + 5, by + 12); ctx.fill();
+    ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428";
+    ctx.font = "20px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
+    ctx.restore();
+  }
+  // isim (kahraman)
+  if (isHero && !m.dying) {
+    ctx.font = "11px Bungee, Impact, sans-serif"; ctx.textAlign = "center";
+    ctx.fillStyle = "#ffc857"; ctx.fillText("SEN", x, y - 86);
+  }
+}
+
+function drawBoss(b) {
+  const t = G.t, breathe = Math.sin(t * 2) * 4;
+  const deadK = b.dead ? Math.min(1, b.dead / 1.2) : 0;
+  ctx.save();
+  ctx.translate(b.x, GROUND + deadK * 60);
+  ctx.globalAlpha = 1 - deadK * .9;
+  ctx.rotate(deadK * .25);
+  const lunge = b.attack * -30;
+  ctx.translate(lunge, 0);
+
+  const body = b.flash > .3 ? "#ffffff" : "#5a2f6e";
+  const belly = b.flash > .3 ? "#ffe9e9" : "#8a4f8f";
+
+  // gölge
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(0, 4, 150, 14, 0, 0, Math.PI * 2); ctx.fill();
+  // bacaklar
+  ctx.fillStyle = shade("#5a2f6e", -.25);
+  roundRect(-90, -60, 50, 62, 14); ctx.fill();
+  roundRect(40, -60, 50, 62, 14); ctx.fill();
+  // kuyruk
+  ctx.strokeStyle = shade("#5a2f6e", -.15); ctx.lineWidth = 26; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(90, -60); ctx.quadraticCurveTo(170, -50 + Math.sin(t * 3) * 20, 160, -150); ctx.stroke();
+  // gövde
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.ellipse(0, -150 - breathe / 2, 125, 110 + breathe, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = belly;
+  ctx.beginPath(); ctx.ellipse(-20, -120, 70, 70, 0, 0, Math.PI * 2); ctx.fill();
+  // sırt dikenleri
+  ctx.fillStyle = "#ff7a3d";
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI * (1.05 + i * .16), r = 112 + breathe;
+    const sx = Math.cos(a) * 125, sy = -150 + Math.sin(a) * r;
+    ctx.beginPath(); ctx.moveTo(sx - 12, sy + 6); ctx.lineTo(sx + Math.cos(a) * 30, sy + Math.sin(a) * 34); ctx.lineTo(sx + 12, sy + 6); ctx.fill();
+  }
+  // boynuzlar
+  ctx.fillStyle = "#f3e2c3";
+  ctx.beginPath(); ctx.moveTo(-70, -235); ctx.quadraticCurveTo(-120, -300, -80, -320); ctx.quadraticCurveTo(-90, -280, -40, -250); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(30, -250); ctx.quadraticCurveTo(40, -310, 0, -335); ctx.quadraticCurveTo(60, -310, 70, -240); ctx.fill();
+  // kollar
+  ctx.strokeStyle = b.flash > .3 ? "#fff" : shade("#5a2f6e", -.1); ctx.lineWidth = 30;
+  const armSw = Math.sin(t * 2.4) * 10 + b.attack * -50;
+  ctx.beginPath(); ctx.moveTo(-90, -170); ctx.quadraticCurveTo(-160, -130 + armSw, -150, -70 + armSw); ctx.stroke();
+  ctx.fillStyle = "#f3e2c3";
+  for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-165 + k * 12, -62 + armSw); ctx.lineTo(-170 + k * 12, -40 + armSw); ctx.lineTo(-155 + k * 12, -60 + armSw); ctx.fill(); }
+
+  // gözler
+  const blink = (Math.sin(t * 1.3) > .97) ? .15 : 1;
+  [[-60, -200, 16], [-20, -215, 20], [20, -200, 14]].forEach(([ex, ey, r]) => {
+    ctx.fillStyle = "#ffe08a"; ctx.beginPath(); ctx.ellipse(ex, ey, r, r * blink, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#c2183a"; ctx.beginPath(); ctx.ellipse(ex - 4, ey, r * .45, r * .45 * blink, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  // ağız
+  const open = 14 + b.attack * 30 + Math.sin(t * 2) * 3;
+  ctx.fillStyle = "#2a0d1f";
+  ctx.beginPath(); ctx.ellipse(-50, -150, 50, open, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fbf1e1";
+  for (let i = 0; i < 6; i++) {
+    const tx = -90 + i * 16;
+    ctx.beginPath(); ctx.moveTo(tx, -150 - open + 2); ctx.lineTo(tx + 6, -150 - open + 14); ctx.lineTo(tx + 12, -150 - open + 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(tx + 4, -150 + open - 2); ctx.lineTo(tx + 10, -150 + open - 14); ctx.lineTo(tx + 16, -150 + open - 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function hex(c) { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mix(a, b, k) { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(",")})`; }
+function shade(c, k) { const A = hex(c); return `rgb(${A.map(v => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)).join(",")})`; }
+
+/* ---------- Ölçekleme ---------- */
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
+}
+window.addEventListener("resize", resize);
+
+/* ---------- Döngü ---------- */
+let last = performance.now(), running = false;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (running) update(dt);
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Girdi ---------- */
+ui.ans.forEach((b, i) => b.addEventListener("click", () => answer(i)));
+ui.startBtn.addEventListener("click", () => {
+  try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch (e) { actx = null; }
+  newGame(); running = true; ui.overlay.hidden = true;
+});
+window.addEventListener("keydown", e => {
+  if (!ui.overlay.hidden) return;
+  const k = e.key.toLowerCase();
+  const map = { a: 0, b: 1, c: 2, d: 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+  if (k in map) { e.preventDefault(); answer(map[k]); }
+});
+
+newGame();
+G.phase = "idle";
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
