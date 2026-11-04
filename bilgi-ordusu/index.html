@@ -323,7 +323,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .chap .lk svg { width: 17px; height: 17px; }
 .wgo { position: absolute; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(86%, 420px); z-index: 5; color: #fff; }
 .wgo:active { transform: translateX(-50%) scale(.96); }
-.lbl3.world.sel { display: flex !important; transform-origin: 50% 100%; }
+.lbl3.world, .lbl3.world.sel { display: none !important; }
 .lbl3.world .nm::after { content: ""; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); border: 7px solid transparent; border-top-color: var(--gold); border-bottom: 0; }
 .lbl3.world .nm { position: relative; }
 .lbl3.world .pin { display: none; }
