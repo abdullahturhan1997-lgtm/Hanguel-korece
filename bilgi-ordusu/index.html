@@ -2269,6 +2269,7 @@ function drawBanner(walking, ph) {
   roundRect(px - 1.6, top - 2, 3.2, -top - 20, 1.5); ctx.fill(); ctx.stroke();
   ctx.fillStyle = "#ffd040"; ctx.beginPath(); ctx.arc(px, top - 4, 3, 0, 7); ctx.fill(); ctx.stroke();
   const amp = walking ? 3.4 : 1.8, sp = walking ? 9 : 4, N = 26;
+  ctx.translate(px, 0); ctx.scale(-1, 1); ctx.translate(-px, 0); // bayrak geriye doğru dalgalanır
   for (let k = 0; k < N; k++) {
     const u = k / N, x = px + 1.6 + u * fw, dy = Math.sin(u * 7 - T * sp) * amp * u, sh = Math.cos(u * 7 - T * sp) * .16 * u;
     ctx.drawImage(img, u * img.width, 0, img.width / N + 1, img.height, x, top + dy, fw / N + .6, fh);
