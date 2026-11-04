@@ -10,7 +10,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&subset=latin-ext&display=swap">
 <style>
 /* Layout: phone-first game shell — resource bar on top, one full-height view in the middle (cloud-covered island map, battle, shop, ranking…), raised tab bar at the bottom. Navy + gold frames, cream cards, chunky outlined type. */
 :root {
@@ -21,7 +21,7 @@
   --red: #ef4656; --red2: #b81f34;
   --sea: #1f6fb8; --sea2: #2b8fd6;
   --ink: #1d2340; --ink2: #6a5a48;
-  --display: "Fredoka", "Nunito", "Segoe UI", system-ui, sans-serif;
+  --display: 'Baloo 2', 'Nunito', 'Segoe UI', system-ui, sans-serif;
   --body: "Nunito", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
 }
@@ -77,6 +77,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .lbl3 .nm { margin-top: -2px; font-family: var(--display); font-weight: 700; font-size: .78rem; white-space: nowrap; padding: 1px 8px; border-radius: 10px; background: rgba(16, 42, 87, .78); color: #fff; display: none; }
 .lbl3.sel .nm, .lbl3:hover .nm, .lbl3:focus-visible .nm, .lbl3.done .nm, .lbl3.open .nm { display: block; }
 .lbl3.locked .nm { background: rgba(60, 60, 70, .7); }
+.lbl3.small .pin { width: 22px; height: 28px; }
+.lbl3.small .pl { top: 4px; font-size: .55rem; }
 .lbl3.sel .pin { animation: bob 1s ease-in-out infinite; }
 .lbl3.sel .pin svg { filter: drop-shadow(0 0 6px #fff) drop-shadow(0 3px 2px rgba(0, 0, 0, .4)); }
 @keyframes bob { 50% { transform: translateY(-6px); } }
@@ -973,6 +975,7 @@ function createMap3D(box, labelsEl, kind) {
   box.insertBefore(renderer.domElement, labelsEl);
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(kind === "tr" ? 40 : 34, 1, 1, 8000);
   const root = new THREE.Group(); scene.add(root);
+  let cloudLayer = null;
   let running = false, labels = [], water = null, clouds = [], marks = [], sel = -1, onPick = null;
   // kamera durumu
   const cam = { x: 0, z: 0, tx: 0, tz: 0, zoom: 1, tzoom: 1, ry: 0, rx: .5, try: null, trx: null };
@@ -996,7 +999,7 @@ function createMap3D(box, labelsEl, kind) {
   const endTouch = e => { touches.delete(e.pointerId); if (!touches.size) drag = null; };
   el.addEventListener("pointerup", endTouch); el.addEventListener("pointercancel", endTouch);
   el.addEventListener("wheel", e => { e.preventDefault(); cam.tzoom = clampZ(cam.tzoom * (e.deltaY > 0 ? 1.1 : .9)); }, { passive: false });
-  const clampZ = z => Math.max(kind === "tr" ? .35 : .7, Math.min(kind === "tr" ? 1.4 : 1.5, z));
+  const clampZ = z => Math.max(kind === "tr" ? .35 : .85, Math.min(kind === "tr" ? 1.4 : 1.6, z));
   const clampX = x => Math.max(-520, Math.min(520, x)), clampZ2 = z => Math.max(-260, Math.min(300, z));
   function resize() { const w = box.clientWidth || 400, h = box.clientHeight || 600; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   new ResizeObserver(resize).observe(box);
@@ -1017,11 +1020,10 @@ function createMap3D(box, labelsEl, kind) {
     labelsEl.appendChild(b); return b;
   }
   /* ---- Türkiye adası ---- */
-  const puff = kind === "tr" ? canvasTex(256, 256, (g, w, h) => {
-    [[128, 140, 90], [80, 150, 60], [176, 150, 64], [112, 104, 64], [160, 110, 56]].forEach(([x, y, r]) => {
-      const rg = g.createRadialGradient(x, y - r * .3, r * .1, x, y, r); rg.addColorStop(0, "rgba(255,255,255,1)"); rg.addColorStop(.7, "rgba(244,248,255,.95)"); rg.addColorStop(1, "rgba(220,232,248,0)");
-      g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
-    });
+  const puff = kind === "tr" ? canvasTex(256, 192, (g) => {
+    const blobs = [[128, 108, 62], [78, 122, 48], [180, 120, 52], [104, 78, 44], [152, 76, 42], [56, 138, 34], [202, 138, 34], [128, 138, 56]];
+    blobs.forEach(([x, y, r]) => { const rg = g.createRadialGradient(x, y + 12, r * .2, x, y + 12, r); rg.addColorStop(0, "rgba(140,168,206,.85)"); rg.addColorStop(1, "rgba(140,168,206,0)"); g.fillStyle = rg; g.beginPath(); g.arc(x, y + 12, r, 0, 7); g.fill(); });
+    blobs.forEach(([x, y, r]) => { const rg = g.createRadialGradient(x - r * .25, y - r * .35, r * .1, x, y, r); rg.addColorStop(0, "rgba(255,255,255,1)"); rg.addColorStop(.62, "rgba(246,250,255,.97)"); rg.addColorStop(1, "rgba(228,238,252,0)"); g.fillStyle = rg; g.beginPath(); g.arc(x, y, r * .94, 0, 7); g.fill(); });
   }) : null;
   function buildTR(list) {
     scene.fog = new THREE.Fog(0x2a7cc4, 1400, 2600);
@@ -1041,8 +1043,28 @@ function createMap3D(box, labelsEl, kind) {
     if (nb.length) { const m = new THREE.Mesh(new THREE.ExtrudeGeometry(nb.map(shp), { depth: 6, bevelEnabled: true, bevelThickness: 2, bevelSize: 1.5, bevelSegments: 2 }), [new THREE.MeshStandardMaterial({ color: 0x9ccf7e, roughness: .9 }), new THREE.MeshStandardMaterial({ color: 0xc8a46a, roughness: .9 })]); m.rotation.x = -Math.PI / 2; m.receiveShadow = true; root.add(m); }
     const tr = parseRings(LAND_TR).filter(r => Math.abs(ringArea(r)) > 4);
     // üst yüzey için çimen dokusu
-    const grass = canvasTex(256, 256, (g, w, h) => { g.fillStyle = "#5fbf3e"; g.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { g.fillStyle = ["#6fcf48", "#56b036", "#7ad650", "#4fa534"][i % 4]; g.fillRect((i * 37) % w, (i * 61) % h, 3, 3); } });
-    grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(.02, .02);
+    const cityXY = list.map(c => MODES.tr.proj(c.lon, c.lat));
+    const RC = { MAR: [118, 196, 84], EGE: [160, 204, 92], AKD: [186, 204, 98], IC: [214, 194, 110], KAR: [72, 166, 70], DOG: [148, 166, 104], GD: [210, 178, 104] };
+    const grass = canvasTex(1024, 448, (g, w, h) => {
+      const img = g.createImageData(w, h), d = img.data, own = new Int16Array(w * h);
+      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+        const x = px * 1000 / w, y = py * 437 / h; let bi = 0, bd = 1e12;
+        for (let k = 0; k < cityXY.length; k++) { const dx = cityXY[k][0] - x, dy = cityXY[k][1] - y, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; bi = k; } }
+        own[py * w + px] = bi;
+      }
+      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+        const i = py * w + px, k = own[i], c = RC[list[k].regionKey], v = ((list[k].plate * 37) % 11 - 5) * 2.4;
+        const n = (Math.sin(px * .9 + py * .3) + Math.sin(px * .13 - py * .41) * 1.6) * 3 + ((px * 7 + py * 13) % 5) - 2;
+        const field = ((Math.floor(px / 9 + Math.sin(py / 23) * 2) + Math.floor(py / 7)) % 3 === 0) ? 5 : 0;
+        const border = (px + 1 < w && own[i + 1] !== k) || (py + 1 < h && own[i + w] !== k);
+        const f = border ? .74 : 1;
+        d[i * 4] = (c[0] + v + n + field) * f; d[i * 4 + 1] = (c[1] + v + n + field) * f; d[i * 4 + 2] = (c[2] + v * .5 + n) * f; d[i * 4 + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+    });
+    grass.repeat.set(1 / 1000, 1 / 437); grass.offset.set(.5, .5);
+    const shallow = new THREE.Mesh(new THREE.ExtrudeGeometry(tr.map(shp), { depth: .2, bevelEnabled: true, bevelThickness: .1, bevelSize: 11, bevelSegments: 2 }), new THREE.MeshBasicMaterial({ color: 0x8fe8f4, transparent: true, opacity: .5, depthWrite: false }));
+    shallow.rotation.x = -Math.PI / 2; shallow.position.y = -2.7; root.add(shallow);
     const land = new THREE.Mesh(new THREE.ExtrudeGeometry(tr.map(shp), { depth: 16, bevelEnabled: true, bevelThickness: 4, bevelSize: 2.5, bevelSegments: 3 }),
       [new THREE.MeshStandardMaterial({ map: grass, roughness: .8 }), new THREE.MeshStandardMaterial({ color: 0xb98a4e, roughness: .95 })]);
     land.rotation.x = -Math.PI / 2; land.castShadow = true; land.receiveShadow = true; root.add(land);
@@ -1051,22 +1073,33 @@ function createMap3D(box, labelsEl, kind) {
       const [x, y] = MODES.tr.proj(lon, lat); const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), lakeMat);
       m.scale.set(rx, ry, 1); m.rotation.x = -Math.PI / 2; m.rotation.z = rr * Math.PI / 180; m.position.set(x - 500, 20.2, y - 218); root.add(m);
     });
-    // tepe ve ağaç süsleri
-    const treeG = new THREE.ConeGeometry(4, 11, 7), trunkMat = new THREE.MeshStandardMaterial({ color: 0x2f7a2a, roughness: .8 });
-    for (let i = 0; i < 220; i++) {
-      const c = list[(i * 7) % list.length], [x, y] = MODES.tr.proj(c.lon + Math.sin(i * 12.9) * .3, c.lat + Math.cos(i * 7.3) * .2);
-      const t = new THREE.Mesh(treeG, trunkMat); t.position.set(x - 500, 25, y - 218); t.castShadow = true; root.add(t);
-    }
+    // ağaçlar: bölgeye göre yoğunluk, yalnızca kara üstünde
+    const main = tr.slice().sort((a, b) => Math.abs(ringArea(b)) - Math.abs(ringArea(a)))[0];
+    const inLand = (x, y) => { let c = false; for (let i = 0, j = main.length - 1; i < main.length; j = i++) { const [xi, yi] = main[i], [xj, yj] = main[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+    const DENS = { KAR: 14, MAR: 7, EGE: 5, AKD: 6, IC: 2, DOG: 3, GD: 2 }, pts = [];
+    list.forEach((c, i) => { for (let k = 0; k < DENS[c.regionKey]; k++) { const a = k * 2.39 + i * 1.7, r = .1 + (k * 37 % 11) / 34; const [x, y] = MODES.tr.proj(c.lon + Math.cos(a) * r * 1.3, c.lat + Math.sin(a) * r); if (inLand(x, y)) pts.push([x, y]); } });
+    const inst = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(4.2, 0), new THREE.MeshStandardMaterial({ roughness: .9, flatShading: true }), pts.length);
+    const mtx = new THREE.Matrix4(), col = new THREE.Color(), q = new THREE.Quaternion();
+    pts.forEach(([x, y], k) => { const sc = .75 + (k * 13 % 7) / 10; mtx.compose(new THREE.Vector3(x - 500, 23 + sc * 2.5, y - 218), q, new THREE.Vector3(sc, sc * 1.2, sc)); inst.setMatrixAt(k, mtx); col.set(["#2f8a3a", "#3fa040", "#277a30", "#56b048"][k % 4]); inst.setColorAt(k, col); });
+    inst.castShadow = true; root.add(inst);
+    const MTS = [[44.3, 39.7, 1.6], [42.83, 38.93, 1.1], [35.45, 38.53, 1.3], [34.17, 38.13, 1], [29.22, 40.07, 1], [41.15, 40.83, 1.2], [41.2, 39.8, 1], [44, 37.5, 1.2], [38.74, 37.98, .9], [35.2, 37.8, 1.1], [32.5, 37.05, .9], [33.5, 36.95, .9], [31.5, 37.25, .8], [36.6, 37.5, .9], [33.7, 41.05, .9], [26.9, 39.7, .8], [39.6, 39.3, 1], [27.4, 38.55, .7], [42.4, 37.4, .9], [29.7, 38.95, .8], [40.3, 40.6, 1], [38.3, 40.4, .9], [43.2, 39.2, .9], [30.5, 36.7, .8]];
+    const rockM = new THREE.MeshStandardMaterial({ color: 0x9a8670, roughness: 1, flatShading: true }), snowM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .7, flatShading: true });
+    MTS.forEach(([lon, lat, sz], k) => {
+      const [x, y] = MODES.tr.proj(lon, lat);
+      const m = new THREE.Mesh(new THREE.ConeGeometry(19 * sz, 30 * sz, 6), rockM); m.position.set(x - 500, 20 + 15 * sz, y - 218); m.rotation.y = k; m.castShadow = true; m.receiveShadow = true; root.add(m);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(7.7 * sz, 12.2 * sz, 6), snowM); cap.position.set(x - 500, 20 + 30 * sz - 6.05 * sz, y - 218); cap.rotation.y = k; root.add(cap);
+      [[-1, .55], [1.1, .45]].forEach(([dx, ss]) => { const h2 = new THREE.Mesh(new THREE.ConeGeometry(19 * sz * ss, 26 * sz * ss, 5), rockM); h2.position.set(x - 500 + dx * 16 * sz, 20 + 13 * sz * ss, y - 218 + dx * 5); h2.castShadow = true; root.add(h2); });
+    });
     addLights([-380, 620, 300], true);
     list.forEach((c, i) => {
       const [x, y] = MODES.tr.proj(c.lon, c.lat), px = x - 500, pz = y - 218;
       const lb = makeLabel(i, c.city, pad2(c.plate)); lb.pos = new THREE.Vector3(px, 22, pz); labels.push(lb);
       // her il için bulut kümesi
-      const group = []; for (let k = 0; k < 6; k++) {
+      const group = []; for (let k = 0; k < 9; k++) {
         const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puff, transparent: true, depthWrite: false, opacity: 0, fog: false }));
-        const a = k / 6 * Math.PI * 2 + i, r = k === 0 ? 0 : 18 + (k * 13 % 14);
-        s.position.set(px + Math.cos(a) * r, 46 + (k % 3) * 8, pz + Math.sin(a) * r * .8);
-        const sc = 70 + (k * 17 % 40); s.scale.set(sc, sc * .62, 1); s.userData = { base: s.position.clone(), sc, ph: i + k }; root.add(s); group.push(s);
+        const a = k * 2.399 + i * .7, r = k === 0 ? 0 : 10 + (k * 29 % 26);
+        s.position.set(px + Math.cos(a) * r, 40 + ((k * 7 + i) % 5) * 7, pz + Math.sin(a) * r * .8);
+        const sc = 95 + ((k * 23 + i * 7) % 55); s.scale.set(sc, sc * .74, 1); s.userData = { base: s.position.clone(), sc, ph: i + k }; root.add(s); group.push(s);
       }
       clouds[i] = { sprites: group, target: 1, cur: 0 };
       marks[i] = null;
@@ -1075,10 +1108,16 @@ function createMap3D(box, labelsEl, kind) {
   function landmarkSprite(c) {
     const tex = canvasTex(360, 200, (g) => {
       g.setTransform(.72, 0, 0, .72, 180, -62); g.shadowColor = "rgba(40,20,0,.55)"; g.shadowBlur = 10; g.shadowOffsetY = 4;
-      paintWith(g, () => LANDMARK[c.landmark]("#e6cf9f", "#ffe8a0"));
+      paintWith(g, () => LANDMARK[c.landmark]("#efd9a8", "#ffe8a0"));
+      g.setTransform(1, 0, 0, 1, 0, 0); g.shadowColor = "transparent"; g.globalCompositeOperation = "source-atop";
+      const lg = g.createLinearGradient(0, 0, 360, 200); lg.addColorStop(0, "rgba(255,250,230,.35)"); lg.addColorStop(.55, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(110,70,20,.45)");
+      g.fillStyle = lg; g.fillRect(0, 0, 360, 200);
     });
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    s.center.set(.5, .05); s.scale.set(74, 41, 1); return s;
+    s.center.set(.5, .05); s.scale.set(78, 43, 1);
+    const grp = new THREE.Group(); grp.add(s);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(17, 20, 4, 28), new THREE.MeshStandardMaterial({ color: 0xd8c08a, roughness: .8 })); base.position.y = 1.5; base.castShadow = true; base.receiveShadow = true; grp.add(base);
+    s.position.y = 3; return grp;
   }
   /* ---- Dünya küresi ---- */
   let globeTex = null, globeCanvas = null;
@@ -1103,8 +1142,16 @@ function createMap3D(box, labelsEl, kind) {
     globeCanvas = document.createElement("canvas"); globeCanvas.width = 2048; globeCanvas.height = 1024;
     paintGlobe(null);
     globeTex = new THREE.CanvasTexture(globeCanvas); globeTex.anisotropy = 8; globeTex.encoding = THREE.sRGBEncoding;
-    const globe = new THREE.Mesh(new THREE.SphereGeometry(100, 96, 64), new THREE.MeshStandardMaterial({ map: globeTex, roughness: .7 }));
+    const bump = canvasTex(1024, 512, (g) => { g.fillStyle = "#000"; g.fillRect(0, 0, 1024, 512); g.setTransform(.5, 0, 0, .5, 0, 0); g.filter = "blur(3px)"; g.fillStyle = "#fff"; COUNTRY_PATHS.forEach(([, , d]) => g.fill(new Path2D(d))); });
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(100, 96, 64), new THREE.MeshStandardMaterial({ map: globeTex, bumpMap: bump, bumpScale: 2.2, roughness: .65 }));
     root.add(globe);
+    const cloudTex = canvasTex(1024, 512, (g) => { for (let i = 0; i < 160; i++) { const x = (i * 197) % 1024, y = 60 + (i * 89) % 392, r = 10 + (i * 31) % 26; const rg = g.createRadialGradient(x, y, 1, x, y, r); rg.addColorStop(0, "rgba(255,255,255,.75)"); rg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = rg; g.beginPath(); g.ellipse(x, y, r * 1.8, r, 0, 0, 7); g.fill(); } });
+    cloudLayer = new THREE.Mesh(new THREE.SphereGeometry(103.5, 64, 48), new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, opacity: .55, depthWrite: false }));
+    root.add(cloudLayer);
+    const starG = new THREE.BufferGeometry(), sp = [];
+    for (let i = 0; i < 500; i++) { const a = Math.random() * Math.PI * 2, b = Math.acos(Math.random() * 2 - 1), r = 1600; sp.push(r * Math.sin(b) * Math.cos(a), r * Math.sin(b) * Math.sin(a), r * Math.cos(b) - 600); }
+    starG.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3));
+    scene.add(new THREE.Points(starG, new THREE.PointsMaterial({ color: 0xdfe8ff, size: 3, sizeAttenuation: false })));
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(256, 256, (g) => { const rg = g.createRadialGradient(128, 128, 76, 128, 128, 128); rg.addColorStop(0, "rgba(140,220,255,1)"); rg.addColorStop(.35, "rgba(110,200,255,.55)"); rg.addColorStop(1, "rgba(80,160,255,0)"); g.fillStyle = rg; g.fillRect(0, 0, 256, 256); }), transparent: true, depthWrite: false }));
     halo.scale.set(320, 320, 1); halo.position.z = -40; scene.add(halo);
     addLights([-260, 180, 320], false);
@@ -1130,7 +1177,7 @@ function createMap3D(box, labelsEl, kind) {
         cl.cur += (cl.target - cl.cur) * Math.min(1, dt * 2.2);
         cl.sprites.forEach(s => {
           const u = s.userData, op = cl.cur * .97 * (u.fade ?? 1); s.material.opacity = op; s.visible = op > .01;
-          const grow = 1 + (1 - cl.cur) * .6; s.scale.set(u.sc * grow, u.sc * .62 * grow, 1);
+          const grow = 1 + (1 - cl.cur) * .6; s.scale.set(u.sc * grow, u.sc * .74 * grow, 1);
           s.position.set(u.base.x + Math.sin(t * .3 + u.ph) * 4, u.base.y + (1 - cl.cur) * 30, u.base.z);
         });
       });
@@ -1138,7 +1185,8 @@ function createMap3D(box, labelsEl, kind) {
       if (cam.try != null && !drag) { cam.ry += ((cam.try - cam.ry + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 3); cam.rx += (cam.trx - cam.rx) * Math.min(1, dt * 3); }
       else if (!drag) cam.ry += dt * .04;
       root.rotation.set(cam.rx, cam.ry, 0, "XYZ");
-      camera.position.set(0, 0, 330 * cam.zoom * Math.max(1, 1.05 / camera.aspect)); camera.lookAt(0, 0, 0);
+      if (cloudLayer) cloudLayer.rotation.y += dt * .01;
+      camera.position.set(0, 0, (118 / Math.tan(camera.fov * Math.PI / 360)) / Math.min(1, camera.aspect) * cam.zoom); camera.lookAt(0, 0, 0);
     }
     renderer.render(scene, camera);
     const w = box.clientWidth, h = box.clientHeight, v = new THREE.Vector3();
@@ -1147,7 +1195,7 @@ function createMap3D(box, labelsEl, kind) {
       const visible = kind !== "globe" || lb.normal.clone().applyEuler(root.rotation).z > .2;
       v.project(camera);
       lb.style.transform = `translate(${((v.x * .5 + .5) * w).toFixed(1)}px, ${((-v.y * .5 + .5) * h).toFixed(1)}px) translate(-50%, -88%)`;
-      lb.hidden = !visible || v.z > 1;
+      lb.hidden = !visible || v.z > 1 || lb.dataset.hide === "1";
     });
   }
   return {
@@ -1155,7 +1203,7 @@ function createMap3D(box, labelsEl, kind) {
     setStates(sts, selected) {
       sel = selected;
       const open = labels.filter((lb, i) => sts[i] === "open" || sts[i] === "done").map(lb => lb.pos);
-      clouds.forEach(cl => cl && cl.sprites.forEach(s => { const b = s.userData.base; let f = 1; open.forEach(p => { const d = Math.hypot(b.x - p.x, b.z - p.z); f = Math.min(f, Math.max(0, Math.min(1, (d - 30) / 45))); }); s.userData.fade = f; }));
+      clouds.forEach(cl => cl && cl.sprites.forEach(s => { const b = s.userData.base; let f = 1; open.forEach(p => { const d = Math.hypot(b.x - p.x, b.z - p.z); f = Math.min(f, Math.max(0, Math.min(1, (d - 42) / 50))); }); s.userData.fade = f; }));
       labels.forEach((lb, i) => {
         const st = sts[i]; lb.className = "lbl3" + (kind === "globe" ? " world" : "") + " " + st + (i === selected ? " sel" : "");
         lb.querySelector(".pin").style.color = PIN_COL[st] || PIN_COL.open;
@@ -1164,6 +1212,9 @@ function createMap3D(box, labelsEl, kind) {
           pl.innerHTML = st === "locked" ? '<svg viewBox="0 0 24 24" style="width:16px;height:16px;margin-top:-1px"><use href="#i-lock"/></svg>' : "";
           if (st !== "locked") pl.textContent = pad2(LIST[i].plate);
           setCloud(i, st === "locked" ? 1 : st === "pick" ? .55 : 0);
+          const frontier = st === "locked" && NEIGH[i].some(j => sts[j] === "open" || sts[j] === "done");
+          lb.dataset.hide = st === "locked" && !frontier && i !== selected ? "1" : "";
+          lb.classList.toggle("small", st === "pick" || st === "locked");
           if (st === "done" && !marks[i]) { marks[i] = landmarkSprite(LIST[i]); marks[i].position.copy(lb.pos).setY(20); root.add(marks[i]); }
         }
       });
@@ -1175,7 +1226,7 @@ function createMap3D(box, labelsEl, kind) {
     },
     overview() { cam.tx = 0; cam.tz = 20; cam.tzoom = 1; },
     onPick(fn) { onPick = fn; },
-    start() { if (running) return; running = true; resize(); requestAnimationFrame(t => { last = t; loop(t); }); },
+    start() { if (running) return; running = true; resize(); requestAnimationFrame(resize); requestAnimationFrame(t => { last = t; loop(t); }); },
     stop() { running = false; },
   };
 }
@@ -1318,7 +1369,7 @@ function refreshHome() {
   if (st === "done") tag("Kurtarıldı", "ok"); else if (st === "open") tag("Savaşa hazır", "go"); else if (st === "locked") tag("Kilitli", "lock"); else tag("Başlangıç için seç", "go");
   if (st !== "locked") { tag(`Simge: ${c.landmarkName}`); tag(`Canavar canı ${bossHpFor(selected)}`); }
   const sc = $("sheetCv");
-  if (st === "locked") withCanvas(sc, (w, h) => { ctx.fillStyle = "#8a96a6"; ctx.fillRect(0, 0, w, h); ctx.font = `700 ${w * .5}px Fredoka, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.fillText("?", w / 2, h * .68); });
+  if (st === "locked") withCanvas(sc, (w, h) => { ctx.fillStyle = "#8a96a6"; ctx.fillRect(0, 0, w, h); ctx.font = `700 ${w * .5}px 'Baloo 2', Nunito, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.fillText("?", w / 2, h * .68); });
   else drawCreatureThumb(sc, c.boss);
   const play = $("playBtn");
   play.disabled = st === "locked";
@@ -1373,7 +1424,7 @@ function renderWorld() {
     requestAnimationFrame(() => CHAPTERS.forEach(ch => {
       if (ch.key === "tr") withCanvas(ch.cvs, (w, h) => { ctx.save(); ctx.translate(w / 2, h * .98); ctx.scale(.32, .32); ctx.translate(0, -302); LANDMARK.istanbul("#e8d6a8", "#ffe8a0"); ctx.restore(); });
       else if (ch.city) drawCreatureThumb(ch.cvs, ch.city.boss);
-      else withCanvas(ch.cvs, (w, h) => { ctx.font = `700 ${h * .6}px Fredoka, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#c8d6ff"; ctx.fillText("?", w / 2, h * .75); });
+      else withCanvas(ch.cvs, (w, h) => { ctx.font = `700 ${h * .6}px 'Baloo 2', Nunito, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "#c8d6ff"; ctx.fillText("?", w / 2, h * .75); });
     }));
   }
   CHAPTERS.forEach((ch, i) => ch.btn.classList.toggle("sel", i === worldSel));
@@ -1440,7 +1491,7 @@ function renderColl() {
     card.append(cvs, elx("b", null, done ? c.foe : "???"), elx("small", null, `${pad2(c.plate)} ${c.city}`)); grid.appendChild(card);
     draws.push([cvs, done ? c.boss : null]);
   });
-  requestAnimationFrame(() => draws.forEach(([cvs, spec]) => spec ? drawCreatureThumb(cvs, spec) : withCanvas(cvs, (w, h) => { ctx.font = `700 ${h * .5}px Fredoka, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.fillText("?", w / 2, h * .68); })));
+  requestAnimationFrame(() => draws.forEach(([cvs, spec]) => spec ? drawCreatureThumb(cvs, spec) : withCanvas(cvs, (w, h) => { ctx.font = `700 ${h * .5}px 'Baloo 2', Nunito, sans-serif`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.fillText("?", w / 2, h * .68); })));
 }
 
 /* ---------- Görevler ve ayarlar ---------- */
@@ -1955,7 +2006,7 @@ function drawProfileScene(dt) {
   ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(480, 535, 120, 16, 0, 0, 7); ctx.fill();
   const m = avatarMember(profile, { seed: .37 });
   ctx.save(); ctx.translate(470, 532); ctx.scale(2.6, 2.6); drawPerson(m, false, false); ctx.restore();
-  ctx.font = "700 34px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 7; ctx.strokeStyle = "#1e2d4a"; ctx.fillStyle = "#ffffff";
+  ctx.font = "700 34px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 7; ctx.strokeStyle = "#1e2d4a"; ctx.fillStyle = "#ffffff";
   const nm = profile.nick || "Oyuncu Profili"; ctx.strokeText(nm, 480, 64); ctx.fillText(nm, 480, 64);
 }
 
@@ -2122,7 +2173,7 @@ function renderLB() {
   rows.forEach((r, i) => {
     const li = elx("li", r.id === myId ? "me" : "");
     const rk = elx("div", "rk");
-    if (i < 3) rk.innerHTML = `<svg class="medal" viewBox="0 0 36 40" style="color:${MED[i]}"><use href="#i-medal"/><text x="18" y="20" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="14" fill="#5a3400">${i + 1}</text></svg>`;
+    if (i < 3) rk.innerHTML = `<svg class="medal" viewBox="0 0 36 40" style="color:${MED[i]}"><use href="#i-medal"/><text x="18" y="20" text-anchor="middle" font-family="'Baloo 2', Nunito, sans-serif" font-weight="700" font-size="14" fill="#5a3400">${i + 1}</text></svg>`;
     else rk.textContent = i + 1;
     const sh = elx("div", "shield"); const cvs = document.createElement("canvas"); sh.appendChild(cvs);
     sh.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 58 58"><use href="#i-shieldframe"/></svg>');
@@ -2569,7 +2620,7 @@ function draw() {
 
   // uçan yazılar
   G.floaters.forEach(f => {
-    ctx.globalAlpha = Math.min(1, f.life); ctx.font = `700 ${f.size + 2}px Fredoka, Nunito, sans-serif`; ctx.textAlign = "center";
+    ctx.globalAlpha = Math.min(1, f.life); ctx.font = `700 ${f.size + 2}px 'Baloo 2', Nunito, sans-serif`; ctx.textAlign = "center";
     ctx.shadowColor = "rgba(10,25,50,.55)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
     ctx.lineWidth = 4; ctx.strokeStyle = "rgba(15,30,60,.75)"; ctx.strokeText(f.text, f.x, f.y);
     ctx.shadowColor = "transparent"; ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
@@ -3098,7 +3149,7 @@ function drawPerson(m, walking, isHero) {
     const bx = x, by = y - 112 * PS + Math.sin(T * 4) * 3;
     ctx.fillStyle = "#fbf1e1"; roundRect(bx - 16, by - 18, 32, 30, 8); ctx.fill();
     ctx.beginPath(); ctx.moveTo(bx - 5, by + 12); ctx.lineTo(bx, by + 20); ctx.lineTo(bx + 5, by + 12); ctx.fill();
-    ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428"; ctx.font = "700 20px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
+    ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428"; ctx.font = "700 20px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
     ctx.restore();
   }
   if (C && !m.joined && !m.leaving && !m.dying) {
@@ -3107,7 +3158,7 @@ function drawPerson(m, walking, isHero) {
     ctx.fillStyle = "rgba(27,20,40,.8)"; roundRect(x - w / 2, y + 8, w, 16, 6); ctx.fill();
     ctx.fillStyle = "#fbf1e1"; ctx.fillText(txt, x, y + 20); ctx.restore();
   }
-  if (isHero && !m.dying) { ctx.font = "700 11px Fredoka, Nunito, sans-serif"; ctx.textAlign = "center"; const tag = (profile.nick || "Sen").toLocaleUpperCase("tr"); ctx.lineWidth = 3; ctx.strokeStyle = "#1e2d4a"; ctx.strokeText(tag, x, y - 92 * PS - jump); ctx.fillStyle = "#ffc21a"; ctx.fillText(tag, x, y - 92 * PS - jump); }
+  if (isHero && !m.dying) { ctx.font = "700 11px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; const tag = (profile.nick || "Sen").toLocaleUpperCase("tr"); ctx.lineWidth = 3; ctx.strokeStyle = "#1e2d4a"; ctx.strokeText(tag, x, y - 92 * PS - jump); ctx.fillStyle = "#ffc21a"; ctx.fillText(tag, x, y - 92 * PS - jump); }
 }
 
 /* ---------- Canavarlar ---------- */
