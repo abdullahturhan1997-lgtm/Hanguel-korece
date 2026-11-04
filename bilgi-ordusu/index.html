@@ -54,7 +54,7 @@ body { background: var(--ink); color: var(--paper); font-family: var(--body); fo
 .road i.devil { background: #6a1a22; border-radius: 50%; }
 .road i.devil.won { background: var(--ok); }
 
-.stage { position: relative; border-radius: 14px; overflow: hidden; border: 2px solid var(--line); aspect-ratio: 960 / 420; max-width: 100%; background: var(--sea); }
+.stage { position: relative; border-radius: 14px; overflow: hidden; border: 2px solid var(--line); aspect-ratio: 960 / 588; max-width: 100%; background: var(--sea); }
 canvas { display: block; width: 100%; height: 100%; }
 
 /* Harita */
@@ -196,7 +196,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .ans:hover:not(:disabled) { border-color: var(--sun); background: #3c2e57; }
 .ans:active:not(:disabled) { transform: translateY(2px); }
 .ans:disabled { cursor: default; opacity: .55; }
-.ans.right { border-color: var(--ok); background: #1f4a3a; opacity: 1; }
+.ans.right { border-color: var(--ok); background: #1f4a3a; opacity: 1; animation: okGlow 1s ease-out; }
+@keyframes okGlow { 0% { box-shadow: 0 0 0 0 rgba(79,209,139,.9); } 35% { box-shadow: 0 0 24px 6px rgba(79,209,139,.65); } 100% { box-shadow: 0 0 0 0 rgba(79,209,139,0); } }
+#teamCount { display: inline-block; }
+#teamCount.bump { animation: bump .8s ease-out; color: var(--sun); }
+@keyframes bump { 0% { transform: scale(1); } 30% { transform: scale(1.8); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ans.right, #teamCount.bump { animation: none; } }
 .ans.right kbd { background: var(--ok); }
 .ans.wrong { border-color: var(--bad); background: #4d1f2c; opacity: 1; }
 .ans.wrong kbd { background: var(--bad); }
@@ -219,7 +224,7 @@ canvas { display: block; width: 100%; height: 100%; }
   </header>
 
   <div class="stage" id="stage">
-    <canvas id="cv" width="960" height="420" aria-label="Savaş sahnesi"></canvas>
+    <canvas id="cv" width="960" height="588" aria-label="Savaş sahnesi"></canvas>
     <svg class="map" id="map" viewBox="0 -10 1000 437" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Dünya haritası">
       <g id="grat"></g>
       <path class="nbp" id="nbp" d=""></path>
@@ -641,7 +646,7 @@ function trLocal(c) {
 }
 
 /* ---------- Ayarlar ---------- */
-const W = 960, H = 420, GROUND = 336;
+const W = 960, H = 588, GROUND = 336, OFFY = 168, PS = 1.45; // OFFY: sahnenin üstüne eklenen gökyüzü, PS: karakter ölçeği
 const ENCOUNTERS = 5, Q_TIME = 20, WALK_SPEED = 130;
 const COLORS = ["#ff7a3d", "#3fb6ff", "#ffd23f", "#4fd18b", "#c77dff", "#ff5fa2", "#7ae0d6"];
 const NAMES = ["Sen", "Kaan", "Ece", "Mert", "Zeynep", "Burak", "Elif", "Deniz", "Arda", "Selin", "Emre", "Derya"];
@@ -693,6 +698,7 @@ const sfx = {
   shot: () => beep(900, .07, "square", .03, -600),
   hit: () => beep(120, .2, "triangle", .08, -60),
   roar: () => beep(90, .9, "sawtooth", .07, -40),
+  join: () => [659, 784, 988].forEach((f, i) => setTimeout(() => beep(f, .16, "triangle", .06), i * 90)),
   win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, .2), i * 140)),
 };
 
@@ -1097,7 +1103,7 @@ function drawHat(H, C, isFemale) {
 function drawDevil(d) {
   ctx.save(); ctx.globalAlpha = Math.max(0, d.alpha); ctx.translate(d.x, d.y);
   if (d.dying) ctx.rotate(Math.min(1, d.dying * 2) * 1.4);
-  ctx.scale(-1, 1);
+  ctx.scale(-PS, PS);
   const walking = d.x > d.tx + 1, sw = walking ? Math.sin(d.phase) : 0, bob = walking ? Math.abs(Math.sin(d.phase)) * -2 : 0;
   ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(0, 2, 18, 4, 0, 0, 7); ctx.fill();
   // kuyruk
@@ -1165,11 +1171,11 @@ function startCity(i) {
   running = true;
 }
 function makeMember(i, cos) {
-  return { name: NAMES[0], color: COLORS[i % COLORS.length], skin: SKIN[i % SKIN.length], cos: cos || null, x: -60, tx: 0, y: GROUND, phase: Math.random() * 6, dying: 0, alpha: 1, recoil: 0, joined: true };
+  return { name: NAMES[0], color: COLORS[i % COLORS.length], skin: SKIN[i % SKIN.length], cos: cos || null, x: -60, tx: 0, y: GROUND, phase: Math.random() * 6, dying: 0, alpha: 1, recoil: 0, joined: true, seed: Math.random(), period: 6 + Math.random() * 4, cheer: 0 };
 }
 function frontX() { return G.boss ? 430 : 560; }
 function layoutTeam(snap) {
-  const n = G.team.length, gap = Math.min(50, (frontX() - 40) / Math.max(1, n - 1));
+  const n = G.team.length, gap = Math.min(44, (frontX() - 40) / Math.max(1, n - 1));
   G.team.forEach((m, i) => { m.tx = frontX() - i * gap; if (snap) m.x = m.tx; });
 }
 function later(sec, fn) { const g = G; G.timers.push({ t: sec, fn: () => { if (G === g) fn(); } }); }
@@ -1183,7 +1189,7 @@ const devilsAlive = () => G.devils.filter(d => !d.dying);
 
 /* ---------- HUD ---------- */
 function renderHud() {
-  ui.teamCount.textContent = G.team.length;
+  ui.teamCount.textContent = G.team.filter(m => !m.joinPending).length;
   ui.score.textContent = save.score + G.score;
   ui.cityCount.textContent = `${prog().done.length}/${LIST.length}`;
   ui.road.innerHTML = PLAN.map((p, i) => {
@@ -1232,6 +1238,15 @@ function nextWalk() {
 }
 
 /* ---------- Yabancılar ---------- */
+function onJoined(m) {
+  float(m.x, m.y - 112 * PS, `${m.name} ekibine katıldı!`, "#ffc857", 22);
+  burst(m.x, m.y - 60 * PS, "#ffc857", 18);
+  sfx.join();
+  renderHud();
+  ui.teamCount.classList.remove("bump"); void ui.teamCount.offsetWidth; ui.teamCount.classList.add("bump");
+  ui.feedback.textContent = `${m.name} ekibine katıldı! Ekip: ${G.team.length} kişi.`; ui.feedback.className = "feedback ok";
+  later(1.1, nextWalk);
+}
 function spawnStranger() {
   const cos = G.cosBag[G.sCount % G.cosBag.length], C = COSTUMES[cos];
   const m = makeMember(G.team.length, cos);
@@ -1244,12 +1259,16 @@ function strangerResolve(ok, timeout, rightText) {
   G.results[G.step] = ok;
   if (ok) {
     sfx.right(); G.score += 100;
-    s.joined = true; G.team.push(s); G.stranger = null; layoutTeam(false);
-    float(s.x, s.y - 100, `${s.name} katıldı!`, "#4fd18b");
-    ui.feedback.textContent = `Doğru! ${s.name} (${COSTUMES[s.cos].label}) ekibine katıldı. Ekip: ${G.team.length} kişi.`; ui.feedback.className = "feedback ok";
+    // ekip sevinir, yabancı yürüyerek sıranın sonuna geçer; varınca katılım duyurulur
+    G.team.forEach((m, k) => later(k * .06, () => { m.cheer = 1; }));
+    s.joined = true; s.joinPending = true; s.cheer = 1; s.hold = .75;
+    G.team.push(s); G.stranger = null; layoutTeam(false);
+    ui.feedback.textContent = `Doğru! ${s.name} (${COSTUMES[s.cos].label}) ekibine katılıyor…`; ui.feedback.className = "feedback ok";
+    G.phase = "joining"; G.step++; G.sCount++; renderHud();
+    return;
   } else {
     sfx.wrong(); s.leaving = true; s.bubble = "✕";
-    float(s.x, s.y - 100, "Yanlış!", "#ff4d6a");
+    float(s.x, s.y - 110 * PS, "Yanlış!", "#ff4d6a");
     ui.feedback.textContent = `${timeout ? "Süre doldu!" : "Yanlış!"} Doğru cevap: ${rightText}. ${s.name} yoluna gitti.`; ui.feedback.className = "feedback bad";
   }
   G.phase = "resolve"; G.step++; G.sCount++; renderHud();
@@ -1258,7 +1277,7 @@ function strangerResolve(ok, timeout, rightText) {
 
 /* ---------- Şeytan askerleri ---------- */
 function spawnDevils() {
-  G.devils = [0, 1, 2].map(k => ({ x: W + 40 + k * 70, tx: 690 + k * 64, y: GROUND, phase: Math.random() * 6, dying: 0, alpha: 1, attack: 0 }));
+  G.devils = [0, 1, 2].map(k => ({ x: W + 40 + k * 70, tx: 680 + k * 74, y: GROUND, phase: Math.random() * 6, dying: 0, alpha: 1, attack: 0 }));
   G.phase = "devilIntro"; renderHud();
   clearQuestion("Şeytan askerleri yolunu kesti!");
   ui.qlabel.textContent = "Şeytan askerleri · kalan 3";
@@ -1273,7 +1292,7 @@ function devilResolve(ok, timeout, rightText) {
     G.team.forEach((m, i) => later(.07 * i, () => {
       if (!G.team.includes(m)) return;
       m.recoil = 1; sfx.shot();
-      G.bullets.push({ x: m.x + 30, y: m.y - 44, vx: 900, vy: Math.random() * 16 - 8, target, kill: i === 0 });
+      G.bullets.push({ x: m.x + 38 * PS, y: m.y - 44 * PS, vx: 900, vy: Math.random() * 16 - 8, target, kill: i === 0 });
     }));
     ui.feedback.textContent = "Doğru! Ekip ateş açtı, bir şeytan askeri düştü."; ui.feedback.className = "feedback ok";
     later(.07 * G.team.length + .9, () => {
@@ -1287,7 +1306,7 @@ function devilResolve(ok, timeout, rightText) {
     sfx.wrong();
     const d = alive[0]; d.attack = 1;
     const victim = G.team[G.team.length - 1];
-    later(.3, () => G.fireballs.push({ x: d.x - 40, y: d.y - 48, target: victim, color: "#ff3a2a" }));
+    later(.3, () => G.fireballs.push({ x: d.x - 45 * PS, y: d.y - 48 * PS, target: victim, color: "#ff3a2a" }));
     ui.feedback.textContent = `${timeout ? "Süre doldu!" : "Yanlış!"} Doğru cevap: ${rightText}. Şeytan askeri saldırıyor!`; ui.feedback.className = "feedback bad";
   }
 }
@@ -1303,7 +1322,7 @@ function devilsCleared() {
 /* ---------- Boss ---------- */
 function spawnBoss() {
   const max = bossHpFor(G.ci);
-  G.boss = { x: W + 300, tx: 770, hp: max, max, flash: 0, attack: 0, dead: 0, rise: 0, mouth: { x: 700, y: 180 } };
+  G.boss = { x: W + 300, tx: 735, hp: max, max, flash: 0, attack: 0, dead: 0, rise: 0, mouth: { x: 700, y: 180 } };
   G.phase = "bossIntro"; layoutTeam(false);
   ui.bossHp.hidden = false; renderHud();
   clearQuestion(`${G.c.foe} yolunu kesti!`);
@@ -1319,7 +1338,7 @@ function bossResolve(ok, timeout, rightText) {
     G.team.forEach((m, i) => later(.07 * i, () => {
       if (!G.team.includes(m)) return;
       m.recoil = 1; sfx.shot();
-      G.bullets.push({ x: m.x + 30, y: m.y - 44, vx: 900, vy: (b.mouth.y + 30 - (m.y - 44)) * 1.4, dmg: i === 0 ? dmg : 0 });
+      G.bullets.push({ x: m.x + 38 * PS, y: m.y - 44 * PS, vx: 900, vy: (b.mouth.y + 30 - (m.y - 44 * PS)) * 1.4, dmg: i === 0 ? dmg : 0 });
     }));
     ui.feedback.textContent = `Doğru! Ekip ateş açtı: ${dmg} hasar.`; ui.feedback.className = "feedback ok";
     later(.07 * G.team.length + .7, () => {
@@ -1337,9 +1356,9 @@ function bossResolve(ok, timeout, rightText) {
 }
 function onFireballHit(fb) {
   const m = fb.target;
-  sfx.hit(); G.shake = .5; burst(m.x, m.y - 40, fb.color, 26);
+  sfx.hit(); G.shake = .5; burst(m.x, m.y - 40 * PS, fb.color, 26);
   m.dying = .0001;
-  float(m.x, m.y - 100, m === G.team[0] ? "Kahraman düştü!" : `${m.name} düştü!`, "#ff4d6a");
+  float(m.x, m.y - 110 * PS, m === G.team[0] ? "Kahraman düştü!" : `${m.name} düştü!`, "#ff4d6a");
   later(1.0, () => {
     G.team = G.team.filter(t => t !== m); renderHud();
     if (!G.team.length) return loseCity();
@@ -1401,11 +1420,15 @@ function update(dt) {
     const s = G.stranger;
     s.facing = s.leaving ? 1 : -1;
     if (s.leaving) { s.x += 150 * dt; s.alpha -= dt * .6; s.phase += dt * 10; if (s.alpha <= 0) G.stranger = null; }
-    else if (G.phase === "approach") { s.x -= WALK_SPEED * dt; if (s.x <= 720) { s.x = 720; G.phase = "question"; askQuestion(); } }
+    else if (G.phase === "approach") { s.x -= WALK_SPEED * dt; if (s.x <= 735) { s.x = 735; G.phase = "question"; askQuestion(); } }
   }
   G.team.forEach(m => {
-    const dx = m.tx - m.x, moving = Math.abs(dx) > 1;
-    if (moving) m.x += Math.sign(dx) * Math.min(Math.abs(dx), 220 * dt);
+    const dx = m.tx - m.x;
+    if (m.hold > 0) m.hold -= dt;
+    const moving = Math.abs(dx) > 1 && !(m.hold > 0);
+    if (moving) m.x += Math.sign(dx) * Math.min(Math.abs(dx), (m.joinPending ? 150 : 220) * dt);
+    else if (m.joinPending && !(m.hold > 0)) { m.joinPending = false; onJoined(m); }
+    m.cheer = Math.max(0, m.cheer - dt * 1.1);
     m.walking = walking || moving; m.facing = moving && !walking ? Math.sign(dx) : 1;
     if (m.walking) m.phase += dt * 10;
     m.recoil = Math.max(0, m.recoil - dt * 6);
@@ -1429,16 +1452,16 @@ function update(dt) {
     if (bl.target) {
       if (bl.x >= bl.target.x - 12) {
         G.bullets.splice(i, 1); burst(bl.x, bl.y, "#ffc857", 6);
-        if (bl.kill && !bl.target.dying) { bl.target.dying = .0001; burst(bl.target.x, bl.target.y - 40, "#d21f2a", 22); float(bl.target.x, bl.target.y - 100, "Şeytan düştü!", "#ffc857"); sfx.hit(); }
+        if (bl.kill && !bl.target.dying) { bl.target.dying = .0001; burst(bl.target.x, bl.target.y - 40 * PS, "#d21f2a", 22); float(bl.target.x, bl.target.y - 110 * PS, "Şeytan düştü!", "#ffc857"); sfx.hit(); }
       }
-    } else if (G.boss && bl.x >= G.boss.x - 120) {
+    } else if (G.boss && bl.x >= G.boss.x - 150) {
       G.bullets.splice(i, 1); burst(bl.x, bl.y, "#ffc857", 8);
       G.boss.flash = 1; G.shake = Math.max(G.shake, .15);
       if (bl.dmg) { G.boss.hp -= bl.dmg; float(G.boss.x - 60, 90, `-${bl.dmg}`, "#ffc857", 28); sfx.hit(); renderHud(); }
     } else if (bl.x > W + 20) G.bullets.splice(i, 1);
   }
   for (let i = G.fireballs.length - 1; i >= 0; i--) {
-    const fb = G.fireballs[i], tx = fb.target.x, ty = fb.target.y - 40, dx = tx - fb.x, dy = ty - fb.y, dist = Math.hypot(dx, dy), sp = 620 * dt;
+    const fb = G.fireballs[i], tx = fb.target.x, ty = fb.target.y - 40 * PS, dx = tx - fb.x, dy = ty - fb.y, dist = Math.hypot(dx, dy), sp = 620 * dt;
     if (dist <= sp) { G.fireballs.splice(i, 1); onFireballHit(fb); if (!G) return; }
     else { fb.x += dx / dist * sp; fb.y += dy / dist * sp; if (Math.random() < .7) G.sparks.push({ x: fb.x, y: fb.y, vx: 40, vy: -20 + Math.random() * 40, life: .35, color: fb.color }); }
   }
@@ -1457,15 +1480,16 @@ function update(dt) {
 function draw() {
   const c = G.c;
   ctx.save();
+  ctx.translate(0, OFFY);
   if (G.shake > 0) ctx.translate((Math.random() - .5) * 14 * G.shake, (Math.random() - .5) * 10 * G.shake);
   const dk = G.boss ? Math.min(1, (W + 300 - G.boss.x) / 300) * .45 : 0;
   const D = col => mix(col, "#120818", dk);
 
-  const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+  const sky = ctx.createLinearGradient(0, -OFFY, 0, GROUND);
   sky.addColorStop(0, D(c.sky[0])); sky.addColorStop(.62, D(c.sky[1])); sky.addColorStop(1, D(c.sky[2]));
-  ctx.fillStyle = sky; ctx.fillRect(-20, -20, W + 40, GROUND + 20);
+  ctx.fillStyle = sky; ctx.fillRect(-20, -OFFY - 20, W + 40, GROUND + OFFY + 20);
   ctx.fillStyle = "#fff6e6";
-  for (let i = 0; i < 36; i++) { const tw = .5 + .5 * Math.sin(G.t * 2 + i); ctx.globalAlpha = (.15 + .4 * tw) * (c.moon ? 1.4 : 1); ctx.fillRect((i * 197 + 31) % W, (i * 71) % 140, 2, 2); }
+  for (let i = 0; i < 36; i++) { const tw = .5 + .5 * Math.sin(G.t * 2 + i); ctx.globalAlpha = (.15 + .4 * tw) * (c.moon ? 1.4 : 1); ctx.fillRect((i * 197 + 31) % W, (i * 71) % (140 + OFFY) - OFFY, 2, 2); }
   ctx.globalAlpha = 1;
 
   // güneş / ay
@@ -1500,7 +1524,7 @@ function draw() {
   });
   G.sparks.forEach(p => { ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); });
   ctx.globalAlpha = 1;
-  if (c.snow) { ctx.fillStyle = "rgba(255,255,255,.8)"; G.flakes.forEach(f => ctx.fillRect(f.x, f.y, f.s, f.s)); }
+  if (c.snow) { ctx.fillStyle = "rgba(255,255,255,.8)"; G.flakes.forEach(f => ctx.fillRect(f.x, f.y - OFFY, f.s, f.s)); }
   G.floaters.forEach(f => {
     ctx.globalAlpha = Math.min(1, f.life); ctx.font = `${f.size}px Bungee, Impact, sans-serif`; ctx.textAlign = "center";
     ctx.lineWidth = 5; ctx.strokeStyle = "rgba(27,20,40,.85)"; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
@@ -1955,11 +1979,16 @@ Object.assign(LANDMARK, {
 });
 
 /* ---------- İnsanlar ---------- */
+// Bekleme hareketleri: her askerin kendi tohumu olduğu için hepsi aynı anda kıpırdamaz
+function gunAdjust(m) { const p = m.period || 7, c = (G.t + (m.seed || 0) * 9) % p; return c < .9 ? -Math.sin(c / .9 * Math.PI) * .45 : 0; }
+function blinking(m) { const p = 2.6 + (m.seed || 0) * 2.4, c = (G.t + (m.seed || 0) * 5) % p; return c < .13; }
 function drawPerson(m, walking, isHero) {
   const x = m.x, y = m.y, C = m.cos ? COSTUMES[m.cos] : null;
-  ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha ?? 1); ctx.translate(x, y);
+  const idle = !walking && !m.dying && !(m.cheer > 0);
+  const jump = m.cheer > 0 ? Math.abs(Math.sin((1 - m.cheer) * Math.PI * 2)) * 16 : 0;
+  ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha ?? 1); ctx.translate(x, y - jump);
   if (m.dying) ctx.rotate(-Math.min(1, m.dying * 2) * 1.4);
-  ctx.scale((m.facing || 1) < 0 ? -1 : 1, 1);
+  ctx.scale(((m.facing || 1) < 0 ? -1 : 1) * PS, PS);
   const sw = walking ? Math.sin(m.phase) : 0, bob = walking ? Math.abs(Math.sin(m.phase)) * -2 : 0;
   const shirt = C ? C.shirt : m.color, pants = C && C.pants ? C.pants : "#2b2236";
   ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(0, 2, 18, 4, 0, 0, 7); ctx.fill();
@@ -1969,6 +1998,7 @@ function drawPerson(m, walking, isHero) {
   ctx.beginPath(); ctx.moveTo(4, -24 + bob); ctx.lineTo(4 - sw * 10, -2); ctx.stroke();
   ctx.fillStyle = "#1a1418"; ctx.fillRect(-7 + sw * 10, -4, 9, 4); ctx.fillRect(0 - sw * 10, -4, 9, 4);
   ctx.translate(0, bob);
+  if (idle) { const br = Math.sin(G.t * 2.2 + (m.seed || 0) * 6.3) * .03; ctx.translate(0, -24); ctx.scale(1, 1 + br); ctx.translate(0, 24); }
   // uzun ceket / aba / kaftan (arkada)
   if (C && C.coat) { ctx.fillStyle = C.coat.c; roundRect(-12, -56, 24, 34 + C.coat.len, 5); ctx.fill(); if (C.trim) { ctx.fillStyle = C.trim; ctx.fillRect(-12, -24 + C.coat.len, 24, 2); } }
   if (C && C.skirt) drawSkirt(C.skirt);
@@ -1986,23 +2016,27 @@ function drawPerson(m, walking, isHero) {
   if (C && C.sporran) { ctx.fillStyle = "#e8e0d0"; ctx.fillRect(-3, -28, 6, 7); ctx.fillStyle = "#1a1418"; ctx.fillRect(-1, -26, 2, 4); }
   if (C && C.scarf) { ctx.fillStyle = C.scarf; poly([[-6, -57], [8, -57], [2, -48]]); }
   // silah ve kol
+  const adj = m.cheer > 0 ? -1.15 * Math.min(1, m.cheer * 2.5) : idle ? gunAdjust(m) : 0;
+  ctx.save(); ctx.translate(0, -48); ctx.rotate(adj); ctx.translate(0, 48);
   const rc = m.recoil * -6, armC = C ? (C.coat ? C.coat.c : C.poncho ? C.poncho.c : shirt) : (m.joined ? m.color : "#8b7f99");
   ctx.fillStyle = "#1f1a26"; ctx.fillRect(2 + rc, -46, 34, 7); ctx.fillRect(10 + rc, -41, 6, 9);
   ctx.fillStyle = "#4a4157"; ctx.fillRect(30 + rc, -45, 8, 4);
   if (m.recoil > .6) { ctx.fillStyle = "#ffe08a"; ctx.beginPath(); ctx.arc(42 + rc, -43, 6, 0, 7); ctx.fill(); }
   ctx.strokeStyle = armC; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(12 + rc, -40); ctx.stroke();
+  ctx.restore();
   // kafa
   const female = C && C.g === "f";
   if (C && female && ["none", "hairbun", "braids", "kokoshnik"].includes(C.hat.t)) { ctx.fillStyle = C.hair || "#2a1a12"; ctx.beginPath(); ctx.ellipse(-6, -60, 7, 14, .15, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -68, 11, Math.PI * .8, Math.PI * 1.9); ctx.fill(); }
   ctx.fillStyle = m.skin; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.fill();
-  ctx.fillStyle = "#2b2236"; ctx.fillRect(4, -69, 3, 3);
+  ctx.fillStyle = "#2b2236"; if (blinking(m)) ctx.fillRect(3.5, -67.5, 4, 1); else ctx.fillRect(4, -69, 3, 3);
+  if (m.cheer > .2) { ctx.strokeStyle = "#2b2236"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(5, -62.5, 2.5, .2, Math.PI - .2); ctx.stroke(); }
   if (C && !female && ["kalpak", "kafkas", "dogu", "yoruk", "zeybek"].includes(m.cos)) { ctx.fillStyle = "#2a1a12"; ctx.fillRect(2, -62, 9, 2.5); }
   if (C) { C.skinNow = m.skin; drawHat(C.hat, C, female); }
   else { ctx.fillStyle = isHero ? "#2b2236" : shade(m.color, -.35); ctx.beginPath(); ctx.arc(1, -69, 10.5, Math.PI, 0); ctx.fill(); if (isHero) { ctx.fillStyle = "#ffc857"; ctx.fillRect(-9, -70, 20, 3); } }
   ctx.restore();
   if (m.bubble && (!m.joined || m.leaving)) {
     ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha);
-    const bx = x, by = y - 112 + Math.sin(G.t * 4) * 3;
+    const bx = x, by = y - 112 * PS + Math.sin(G.t * 4) * 3;
     ctx.fillStyle = "#fbf1e1"; roundRect(bx - 16, by - 18, 32, 30, 8); ctx.fill();
     ctx.beginPath(); ctx.moveTo(bx - 5, by + 12); ctx.lineTo(bx, by + 20); ctx.lineTo(bx + 5, by + 12); ctx.fill();
     ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428"; ctx.font = "20px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
@@ -2014,7 +2048,7 @@ function drawPerson(m, walking, isHero) {
     ctx.fillStyle = "rgba(27,20,40,.8)"; roundRect(x - w / 2, y + 8, w, 16, 6); ctx.fill();
     ctx.fillStyle = "#fbf1e1"; ctx.fillText(txt, x, y + 20); ctx.restore();
   }
-  if (isHero && !m.dying) { ctx.font = "11px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffc857"; ctx.fillText("SEN", x, y - 86); }
+  if (isHero && !m.dying) { ctx.font = "11px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffc857"; ctx.fillText("SEN", x, y - 92 * PS - jump); }
 }
 
 /* ---------- Canavarlar ---------- */
@@ -2023,24 +2057,24 @@ function drawBossLayer(b) {
   // canavarı ayrı katmana çiz, vurulunca beyaz parlat
   ctx = bctx;
   bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.clearRect(0, 0, bc.width, bc.height);
-  bctx.setTransform(bc.width / W, 0, 0, bc.height / H, 0, 0);
+  bctx.setTransform(bc.width / W, 0, 0, bc.height / H, 0, OFFY * bc.height / H);
   const deadK = b.dead ? Math.min(1, b.dead / 1.4) : 0;
   ctx.save();
   ctx.translate(b.x, GROUND + deadK * 80 + (spec.water ? (1 - b.rise) * 160 : 0));
   ctx.translate(b.attack * -30, 0);
   const local = { x: -100, y: -200 };
-  const sc = { beast: .8, bird: .9, sahmeran: .9, chimera: .9, horse: .82, ghost: .95 }[spec.type] || (spec.type === "neck" && !spec.water ? .88 : 1);
+  const sc = 1.25 * ({ beast: .8, bird: .9, sahmeran: .9, chimera: .9, horse: .82, ghost: .95 }[spec.type] || (spec.type === "neck" && !spec.water ? .88 : 1));
   ctx.scale(sc, sc);
   CREATURE[spec.type](spec, G.t, b, local);
   local.x *= sc; local.y *= sc;
   ctx.restore();
   b.mouth = { x: b.x + local.x, y: GROUND + local.y };
-  if (b.flash > .05) { ctx.globalCompositeOperation = "source-atop"; ctx.fillStyle = `rgba(255,255,255,${b.flash * .8})`; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = "source-over"; }
+  if (b.flash > .05) { ctx.globalCompositeOperation = "source-atop"; ctx.fillStyle = `rgba(255,255,255,${b.flash * .8})`; ctx.fillRect(-20, -OFFY - 20, W + 40, H + 40); ctx.globalCompositeOperation = "source-over"; }
   ctx = mainCtx;
-  ctx.save(); ctx.globalAlpha = 1 - deadK * .95; ctx.drawImage(bc, 0, 0, W, H); ctx.restore();
+  ctx.save(); ctx.globalAlpha = 1 - deadK * .95; ctx.drawImage(bc, 0, -OFFY, W, H); ctx.restore();
   if (spec.water) {
     // canavarın önündeki su
-    const wx = b.x - 190;
+    const wx = b.x - 230;
     ctx.fillStyle = shade(G.c.lake || "#2c5a7a", -.1);
     ctx.beginPath(); ctx.moveTo(wx, H + 10); ctx.lineTo(wx, GROUND + 6);
     for (let x = wx; x <= W + 20; x += 10) ctx.lineTo(x, GROUND - 2 + Math.sin(x * .05 + G.t * 3) * 4);
