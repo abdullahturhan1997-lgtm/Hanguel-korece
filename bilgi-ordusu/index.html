@@ -12,214 +12,269 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700&display=swap">
 <style>
-/* Layout: one column "field radio" — HUD strip, wide stage (world map or battlefield), console below. Single dusk look on purpose. */
+/* Layout: chunky cartoon quiz — orange header plate, framed stage, white "sticker" cards with hard bottom shadows on a sky-to-meadow background. */
 :root {
-  --ink: #1b1428;
-  --panel: #271d3a;
-  --line: #3d2f57;
-  --paper: #fbf1e1;
-  --muted: #b9a9cf;
-  --ember: #ff7a3d;
-  --sun: #ffc857;
-  --ok: #4fd18b;
-  --bad: #ff4d6a;
-  --sea: #21183a;
-  --land: #4b3768;
+  --ink: #1e2d4a;
+  --ink2: #4a5d7a;
+  --sky: #7fd3ff;
+  --sky2: #c9f0ff;
+  --meadow: #cdf2b8;
+  --card: #ffffff;
+  --cardsh: #94c4e0;
+  --orange: #ff9a1f;
+  --orangesh: #c96a00;
+  --gold: #ffc21a;
+  --goldsh: #c98a00;
+  --ok: #3fc45a;
+  --oksh: #23893a;
+  --bad: #ff5a5a;
+  --badsh: #b8302f;
+  --blue: #2f8fe0;
+  --blueSh: #1d5f9e;
+  --sea: #8fd8ff;
+  --land: #9fe07e;
   --display: "Bungee", "Impact", "Arial Black", sans-serif;
   --body: "Rubik", "Segoe UI", system-ui, sans-serif;
-  color-scheme: dark;
 }
 html, body { height: 100%; }
-body { background: var(--ink); color: var(--paper); font-family: var(--body); font-size: 16px; }
+body { background: linear-gradient(180deg, var(--sky) 0%, var(--sky2) 55%, var(--meadow) 100%) fixed; color: var(--ink); font-family: var(--body); font-size: 16px; }
 .wrap {
   max-width: 1000px; margin: 0 auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 14px 24px;
-  display: flex; flex-direction: column; gap: 12px;
+  padding-block: 12px 28px;
+  display: flex; flex-direction: column; gap: 14px;
 }
-.hud { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; }
-.brand { font-family: var(--display); font-size: 1.35rem; letter-spacing: .02em; color: var(--sun); margin: 0; line-height: 1; font-weight: 400; }
-.brand span { color: var(--ember); }
-.stats { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
-.stat { display: flex; align-items: center; gap: 8px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.stat b { font-family: var(--display); font-weight: 400; font-size: 1.05rem; letter-spacing: 0; color: var(--paper); font-variant-numeric: tabular-nums; }
-.road { display: flex; gap: 4px; align-items: center; }
-.road i { width: 12px; height: 12px; border-radius: 3px; background: var(--line); display: block; transition: background .3s; }
-.road i.won { background: var(--ok); }
-.road i.lost { background: var(--bad); }
-.road i.now { outline: 2px solid var(--sun); outline-offset: 1px; }
-.road i.boss { width: 22px; background: #5a2f6e; }
-.road i.boss.now { background: var(--ember); }
-.road i.devil { background: #6a1a22; border-radius: 50%; }
-.road i.devil.won { background: var(--ok); }
+.outline { color: #fff; text-shadow: 0 3px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 -2px 0 var(--ink), 2px 2px 0 var(--ink), -2px 2px 0 var(--ink); }
 
-.stage { position: relative; border-radius: 14px; overflow: hidden; border: 2px solid var(--line); aspect-ratio: 960 / 588; max-width: 100%; background: var(--sea); }
+/* Üst plaka */
+.hud {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  background: var(--orange); border-radius: 20px; padding: 10px 14px; box-shadow: 0 6px 0 var(--orangesh);
+}
+.brand { font-family: var(--display); font-size: 1.45rem; margin: 0; line-height: 1; font-weight: 400; }
+.stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.stat { display: flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #fff; background: rgba(30,45,74,.28); border-radius: 999px; padding: 5px 12px; }
+.stat b { font-family: var(--display); font-weight: 400; font-size: 1.05rem; letter-spacing: 0; color: #fff; font-variant-numeric: tabular-nums; }
+.stat.coin b::before { content: ""; display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff3a8 0 25%, var(--gold) 26% 70%, var(--goldsh) 71%); box-shadow: 0 0 0 2px var(--goldsh); }
+.road { display: flex; gap: 4px; align-items: center; }
+.road i { width: 12px; height: 12px; border-radius: 4px; background: rgba(255,255,255,.45); display: block; transition: background .3s; }
+.road i.won { background: var(--gold); }
+.road i.lost { background: var(--bad); }
+.road i.now { outline: 2px solid #fff; outline-offset: 1px; }
+.road i.boss { width: 22px; background: #8a4ad0; }
+.road i.boss.now { background: #fff; }
+.road i.devil { background: #c0202a; border-radius: 50%; }
+.road i.devil.won { background: var(--gold); }
+.musicbtn { font-family: var(--body); font-weight: 700; font-size: .78rem; color: #fff; background: rgba(30,45,74,.28); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.musicbtn[aria-pressed="false"] { opacity: .65; text-decoration: line-through; }
+
+/* Sahne */
+.stage { position: relative; border-radius: 20px; overflow: hidden; border: 4px solid #fff; box-shadow: 0 6px 0 var(--cardsh); aspect-ratio: 960 / 588; max-width: 100%; background: var(--sea); }
 canvas { display: block; width: 100%; height: 100%; }
 
 /* Harita */
 .map { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--sea); }
-.map .grat { stroke: #2f2450; stroke-width: 1; fill: none; }
-.map .landp { fill: var(--land); stroke: #6b5390; stroke-width: .8; }
-.map .route { fill: none; stroke: var(--sun); stroke-width: 1.6; stroke-dasharray: 5 6; opacity: .55; }
+.map .grat { stroke: #b6e6ff; stroke-width: 1; fill: none; }
+.map .landp { fill: var(--land); stroke: #5fae4a; stroke-width: .8; }
+.map .route { fill: none; stroke: #ff7a1a; stroke-width: 2; stroke-dasharray: 5 6; opacity: .8; }
 .pin { cursor: pointer; outline: none; }
-.pin circle.dot { fill: #6f6386; stroke: var(--ink); stroke-width: 2; }
-.pin.open circle.dot { fill: var(--ember); }
+.pin circle.dot { fill: #b7c4cf; stroke: #fff; stroke-width: 2; }
+.pin.open circle.dot { fill: var(--orange); }
 .pin.done circle.dot { fill: var(--ok); }
 .pin circle.hit { fill: transparent; }
-.pin circle.ring { fill: none; stroke: var(--sun); stroke-width: 2.5; opacity: 0; }
+.pin circle.ring { fill: none; stroke: var(--ink); stroke-width: 2.5; opacity: 0; }
 .pin.sel circle.ring { opacity: 1; animation: pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.pin:focus-visible circle.ring { opacity: 1; stroke: var(--paper); }
-.pin text { font-family: var(--display); font-size: 12px; fill: var(--paper); paint-order: stroke; stroke: var(--ink); stroke-width: 3.5px; pointer-events: none; }
-.pin.locked text { fill: #8f83a6; }
+.pin:focus-visible circle.ring { opacity: 1; stroke: var(--blue); }
+.pin text { font-family: var(--display); font-size: 12px; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 3.5px; pointer-events: none; }
+.pin.locked text { fill: #7d8a99; }
 @keyframes pulse { 50% { transform: scale(1.35); } }
 @media (max-width: 640px) { .pin text { display: none; } }
-.map .nbp { fill: #2c2244; stroke: #3d2f57; stroke-width: .8; }
-.map.trmap .landp { fill: #5a4280; stroke: #8a6ab8; stroke-width: 1.4; }
-.map .lake { fill: var(--sea); stroke: #6b5390; stroke-width: 1; }
+.map .nbp { fill: #d6f0c8; stroke: #a8d49a; stroke-width: .8; }
+.map.trmap .landp { fill: #8fd86c; stroke: #fff; stroke-width: 2; }
+.map .lake { fill: var(--sea); stroke: #5fae4a; stroke-width: 1; }
 .map.trmap .pin circle.dot { stroke-width: 1.5; }
-.pin text.plate { font-family: var(--body); font-weight: 700; font-size: 9.5px; fill: var(--ink); stroke: none; text-anchor: middle; }
-.pin.locked text.plate { fill: var(--ink); }
-.sellabel { font-family: var(--display); font-size: 15px; fill: var(--paper); paint-order: stroke; stroke: var(--ink); stroke-width: 4px; text-anchor: middle; pointer-events: none; }
-.menu { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px; background: radial-gradient(120% 90% at 50% 0%, #3a2a5c 0%, var(--sea) 70%); }
+.pin text.plate { font-family: var(--body); font-weight: 700; font-size: 9.5px; fill: #fff; stroke: none; text-anchor: middle; }
+.sellabel { font-family: var(--display); font-size: 15px; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; text-anchor: middle; pointer-events: none; }
+.maptitle { position: absolute; left: 12px; bottom: 10px; font-family: var(--display); font-size: .8rem; color: var(--ink); background: rgba(255,255,255,.85); border-radius: 999px; padding: 4px 10px; pointer-events: none; }
+
+/* Ana menü */
+.menu { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 18px; background: linear-gradient(180deg, #a8e4ff 0%, #d9f6ff 60%, #c9efb4 100%); }
 .mode {
   display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 4px; min-width: 0; text-align: left; cursor: pointer;
-  font-family: var(--body); color: var(--paper); background: rgba(27,20,40,.55); border: 2px solid var(--line); border-radius: 14px; padding: 14px;
-  transition: border-color .15s, transform .12s;
+  font-family: var(--body); color: var(--ink); background: var(--card); border: 0; border-radius: 18px; padding: 14px; box-shadow: 0 6px 0 var(--cardsh);
+  transition: transform .12s, box-shadow .12s;
 }
-.mode:hover { border-color: var(--sun); transform: translateY(-2px); }
-.mode:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.mode:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--cardsh); }
+.mode:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--cardsh); }
+.mode:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .mode svg { width: 100%; flex: 1; min-height: 0; }
-.mode svg path { fill: var(--land); stroke: #8a6ab8; stroke-width: 2; }
-.mode.tr svg path { fill: #c8202e; stroke: #ff8a8a; }
-.mode b { font-family: var(--display); font-weight: 400; font-size: clamp(1.1rem, 3.4vw, 1.8rem); line-height: 1; color: var(--sun); display: flex; align-items: center; gap: 8px; }
-.mode b img { width: 30px; height: 20px; border-radius: 2px; }
-.mode span { font-size: clamp(.72rem, 1.8vw, .9rem); color: var(--paper); }
-.mode small { font-size: .75rem; color: var(--ok); font-weight: 500; }
+.mode svg path { fill: var(--land); stroke: #5fae4a; stroke-width: 2; }
+.mode.tr svg path { fill: #e3202c; stroke: #ffb0b0; }
+.mode b { font-family: var(--display); font-weight: 400; font-size: clamp(1.1rem, 3.4vw, 1.8rem); line-height: 1; color: var(--orange); display: flex; align-items: center; gap: 8px; text-shadow: 0 2px 0 var(--orangesh); }
+.mode b img { width: 30px; height: 20px; border-radius: 3px; }
+.mode span { font-size: clamp(.72rem, 1.8vw, .9rem); color: var(--ink2); }
+.mode small { font-size: .78rem; color: var(--oksh); font-weight: 700; }
 @media (max-width: 600px) {
   .stage:has(> .menu:not([hidden])) { aspect-ratio: auto; }
   .menu { position: relative; grid-template-columns: 1fr; }
   .mode svg { height: 90px; flex: none; }
 }
-.ilsel { font-family: var(--body); font-size: 1rem; color: var(--paper); background: #33274b; border: 2px solid var(--line); border-radius: 10px; padding: 10px; min-width: 0; max-width: 100%; }
-.ilsel:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
-.footleft { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
-.howto { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; line-height: 1.45; max-width: 70ch; }
-.howto b { color: var(--sun); font-weight: 500; }
-.contitle { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.1rem; color: var(--paper); }
-.maptitle { position: absolute; left: 12px; bottom: 10px; font-family: var(--display); font-size: .8rem; color: var(--muted); letter-spacing: .06em; pointer-events: none; }
+
+/* Kartlar ve butonlar */
+.console { background: var(--card); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 6px 0 var(--cardsh); }
+.contitle { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.1rem; color: var(--ink); }
+.howto { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; line-height: 1.45; max-width: 70ch; color: var(--ink2); }
+.howto b { color: var(--orangesh); font-weight: 700; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.btn {
+  font-family: var(--display); font-weight: 400; font-size: 1rem; letter-spacing: .03em; border: 0; border-radius: 14px; padding: 12px 22px; cursor: pointer;
+  background: var(--ok); color: #fff; box-shadow: 0 5px 0 var(--oksh); transition: transform .08s, box-shadow .08s; text-shadow: 0 2px 0 rgba(0,0,0,.18);
+}
+.btn.ghost { background: #e9f5ff; color: var(--ink); box-shadow: 0 5px 0 var(--cardsh); text-shadow: none; }
+.btn.gold { background: var(--gold); color: var(--ink); box-shadow: 0 5px 0 var(--goldsh); text-shadow: none; }
+.btn:active { transform: translateY(4px) scale(.98); box-shadow: 0 1px 0 var(--oksh); }
+.btn.ghost:active { box-shadow: 0 1px 0 var(--cardsh); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:focus-visible, .ans:focus-visible, .chip:focus-visible, .backbtn:focus-visible, .nav:focus-visible, .opt:focus-visible, .tab:focus-visible, .sw:focus-visible, .musicbtn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
 /* Savaş rozetleri */
 .citybadge {
   position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 8px;
-  background: rgba(20, 12, 32, .72); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 10px 6px 6px;
+  background: #fff; border-radius: 14px; padding: 6px 12px 6px 6px; box-shadow: 0 4px 0 var(--cardsh);
   max-width: calc(50% - 20px);
 }
-.citybadge img { width: 42px; height: 28px; border-radius: 3px; display: block; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.citybadge img { width: 42px; height: 28px; border-radius: 4px; display: block; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
 .citybadge div { display: flex; flex-direction: column; min-width: 0; }
-.citybadge b { font-family: var(--display); font-weight: 400; font-size: clamp(.7rem, 2vw, 1rem); line-height: 1.1; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.citybadge small { font-size: clamp(.6rem, 1.5vw, .75rem); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.backbtn {
-  position: absolute; right: 10px; top: 10px; font-family: var(--body); font-weight: 500; font-size: .78rem;
-  background: rgba(20, 12, 32, .72); color: var(--paper); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 6px 10px; cursor: pointer;
-}
-.backbtn:hover { border-color: var(--sun); }
+.citybadge b { font-family: var(--display); font-weight: 400; font-size: clamp(.7rem, 2vw, 1rem); line-height: 1.1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.citybadge small { font-size: clamp(.6rem, 1.5vw, .75rem); color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.backbtn { position: absolute; right: 10px; top: 10px; font-family: var(--body); font-weight: 700; font-size: .8rem; background: #fff; color: var(--ink); border: 0; border-radius: 12px; padding: 7px 12px; cursor: pointer; box-shadow: 0 4px 0 var(--cardsh); }
 .bosshp { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); width: min(38%, 360px); display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: none; }
-.bosshp small { font-family: var(--display); font-size: clamp(.55rem, 1.6vw, .8rem); letter-spacing: .04em; color: var(--paper); text-shadow: 0 2px 0 rgba(0,0,0,.5); text-align: center; }
-.bar { width: 100%; height: 12px; border-radius: 6px; background: rgba(0,0,0,.45); border: 2px solid rgba(0,0,0,.6); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--bad), var(--ember)); transition: width .4s ease; }
+.bosshp small { font-family: var(--display); font-size: clamp(.55rem, 1.6vw, .85rem); letter-spacing: .04em; text-align: center; }
+.bar { width: 100%; height: 14px; border-radius: 8px; background: #fff; border: 3px solid var(--ink); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--bad), var(--orange)); transition: width .4s ease; }
 @media (max-width: 560px) { .bosshp { top: auto; bottom: 8px; width: 60%; } }
 
-.overlay {
-  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; text-align: center; padding: 16px; background: rgba(20, 12, 32, .66); backdrop-filter: blur(2px);
-}
+.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 16px; background: rgba(214, 240, 255, .86); backdrop-filter: blur(3px); }
 @media (max-width: 600px) {
   .stage:has(> .overlay:not([hidden])) { aspect-ratio: auto; }
   .stage:has(> .overlay:not([hidden])) canvas { position: absolute; inset: 0; }
   .overlay { position: relative; inset: auto; min-height: 100%; padding-block: 56px 20px; }
 }
-.overlay h2 { font-family: var(--display); margin: 0; font-weight: 400; font-size: clamp(1.6rem, 6vw, 3.4rem); line-height: 1; color: var(--sun); text-shadow: 0 4px 0 #7a2e1b; text-wrap: balance; }
-.overlay p { margin: 0; max-width: 46ch; color: var(--paper); line-height: 1.45; font-size: clamp(.8rem, 2.2vw, 1rem); text-wrap: balance; }
-.btnrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-.btn {
-  font-family: var(--display); font-weight: 400; font-size: 1rem; letter-spacing: .03em; border: 0; border-radius: 10px; padding: 12px 22px; cursor: pointer;
-  background: var(--ember); color: var(--ink); box-shadow: 0 4px 0 #9c3a14; transition: transform .08s, box-shadow .08s;
-}
-.btn.ghost { background: #3c2e57; color: var(--paper); box-shadow: 0 4px 0 #1f1630; }
-.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #9c3a14; }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn:focus-visible, .ans:focus-visible, .chip:focus-visible, .backbtn:focus-visible, .nav:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
-
-.console { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.overlay h2 { font-family: var(--display); margin: 0; font-weight: 400; font-size: clamp(1.6rem, 6vw, 3.4rem); line-height: 1; text-wrap: balance; }
+.overlay p { margin: 0; max-width: 46ch; color: var(--ink); line-height: 1.45; font-size: clamp(.85rem, 2.2vw, 1.05rem); text-wrap: balance; font-weight: 500; }
 
 /* Şehir kartı */
 .card { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
-.card .flag { width: 84px; height: 56px; border-radius: 4px; display: block; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.card .flag { width: 84px; height: 56px; border-radius: 6px; display: block; box-shadow: 0 0 0 1px rgba(0,0,0,.15), 0 4px 0 var(--cardsh); }
 .card .info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.card h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.35rem; line-height: 1.05; color: var(--paper); }
-.card .country { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
-.card .foe { margin: 0; font-weight: 700; color: var(--sun); }
-.card .lore { margin: 0; color: var(--paper); line-height: 1.45; max-width: 62ch; }
-.card .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--muted); }
-.card .meta b { color: var(--paper); font-weight: 500; }
+.card h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.4rem; line-height: 1.05; color: var(--ink); }
+.card .country { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--ink2); }
+.card .foe { margin: 0; font-weight: 700; color: #c0202a; }
+.card .lore { margin: 0; color: var(--ink); line-height: 1.45; max-width: 62ch; }
+.card .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--ink2); }
+.card .meta b { color: var(--ink); font-weight: 700; }
 .cardfoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.footleft { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
 .navs { display: flex; gap: 8px; }
-.nav { font-family: var(--display); font-size: 1rem; width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--line); background: #33274b; color: var(--paper); cursor: pointer; }
-.nav:hover { border-color: var(--sun); }
+.nav { font-family: var(--display); font-size: 1.1rem; width: 46px; height: 46px; border-radius: 14px; border: 0; background: #e9f5ff; color: var(--ink); cursor: pointer; box-shadow: 0 4px 0 var(--cardsh); }
+.nav:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--cardsh); }
+.ilsel { font-family: var(--body); font-size: 1rem; color: var(--ink); background: #e9f5ff; border: 0; border-radius: 14px; padding: 12px; min-width: 0; max-width: 100%; box-shadow: 0 4px 0 var(--cardsh); }
+.ilsel:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  display: flex; align-items: center; gap: 6px; font-family: var(--body); font-size: .8rem; color: var(--paper);
-  background: #33274b; border: 2px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 4px; cursor: pointer;
-}
+.chip { display: flex; align-items: center; gap: 6px; font-family: var(--body); font-size: .82rem; font-weight: 500; color: var(--ink); background: #e9f5ff; border: 2px solid transparent; border-radius: 999px; padding: 3px 10px 3px 4px; cursor: pointer; }
 .chip img { width: 22px; height: 15px; border-radius: 2px; display: block; }
-.chip.sel { border-color: var(--sun); }
+.chip.sel { border-color: var(--orange); background: #fff3e0; }
 .chip.locked { opacity: .5; }
-.chip.done::after { content: "✓"; color: var(--ok); font-weight: 700; }
+.chip.done::after { content: "✓"; color: var(--oksh); font-weight: 700; }
 @media (max-width: 480px) { .card { grid-template-columns: 1fr; } }
 
 /* Soru */
 .qhead { display: flex; align-items: center; gap: 12px; }
-.qlabel { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); white-space: nowrap; }
-.timer { flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-.timer i { display: block; height: 100%; width: 100%; background: var(--sun); transform-origin: left; }
+.qlabel { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--ink2); white-space: nowrap; }
+.timer { flex: 1; height: 10px; border-radius: 6px; background: #e3eef6; overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--gold); transform-origin: left; }
 .timer i.low { background: var(--bad); }
-.qtext { margin: 0; font-size: clamp(1.05rem, 2.6vw, 1.3rem); font-weight: 500; line-height: 1.35; min-height: 2.7em; text-wrap: balance; }
-.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qtext { margin: 0; font-size: clamp(1.1rem, 2.8vw, 1.4rem); font-weight: 500; line-height: 1.35; min-height: 2.7em; text-wrap: balance; text-align: center; color: var(--ink); }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .answers { grid-template-columns: 1fr; } }
 .ans {
-  display: flex; align-items: center; gap: 10px; text-align: left; min-width: 0; font-family: var(--body); font-size: 1rem; color: var(--paper);
-  background: #33274b; border: 2px solid var(--line); border-radius: 10px; padding: 11px 12px; cursor: pointer;
-  transition: background .15s, border-color .15s, transform .08s;
+  display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center; min-width: 0; font-family: var(--body); font-size: 1.05rem; font-weight: 500; color: var(--ink);
+  background: #fff; border: 2px solid #e3eef6; border-radius: 16px; padding: 13px 14px; cursor: pointer; box-shadow: 0 5px 0 var(--cardsh);
+  transition: background .15s, transform .08s, box-shadow .08s;
 }
-.ans kbd { font-family: var(--display); font-size: .8rem; color: var(--ink); background: var(--muted); border-radius: 5px; padding: 3px 7px; flex: none; }
-.ans:hover:not(:disabled) { border-color: var(--sun); background: #3c2e57; }
-.ans:active:not(:disabled) { transform: translateY(2px); }
-.ans:disabled { cursor: default; opacity: .55; }
-.ans.right { border-color: var(--ok); background: #1f4a3a; opacity: 1; animation: okGlow 1s ease-out; }
-@keyframes okGlow { 0% { box-shadow: 0 0 0 0 rgba(79,209,139,.9); } 35% { box-shadow: 0 0 24px 6px rgba(79,209,139,.65); } 100% { box-shadow: 0 0 0 0 rgba(79,209,139,0); } }
+.ans kbd { font-family: var(--display); font-size: .75rem; color: #fff; background: var(--blue); border-radius: 50%; width: 24px; height: 24px; display: grid; place-items: center; flex: none; }
+.ans:hover:not(:disabled) { background: #f3faff; }
+.ans:active:not(:disabled) { transform: translateY(4px) scale(.98); box-shadow: 0 1px 0 var(--cardsh); }
+.ans:disabled { cursor: default; opacity: .6; }
+.ans.right { background: var(--ok); color: #fff; border-color: var(--ok); box-shadow: 0 5px 0 var(--oksh); opacity: 1; animation: okGlow 1s ease-out; }
+@keyframes okGlow { 0% { box-shadow: 0 5px 0 var(--oksh), 0 0 0 0 rgba(63,196,90,.9); } 35% { box-shadow: 0 5px 0 var(--oksh), 0 0 26px 8px rgba(63,196,90,.6); } 100% { box-shadow: 0 5px 0 var(--oksh), 0 0 0 0 rgba(63,196,90,0); } }
+.ans.right kbd { background: #fff; color: var(--oksh); }
+.ans.wrong { background: var(--bad); color: #fff; border-color: var(--bad); box-shadow: 0 5px 0 var(--badsh); opacity: 1; }
+.ans.wrong kbd { background: #fff; color: var(--badsh); }
 #teamCount { display: inline-block; }
-#teamCount.bump { animation: bump .8s ease-out; color: var(--sun); }
+#teamCount.bump { animation: bump .8s ease-out; color: var(--gold); }
 @keyframes bump { 0% { transform: scale(1); } 30% { transform: scale(1.8); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .ans.right, #teamCount.bump { animation: none; } }
-.ans.right kbd { background: var(--ok); }
-.ans.wrong { border-color: var(--bad); background: #4d1f2c; opacity: 1; }
-.ans.wrong kbd { background: var(--bad); }
-.feedback { margin: 0; min-height: 1.4em; font-weight: 500; color: var(--muted); }
-.feedback.ok { color: var(--ok); }
-.feedback.bad { color: var(--bad); }
-.hint { margin: 0; font-size: .8rem; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .bar i, .road i { transition: none; } .pin.sel circle.ring { animation: none; } }
+.feedback { margin: 0; min-height: 1.4em; font-weight: 700; color: var(--ink2); text-align: center; }
+.feedback.ok { color: var(--oksh); }
+.feedback.bad { color: var(--badsh); }
+.hint { margin: 0; font-size: .8rem; color: var(--ink2); text-align: center; }
+
+/* Profil / avatar düzenleyici */
+.profile { display: flex; flex-direction: column; gap: 12px; }
+.prorow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.nick { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.nick label { font-weight: 700; color: var(--ink2); font-size: .85rem; white-space: nowrap; }
+.nick input { flex: 1; min-width: 0; max-width: 260px; font-family: var(--body); font-size: 1.05rem; font-weight: 500; color: var(--ink); background: #e9f5ff; border: 2px solid transparent; border-radius: 12px; padding: 10px 12px; }
+.nick input:focus { outline: none; border-color: var(--blue); }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.tab { flex: none; font-family: var(--body); font-weight: 700; font-size: .85rem; color: var(--ink2); background: #e9f5ff; border: 0; border-radius: 12px; padding: 9px 14px; cursor: pointer; box-shadow: 0 3px 0 var(--cardsh); }
+.tab[aria-selected="true"] { background: var(--blue); color: #fff; box-shadow: 0 3px 0 var(--blueSh); }
+.opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; max-height: 360px; overflow-y: auto; padding: 4px 2px 8px; }
+.opt { display: flex; flex-direction: column; align-items: center; gap: 4px; background: #f3faff; border: 3px solid transparent; border-radius: 14px; padding: 6px 4px; cursor: pointer; font-family: var(--body); font-size: .72rem; font-weight: 500; color: var(--ink); min-width: 0; box-shadow: 0 3px 0 var(--cardsh); }
+.opt canvas { width: 72px; height: 72px; }
+.opt span { text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+.opt[aria-pressed="true"] { border-color: var(--orange); background: #fff3e0; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { width: 46px; height: 46px; border-radius: 14px; border: 3px solid #fff; cursor: pointer; box-shadow: 0 0 0 2px #d5e6f2, 0 3px 0 var(--cardsh); }
+.sw[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--blue), 0 3px 0 var(--cardsh); }
+.optlabel { margin: 4px 0 0; font-weight: 700; color: var(--ink2); font-size: .85rem; }
+
+/* Skor tablosu */
+.lbhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lbnote { margin: 0; font-size: .8rem; color: var(--ink2); }
+.lb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lb li { display: grid; grid-template-columns: 34px 44px 1fr auto; align-items: center; gap: 10px; background: #f3faff; border-radius: 14px; padding: 6px 10px; }
+.lb li.me { background: #fff3d0; box-shadow: inset 0 0 0 2px var(--gold); }
+.lb .rk { font-family: var(--display); font-size: .9rem; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #dbe9f4; color: var(--ink); }
+.lb li:nth-child(1) .rk { background: var(--gold); }
+.lb li:nth-child(2) .rk { background: #d6dde4; }
+.lb li:nth-child(3) .rk { background: #f0b27a; }
+.lb canvas { width: 44px; height: 44px; border-radius: 12px; background: #d9f2ff; }
+.lb .nm { min-width: 0; display: flex; flex-direction: column; }
+.lb .nm b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb .nm small { color: var(--ink2); font-size: .75rem; }
+.lb .pt { font-family: var(--display); font-size: 1rem; color: var(--goldsh); font-variant-numeric: tabular-nums; }
+.lbempty { margin: 0; color: var(--ink2); background: #f3faff; border-radius: 14px; padding: 12px; }
+.menucols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .menucols { grid-template-columns: 1fr; } }
+.procard { display: flex; align-items: center; gap: 12px; }
+.procard canvas { width: 64px; height: 64px; border-radius: 16px; background: #d9f2ff; flex: none; }
+.procard div { min-width: 0; flex: 1; }
+.procard b { font-family: var(--display); font-weight: 400; font-size: 1.1rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.procard small { color: var(--ink2); }
+@media (prefers-reduced-motion: reduce) { .bar i, .road i { transition: none; } .pin.sel circle.ring, .ans.right, #teamCount.bump { animation: none; } }
 </style>
 
 <div class="wrap">
   <header class="hud">
-    <h1 class="brand">Bilgi <span>Ordusu</span></h1>
+    <h1 class="brand outline">Bilgi Ordusu</h1>
     <div class="stats">
       <div class="stat"><span id="cityLabel">Şehir</span> <b id="cityCount">0</b></div>
       <div class="stat" id="teamStat" hidden>Ekip <b id="teamCount">1</b></div>
       <div class="stat" id="roadStat" hidden>Yol <div class="road" id="road"></div></div>
-      <div class="stat">Skor <b id="score">0</b></div>
+      <div class="stat coin">Skor <b id="score">0</b></div>
+      <button class="musicbtn" id="musicBtn" type="button" aria-pressed="true">♪ Müzik</button>
     </div>
   </header>
 
@@ -250,9 +305,9 @@ canvas { display: block; width: 100%; height: 100%; }
     <span class="maptitle" id="mapTitle">Bir şehir seç</span>
     <div class="citybadge" id="cityBadge" hidden><img id="badgeFlag" alt=""><div><b id="badgeCity"></b><small id="badgeCountry"></small></div></div>
     <button class="backbtn" id="backBtn" type="button" hidden>Harita</button>
-    <div class="bosshp" id="bossHp" hidden><small id="bossName"></small><div class="bar"><i id="bossBar"></i></div></div>
+    <div class="bosshp" id="bossHp" hidden><small id="bossName" class="outline"></small><div class="bar"><i id="bossBar"></i></div></div>
     <div class="overlay" id="overlay" hidden>
-      <h2 id="ovTitle"></h2>
+      <h2 id="ovTitle" class="outline"></h2>
       <p id="ovText"></p>
       <div class="btnrow"><button class="btn" id="ovMain" type="button"></button><button class="btn ghost" id="ovAlt" type="button"></button></div>
     </div>
@@ -280,15 +335,32 @@ canvas { display: block; width: 100%; height: 100%; }
     <div class="chips" id="chips"></div>
   </section>
 
+  <section class="console profile" id="profileConsole" hidden>
+    <div class="prorow">
+      <div class="nick"><label for="nickInput">Oyuncu adı</label><input id="nickInput" maxlength="20" placeholder="Adını yaz" autocomplete="off"></div>
+      <button class="btn gold" id="profileGo" type="button">Oyuna Başla</button>
+    </div>
+    <div class="tabs" role="tablist" id="proTabs" aria-label="Avatar seçenekleri"></div>
+    <div id="proPanel"></div>
+  </section>
+
   <section class="console" id="menuConsole" hidden>
-    <h2 class="contitle">Nasıl oynanır?</h2>
-    <ol class="howto">
-      <li>Bir <b>mod</b> seç: Türkiye'nin 81 ili ya da dünyadan 14 şehir.</li>
-      <li>Haritadan bir yer seç. Her yerin kendi manzarası, simge yapısı ve canavarı var.</li>
-      <li>Yolda karşına 10 yabancı çıkar; her biri kendi yöresinin kıyafetini giyer. Sorusunu bilirsen <b>ekibine katılır</b>.</li>
-      <li>Her 5 kişide bir 3 kişilik <b>şeytan bölüğü</b> saldırır: doğru cevapta bir şeytan düşer, yanlışta bir arkadaşın.</li>
-      <li>Canavara karşı her doğru cevapta ekipçe ateş edersin; ekip büyüdükçe <b>hasar artar</b>. Her yanlışta bir arkadaşını kaybedersin.</li>
-    </ol>
+    <div class="menucols">
+      <div>
+        <div class="lbhead"><h2 class="contitle">Skor Tablosu</h2><p class="lbnote" id="lbNote"></p></div>
+        <ol class="lb" id="lbList"></ol>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="procard"><canvas id="proCardCv" width="64" height="64"></canvas><div><b id="proCardName"></b><small id="proCardInfo"></small></div><button class="btn ghost" id="editProfile" type="button">Profili Düzenle</button></div>
+        <h2 class="contitle">Nasıl oynanır?</h2>
+        <ol class="howto">
+          <li>Bir <b>mod</b> seç: Türkiye'nin 81 ili ya da dünyadan 14 şehir.</li>
+          <li>Yolda karşına 10 yabancı çıkar. Sorusunu bilirsen <b>ekibine katılır</b>.</li>
+          <li>Her 5 kişide bir 3 kişilik <b>şeytan bölüğü</b> saldırır: doğru cevapta bir şeytan düşer, yanlışta bir arkadaşın.</li>
+          <li>Canavara karşı ekip büyüdükçe <b>hasar artar</b>. Kazandığın puanlar skor tablosuna yazılır.</li>
+        </ol>
+      </div>
+    </div>
   </section>
 
   <section class="console" id="battleConsole" aria-live="polite" hidden>
@@ -646,6 +718,7 @@ function trLocal(c) {
 }
 
 /* ---------- Ayarlar ---------- */
+let T = 0, screen = null; // T: genel saat (sn), screen: profile | menu | map | battle
 const W = 960, H = 588, GROUND = 336, OFFY = 168, PS = 1.45; // OFFY: sahnenin üstüne eklenen gökyüzü, PS: karakter ölçeği
 const ENCOUNTERS = 5, Q_TIME = 20, WALK_SPEED = 130;
 const COLORS = ["#ff7a3d", "#3fb6ff", "#ffd23f", "#4fd18b", "#c77dff", "#ff5fa2", "#7ae0d6"];
@@ -667,7 +740,7 @@ const ui = {
   backBtn: $("backBtn"), bossHp: $("bossHp"), bossName: $("bossName"), bossBar: $("bossBar"),
   overlay: $("overlay"), ovTitle: $("ovTitle"), ovText: $("ovText"), ovMain: $("ovMain"), ovAlt: $("ovAlt"),
   cityCount: $("cityCount"), teamStat: $("teamStat"), roadStat: $("roadStat"), teamCount: $("teamCount"), score: $("score"), road: $("road"),
-  menu: $("menu"), menuConsole: $("menuConsole"), ilSelect: $("ilSelect"), cityLabel: $("cityLabel"), cardLand: $("cardLand"), cardLandWrap: $("cardLandWrap"),
+  menu: $("menu"), menuConsole: $("menuConsole"), profileConsole: $("profileConsole"), ilSelect: $("ilSelect"), cityLabel: $("cityLabel"), cardLand: $("cardLand"), cardLandWrap: $("cardLandWrap"),
   qlabel: $("qlabel"), tbar: $("tbar"), qtext: $("qtext"), feedback: $("feedback"),
   ans: [0, 1, 2, 3].map(i => $("a" + i)),
 };
@@ -683,7 +756,7 @@ function persist() { try { localStorage.setItem("bilgi-ordusu-v3", JSON.stringif
 
 /* ---------- Ses ---------- */
 let actx = null;
-function ensureAudio() { try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch (e) { actx = null; } }
+function ensureAudio() { Music.init(); try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); actx.resume?.(); } catch (e) { actx = null; } }
 function beep(freq, dur, type = "square", vol = 0.05, slide = 0) {
   if (!actx) return;
   const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
@@ -933,22 +1006,23 @@ function hideAll() {
   running = false; G = null;
   ui.map.toggleAttribute("hidden", true); ui.mapTitle.hidden = true; cv.hidden = true; ui.menu.hidden = true;
   ui.cityBadge.hidden = true; ui.backBtn.hidden = true; ui.bossHp.hidden = true; ui.overlay.hidden = true;
-  ui.mapConsole.hidden = true; ui.battleConsole.hidden = true; ui.menuConsole.hidden = true;
+  ui.mapConsole.hidden = true; ui.battleConsole.hidden = true; ui.menuConsole.hidden = true; ui.profileConsole.hidden = true; screen = null;
   ui.teamStat.hidden = true; ui.roadStat.hidden = true;
 }
 function showMap() {
-  hideAll();
+  hideAll(); screen = "map";
   ui.map.toggleAttribute("hidden", false); ui.mapTitle.hidden = false; ui.mapConsole.hidden = false;
   refreshMap();
 }
 function showMenu() {
-  hideAll();
+  hideAll(); screen = "menu";
   ui.menu.hidden = false; ui.menuConsole.hidden = false;
   $("trProg").textContent = `${save.tr.done.length} / ${TR_CITIES.length} il kurtarıldı`;
   $("worldProg").textContent = `${save.world.done.length} / ${CITIES.length} şehir kurtarıldı`;
   ui.cityLabel.textContent = "Kurtarılan";
   ui.cityCount.textContent = `${save.tr.done.length + save.world.done.length}`;
   ui.score.textContent = save.score;
+  refreshProCard(); renderLB();
 }
 
 /* ---------- Kültürel kıyafetler ---------- */
@@ -1039,8 +1113,7 @@ function drawHat(H, C, isFemale) {
       ctx.fillStyle = H.c; ctx.beginPath(); ctx.ellipse(hx - 1, hy + 2, 13, 15, 0, 0, 7); ctx.fill();
       poly([[hx - 10, hy + 6], [hx - 6, hy + 22], [hx + 4, hy + 10]]);
       ctx.fillStyle = H.c2; for (let i = 0; i < 6; i++) { const a = -1.1 + i * .42; ctx.beginPath(); ctx.arc(hx + Math.cos(a) * 12, hy + Math.sin(a) * 12, 1.6, 0, 7); ctx.fill(); }
-      ctx.fillStyle = C.skinNow; ctx.beginPath(); ctx.ellipse(hx + 4, hy + 1, 7, 8.5, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = "#2b2236"; ctx.fillRect(hx + 6, hy - 1, 2.5, 2.5); break;
+      ctx.fillStyle = C.skinNow; ctx.beginPath(); ctx.ellipse(hx + 4, hy + 1, 7.5, 8.8, 0, 0, 7); ctx.fill(); break;
     case "pusi":
       ctx.fillStyle = H.c; ctx.beginPath(); ctx.ellipse(hx, hy - 8, 12, 6, 0, 0, 7); ctx.fill();
       ctx.fillStyle = H.c2; for (let i = 0; i < 6; i++) ctx.fillRect(hx - 9 + i * 3.6, hy - 10 + (i % 2) * 3, 1.6, 1.6);
@@ -1136,6 +1209,493 @@ function drawDevil(d) {
   ctx.restore();
 }
 
+/* ---------- Oyuncu profili: avatar seçenekleri ---------- */
+const SKINS = ["#6b3a33", "#7a4a3e", "#8a4a24", "#9a5040", "#9a5a2a", "#a8684a", "#b86e42", "#c87a5a", "#e08a6a", "#e89a5a", "#f0a07a", "#ffb898", "#ffc8b8", "#ffd0a0", "#ffe4d8"];
+const HAIRC = ["#1c1418", "#3a2416", "#6a4024", "#a8642a", "#d8b060", "#8a8a92", "#ececec"];
+const EYES = ["Normal", "İri", "Uykulu", "Mutlu", "Kararlı"];
+const MOUTHS = ["Gülümseme", "Kahkaha", "Düz", "Şaşkın", "Sırıtma"];
+const BEARDS = ["Yok", "Kirli sakal", "Kısa sakal", "Gür sakal", "Keçi sakalı"];
+const MUS = ["Yok", "İnce bıyık", "Pala bıyık", "Osmanlı bıyığı", "Kalem bıyık"];
+const HATS = [
+  ["yok", "Başlıksız", { t: "none" }],
+  ["fes", "Osmanlı Fesi", { t: "fes", c: "#c41e2a" }],
+  ["kalpak", "Siyah Kalpak", { t: "kalpak", c: "#1f1c22", tall: true }],
+  ["dervis", "Derviş Sikkesi", { t: "cone", c: "#efe8d8", h: 30, round: true, ridges: true }],
+  ["turkmen", "Türkmen Sarığı", { t: "wrap", c: "#9a6a3a", c2: "#7a5028", tail: true }],
+  ["arap", "Yeşil Sarık", { t: "wrap", c: "#1f8a4a", tail: true }],
+  ["beylik", "Beylik Sarığı", { t: "wrap", c: "#f4f0e8", top: "#c41e2a", tail: true }],
+  ["yorukbas", "Yörük Başlığı", { t: "wrap", c: "#e8c870", c2: "#2f7fc0", tail: true }],
+  ["ahi", "Ahi Külahı", { t: "cone", c: "#c8aa7a", h: 28 }],
+  ["colsarik", "Çöl Sarığı", { t: "wrap", c: "#c8402a", dots: "#ffd34d", tail: true }],
+  ["aksarik", "Ak Sarık", { t: "wrap", c: "#f8f4ec", c2: "#c41e2a" }],
+  ["koylu", "Köylü Kepi", { t: "flatcap", c: "#7a4a2a" }],
+  ["hasir", "Hasır Şapka", { t: "widebrim", c: "#d8b060", band: "#8a5a2a", straw: true }],
+  ["kirgiz", "Kırgız Kalpağı", { t: "akkalpak", c: "#f4f0e8", c2: "#1c1418" }],
+  ["alp", "Alp Külahı", { t: "cone", c: "#8a5a30", h: 24, brim: true }],
+  ["macar", "Macar Başlığı", { t: "wrap", c: "#b81e2a", tail: true, tall: true }],
+  ["katip", "Kâtip Sarığı", { t: "wrap", c: "#ffffff", tall: true }],
+  ["avci", "Avcı Şapkası", { t: "feather", c: "#2f5a2a", c2: "#ffffff" }],
+  ["balikci", "Balıkçı Beresi", { t: "knit", c: "#a8582a" }],
+  ["uzakdogu", "Uzak Doğu Şapkası", { t: "conical", c: "#e0c080" }],
+  ["gat", "Kore Gat", { t: "widebrim", c: "#1c1418", beads: true, tallCrown: true }],
+  ["seyyah", "Seyyah Sarığı", { t: "wrap", c: "#e8d8b0", tail: true }],
+  ["denizci", "Denizci Başlığı", { t: "wrap", c: "#2a3a7a", tail: true }],
+  ["efe", "Efe Yazması", { t: "bandana", c: "#c41e2a", dots: "#ffd0d0" }],
+  ["kazak", "Kazak Kepi", { t: "furrim", c: "#7a5030", fur: "#b89a7a", cone: true }],
+  ["tuareg", "Tuareg Sarığı", { t: "wrap", c: "#d8b880", tail: true }],
+  ["iskit", "İskit Külahı", { t: "cone", c: "#e0c898", h: 26, hood: true }],
+  ["tuylu", "Tüylü Alın Bağı", { t: "headband", c: "#7a4a2a", feather: "#1c1418" }],
+  ["pullu", "Pullu Yazma", { t: "bandana", c: "#d8202a", coins: "#ffd34d" }],
+  ["gocebe", "Göçebe Kepi", { t: "wrap", c: "#7a7a84" }],
+  ["coban", "Çoban Şapkası", { t: "widebrim", c: "#6a4024", band: "#3a2416" }],
+  ["defne", "Defne Tacı", { t: "laurel", c: "#3f8a3a" }],
+  ["keffiyeh", "Bedevi Keffiyeh", { t: "keffiyeh", c: "#ffffff", c2: "#d8202a" }],
+  ["balkan", "Balkan Başlığı", { t: "furrim", c: "#c41e2a", fur: "#d8d0c0" }],
+  ["levant", "Levant Sarığı", { t: "wrap", c: "#f4f0e8", c2: "#c41e2a", tail: true }],
+  ["sahra", "Sahra Sarığı", { t: "wrap", c: "#2a5ab0", tail: true }],
+  ["tayland", "Tayland Şapkası", { t: "conical", c: "#d8b870", tall: true }],
+  ["mogol", "Moğol Keçesi", { t: "furrim", c: "#5a3a20", fur: "#8a6a48" }],
+  ["hint", "Hint Sarığı", { t: "wrap", c: "#f4f0e8", jewel: "#2fb0a0", feather: "#1c1418" }],
+  ["tuytac", "Tüylü Taç", { t: "feathercrown", c: "#ffd34d" }],
+  ["kizil", "Kızıl Yazma", { t: "bandana", c: "#c41e2a" }],
+  ["zeybek", "Zeybek Kabalağı", { t: "kabalak", c: "#7a2030", c2: "#ffd34d" }],
+  ["bork", "Yeniçeri Börkü", { t: "bork", c: "#f4f0e8", c2: "#d8a030" }],
+  ["karadeniz", "Karadeniz Başlığı", { t: "hood", c: "#1c1820" }],
+  ["pusi", "Puşi", { t: "pusi", c: "#f0ece4", c2: "#1c1820" }],
+  ["kece", "Yörük Keçe Külahı", { t: "kece", c: "#d8c8a0" }],
+  ["kalpakgri", "Kuvâ-yi Milliye Kalpağı", { t: "kalpak", c: "#5a5450" }],
+  ["yemeni", "Oyalı Yemeni", { t: "yemeni", c: "#ffffff", c2: "#4fd18b" }],
+  ["sombrero", "Sombrero", { t: "sombrero", c: "#d8b060", c2: "#c22030" }],
+  ["kovboy", "Kovboy Şapkası", { t: "cowboy", c: "#c8a070" }],
+  ["usanka", "Uşanka", { t: "ushanka", c: "#6a5040" }],
+  ["iskoc", "İskoç Beresi", { t: "tam", c: "#1f2a5a", c2: "#c22030" }],
+  ["topi", "Nepal Topisi", { t: "topi", c: "#c22030", c2: "#3a7a4a" }],
+  ["takke", "Çin Takkesi", { t: "skullcap", c: "#1c1820", c2: "#c22030" }],
+  ["hachimaki", "Hachimaki", { t: "hachimaki", c: "#ffffff", c2: "#c22030" }],
+  ["kokosnik", "Kokoşnik", { t: "kokoshnik", c: "#c22030", c2: "#ffd34d" }],
+  ["bolero", "Gaúcho Şapkası", { t: "bolero", c: "#1c1418" }],
+].map(([id, label, d]) => ({ id, label, d }));
+const HAT_BY = Object.fromEntries(HATS.map(h => [h.id, h]));
+const OUTFITS = [{ id: "klasik", label: "Klasik (turuncu)" }, { id: "klasikMavi", label: "Klasik (mavi)" }, { id: "klasikYesil", label: "Klasik (yeşil)" }]
+  .concat(Object.keys(COSTUMES).map(k => ({ id: k, label: COSTUMES[k].label })));
+const OUTFIT_BY = Object.fromEntries(OUTFITS.map(o => [o.id, o]));
+const CLASSIC = { klasik: "#ff7a1a", klasikMavi: "#2f8fe0", klasikYesil: "#3fc45a" };
+const DEFAULT_PROFILE = { nick: "", skin: "#e0ac69", hairC: "#1c1418", eyes: 0, mouth: 0, beard: 0, mus: 1, hat: "fes", outfit: "klasik" };
+let profile = { ...DEFAULT_PROFILE };
+try { const p = JSON.parse(localStorage.getItem("bilgi-ordusu-profil") || "null"); if (p) profile = sanitizeAvatar({ ...DEFAULT_PROFILE, ...p }); } catch (e) {}
+function persistProfile() { try { localStorage.setItem("bilgi-ordusu-profil", JSON.stringify(profile)); } catch (e) {} }
+// Başkalarından gelen avatar verisi güvenilmez: yalnızca bilinen değerleri kabul et
+function sanitizeAvatar(a) {
+  const pick = (v, list, def) => list.includes(v) ? v : def;
+  const int = (v, n, def) => Number.isInteger(v) && v >= 0 && v < n ? v : def;
+  a = a && typeof a === "object" ? a : {};
+  return {
+    nick: typeof a.nick === "string" ? a.nick.slice(0, 20) : "",
+    skin: pick(a.skin, SKINS.concat(SKIN), DEFAULT_PROFILE.skin), hairC: pick(a.hairC, HAIRC, DEFAULT_PROFILE.hairC),
+    eyes: int(a.eyes, EYES.length, 0), mouth: int(a.mouth, MOUTHS.length, 0), beard: int(a.beard, BEARDS.length, 0), mus: int(a.mus, MUS.length, 0),
+    hat: HAT_BY[a.hat] ? a.hat : DEFAULT_PROFILE.hat, outfit: OUTFIT_BY[a.outfit] ? a.outfit : DEFAULT_PROFILE.outfit,
+  };
+}
+const avatarData = () => { const { nick, ...rest } = profile; return rest; };
+function costumeFor(av) {
+  const base = COSTUMES[av.outfit] ? COSTUMES[av.outfit] : { o: "TR", g: "m", label: "Klasik", shirt: CLASSIC[av.outfit] || CLASSIC.klasik, pants: "#2b2236" };
+  return { ...base, hat: (HAT_BY[av.hat] || HAT_BY.yok).d, hair: av.hairC };
+}
+function faceFor(av) { return { eyes: av.eyes, mouth: av.mouth, beard: av.beard, mus: av.mus, hairC: av.hairC }; }
+function heroMember() {
+  const m = makeMember(0);
+  m.hero = true; m.skin = profile.skin; m.face = faceFor(profile); m.heroC = costumeFor(profile); m.name = profile.nick || "Sen";
+  return m;
+}
+function randomFace(C) {
+  const r = n => Math.random() * n | 0, male = C.g !== "f";
+  return { eyes: r(4), mouth: [0, 0, 1, 2, 4][r(5)], beard: male ? [0, 0, 1, 2, 3, 4][r(6)] : 0, mus: male ? [0, 1, 2, 2, 3, 4][r(6)] : 0, hairC: HAIRC[r(4)] };
+}
+
+/* ---------- Yeni başlık çizimleri ---------- */
+const baseDrawHat = drawHat;
+drawHat = function (H, C, isFemale) {
+  const hx = 1, hy = -67;
+  switch (H.t) {
+    case "wrap": {
+      if (H.tail) { ctx.fillStyle = shade(H.c, -.12); poly([[hx - 9, hy - 6], [hx - 15, hy + 12], [hx - 9, hy + 11], [hx - 4, hy - 2]]); }
+      ctx.fillStyle = H.top || shade(H.c, -.06); ctx.beginPath(); ctx.ellipse(hx, hy - (H.tall ? 20 : 15), 8.5, 6, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = H.c; ctx.beginPath(); ctx.ellipse(hx, hy - 9, 13, 7.5, 0, 0, 7); ctx.fill();
+      if (H.tall) { ctx.beginPath(); ctx.ellipse(hx, hy - 15, 11.5, 6.5, 0, 0, 7); ctx.fill(); }
+      ctx.strokeStyle = shade(H.c, -.2); ctx.lineWidth = 1.2;
+      for (let i = 0; i < (H.tall ? 4 : 3); i++) { ctx.beginPath(); ctx.ellipse(hx, hy - 7 - i * 3.2, 12, 4, -.25, Math.PI * .05, Math.PI * .95); ctx.stroke(); }
+      if (H.c2) { ctx.strokeStyle = H.c2; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(hx, hy - 9, 12.5, 4.5, -.2, Math.PI * .05, Math.PI * .95); ctx.stroke(); }
+      if (H.dots) { ctx.fillStyle = H.dots; for (let i = 0; i < 7; i++) ctx.fillRect(hx - 9 + i * 3, hy - 12 + (i % 2) * 4, 1.6, 1.6); }
+      if (H.jewel) { ctx.fillStyle = "#ffd34d"; ctx.beginPath(); ctx.arc(hx + 9, hy - 11, 2.6, 0, 7); ctx.fill(); ctx.fillStyle = H.jewel; ctx.beginPath(); ctx.arc(hx + 9, hy - 11, 1.5, 0, 7); ctx.fill(); }
+      if (H.feather) { ctx.fillStyle = H.feather; ctx.save(); ctx.translate(hx + 7, hy - 15); ctx.rotate(.35); ctx.beginPath(); ctx.ellipse(0, -8, 2.2, 9, 0, 0, 7); ctx.fill(); ctx.restore(); }
+      return;
+    }
+    case "cone": {
+      if (H.hood) { ctx.fillStyle = shade(H.c, -.08); poly([[hx - 11, hy - 6], [hx - 12, hy + 8], [hx - 6, hy + 8], [hx - 6, hy - 4]]); }
+      ctx.fillStyle = H.c;
+      if (H.round) { ctx.beginPath(); ctx.moveTo(hx - 9, hy - 6); ctx.lineTo(hx - 6, hy - 6 - H.h); ctx.arc(hx, hy - 6 - H.h, 6, Math.PI, 0); ctx.lineTo(hx + 10, hy - 6); ctx.closePath(); ctx.fill(); }
+      else poly([[hx - 10, hy - 6], [hx - 1, hy - 6 - H.h], [hx + 11, hy - 6]]);
+      if (H.ridges) { ctx.strokeStyle = shade(H.c, -.18); ctx.lineWidth = 1; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(hx + i * 3.5, hy - 6); ctx.lineTo(hx + i * 1.5, hy - 4 - H.h); ctx.stroke(); } }
+      if (H.brim) { ctx.fillStyle = shade(H.c, -.15); ctx.beginPath(); ctx.ellipse(hx, hy - 6, 14, 3, 0, 0, 7); ctx.fill(); }
+      else { ctx.fillStyle = shade(H.c, -.12); ctx.fillRect(hx - 10, hy - 8, 21, 3); }
+      return;
+    }
+    case "flatcap":
+      ctx.fillStyle = H.c; ctx.beginPath(); ctx.ellipse(hx - 1, hy - 8, 11.5, 6.5, 0, Math.PI, 0); ctx.fill(); ctx.fillRect(hx - 12, hy - 9, 23, 3);
+      poly([[hx + 4, hy - 9], [hx + 17, hy - 7], [hx + 10, hy - 5]]); ctx.fillStyle = shade(H.c, .2); ctx.beginPath(); ctx.arc(hx - 1, hy - 14, 1.5, 0, 7); ctx.fill(); return;
+    case "widebrim": {
+      const crownTop = H.tallCrown ? hy - 25 : hy - 18;
+      ctx.fillStyle = H.c; ctx.globalAlpha *= H.tallCrown ? .85 : 1;
+      roundRect(hx - 7, crownTop, 15, hy - 6 - crownTop, 3); ctx.fill();
+      ctx.globalAlpha = Math.min(1, ctx.globalAlpha / (H.tallCrown ? .85 : 1));
+      ctx.beginPath(); ctx.ellipse(hx, hy - 7, 20, 3.6, 0, 0, 7); ctx.fill();
+      if (H.band) { ctx.fillStyle = H.band; ctx.fillRect(hx - 7, hy - 11, 15, 3); }
+      if (H.straw) { ctx.strokeStyle = shade(H.c, -.2); ctx.lineWidth = .8; for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.moveTo(hx + i * 5, hy - 9); ctx.lineTo(hx + i * 6.5, hy - 4.5); ctx.stroke(); } }
+      if (H.beads) { ctx.fillStyle = "#c22030"; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(hx + 9 - i * .3, hy - 4 + i * 3, 1.3, 0, 7); ctx.fill(); } }
+      return;
+    }
+    case "akkalpak":
+      ctx.fillStyle = H.c; ctx.beginPath(); ctx.moveTo(hx - 10, hy - 6); ctx.lineTo(hx - 8, hy - 22); ctx.quadraticCurveTo(hx, hy - 30, hx + 9, hy - 22); ctx.lineTo(hx + 11, hy - 6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = H.c2; ctx.fillRect(hx - 12, hy - 10, 25, 4); ctx.strokeStyle = H.c2; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(hx, hy - 12); ctx.lineTo(hx, hy - 24); ctx.moveTo(hx - 4, hy - 18); ctx.quadraticCurveTo(hx, hy - 22, hx + 4, hy - 18); ctx.stroke(); return;
+    case "conical":
+      ctx.fillStyle = H.c; poly([[hx - 23, hy - 6], [hx, hy - (H.tall ? 28 : 22)], [hx + 24, hy - 6]]);
+      ctx.strokeStyle = shade(H.c, -.25); ctx.lineWidth = .9; for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(hx, hy - (H.tall ? 28 : 22)); ctx.lineTo(hx - 23 + i * 9.4, hy - 6); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(hx - 8, hy - 6); ctx.lineTo(hx - 2, hy + 8); ctx.lineTo(hx + 8, hy - 6); ctx.stroke(); return;
+    case "bandana":
+      ctx.fillStyle = shade(H.c, -.1); poly([[hx - 9, hy - 3], [hx - 17, hy + 4], [hx - 14, hy + 8], [hx - 8, hy + 1]]);
+      ctx.fillStyle = H.c; ctx.beginPath(); ctx.arc(hx, hy - 1.5, 11, Math.PI * 1.02, Math.PI * 1.98); ctx.fill(); ctx.fillRect(hx - 11, hy - 5, 22, 4);
+      if (H.dots) { ctx.fillStyle = H.dots; for (let i = 0; i < 6; i++) ctx.fillRect(hx - 7 + i * 3, hy - 9 + (i % 2) * 3, 1.5, 1.5); }
+      if (H.coins) { ctx.fillStyle = H.coins; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.arc(hx - 9 + i * 3.2, hy - 1, 1.5, 0, 7); ctx.fill(); } }
+      return;
+    case "furrim":
+      ctx.fillStyle = H.c;
+      if (H.cone) poly([[hx - 8, hy - 9], [hx + 1, hy - 24], [hx + 9, hy - 9]]); else { ctx.beginPath(); ctx.ellipse(hx, hy - 12, 9.5, 8, 0, Math.PI, 0); ctx.fill(); }
+      ctx.fillStyle = H.fur; ctx.beginPath(); ctx.ellipse(hx, hy - 8, 13, 5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = shade(H.fur, -.2); for (let i = 0; i < 9; i++) ctx.fillRect(hx - 11 + i * 2.6, hy - 10 + (i % 3) * 1.6, 1.2, 1.2); return;
+    case "headband":
+      ctx.fillStyle = H.feather; ctx.save(); ctx.translate(hx - 7, hy - 10); ctx.rotate(-.25); ctx.beginPath(); ctx.ellipse(0, -9, 2.4, 10, 0, 0, 7); ctx.fill(); ctx.restore();
+      ctx.fillStyle = H.c; ctx.fillRect(hx - 10.5, hy - 9, 22, 4); ctx.fillStyle = "#ffd34d"; for (let i = 0; i < 5; i++) ctx.fillRect(hx - 8 + i * 4, hy - 8, 2, 2); return;
+    case "laurel":
+      ctx.fillStyle = H.c;
+      for (let i = 0; i < 11; i++) { const a = Math.PI * (1.02 + i * .096); ctx.save(); ctx.translate(hx + Math.cos(a) * 11, hy - 3 + Math.sin(a) * 9); ctx.rotate(a + Math.PI / 2 + (i % 2 ? .5 : -.5)); ctx.beginPath(); ctx.ellipse(0, 0, 1.8, 4, 0, 0, 7); ctx.fill(); ctx.restore(); }
+      return;
+    case "keffiyeh":
+      ctx.fillStyle = H.c; ctx.beginPath(); ctx.moveTo(hx - 12, hy - 4); ctx.quadraticCurveTo(hx, hy - 20, hx + 12, hy - 4); ctx.lineTo(hx + 9, hy + 6); ctx.lineTo(hx - 15, hy + 16); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = H.c2; for (let r = 0; r < 6; r++) for (let k = 0; k < 6; k++) if ((r + k) % 2 === 0) ctx.fillRect(hx - 12 + k * 4, hy - 13 + r * 4, 2, 2);
+      ctx.strokeStyle = "#1c1418"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(hx, hy - 9, 12, 3, 0, 0, 7); ctx.stroke(); return;
+    case "feathercrown": {
+      const cols = ["#e03030", "#ffd34d", "#2fb0a0", "#2f6fd0", "#3fc45a", "#ff8a1f"];
+      for (let i = 0; i < 9; i++) { const a = Math.PI * (1.1 + i * .1); ctx.fillStyle = cols[i % cols.length]; ctx.save(); ctx.translate(hx + Math.cos(a) * 9, hy - 8 + Math.sin(a) * 6); ctx.rotate(a + Math.PI / 2); ctx.beginPath(); ctx.ellipse(0, -9, 2.6, 10, 0, 0, 7); ctx.fill(); ctx.restore(); }
+      ctx.fillStyle = H.c; ctx.fillRect(hx - 11, hy - 10, 23, 5); ctx.fillStyle = "#e03030"; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(hx - 7 + i * 5, hy - 7.5, 1.5, 0, 7); ctx.fill(); }
+      return;
+    }
+    default: return baseDrawHat(H, C, isFemale);
+  }
+};
+
+/* ---------- Yüz: belirgin göz, kaş, ağız, sakal, bıyık ---------- */
+function drawFace(F, blink, cheer, off, skin) {
+  const ey = -68.5, e1 = -2.2 + off, e2 = 4.8 + off, hc = F.hairC || "#1c1418";
+  // sakal (ağızdan önce)
+  ctx.fillStyle = hc;
+  if (F.beard === 1) { ctx.globalAlpha *= .4; for (let i = 0; i < 18; i++) ctx.fillRect(-5 + off + (i * 37 % 15), -63 + (i * 13 % 7), 1, 1); ctx.globalAlpha /= .4; }
+  if (F.beard === 2) { ctx.beginPath(); ctx.moveTo(-6 + off, -64); ctx.quadraticCurveTo(-5 + off, -55.5, 2.5 + off, -55.5); ctx.quadraticCurveTo(10 + off, -55.5, 10.5 + off, -63.5); ctx.lineTo(8.5 + off, -61.5); ctx.quadraticCurveTo(2.5 + off, -58.5, -4 + off, -62); ctx.closePath(); ctx.fill(); }
+  if (F.beard === 3) { ctx.beginPath(); ctx.moveTo(-7 + off, -66); ctx.quadraticCurveTo(-7 + off, -51, 2.5 + off, -50.5); ctx.quadraticCurveTo(11.5 + off, -51, 11 + off, -65); ctx.lineTo(9 + off, -62); ctx.quadraticCurveTo(2.5 + off, -58.5, -4.5 + off, -62); ctx.closePath(); ctx.fill(); }
+  if (F.beard === 4) poly([[0.5 + off, -59.5], [5.5 + off, -59.5], [3 + off, -53.5]]);
+  // gözler
+  const big = F.eyes === 1 ? 3 : 2.4;
+  if (blink || F.eyes === 3) {
+    ctx.strokeStyle = "#1c1418"; ctx.lineWidth = 1.2;
+    [e1, e2].forEach(x => { ctx.beginPath(); if (F.eyes === 3 && !blink) ctx.arc(x, ey + 1, 2, Math.PI * 1.1, Math.PI * 1.9); else { ctx.moveTo(x - 2, ey); ctx.lineTo(x + 2, ey); } ctx.stroke(); });
+  } else {
+    [e1, e2].forEach(x => {
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.ellipse(x, ey, big * .9, big, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = "#1c1418"; ctx.beginPath(); ctx.arc(x + .7, ey + .3, big * .55, 0, 7); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x + 1.1, ey - .5, .5, 0, 7); ctx.fill();
+      if (F.eyes === 2) { ctx.fillStyle = shade(skin || "#e0ac69", -.15); ctx.fillRect(x - big, ey - big - .2, big * 2, big); }
+    });
+  }
+  // kaşlar
+  ctx.strokeStyle = hc; ctx.lineWidth = 1.3; ctx.lineCap = "round";
+  [[e1, 1], [e2, -1]].forEach(([x, s]) => { ctx.beginPath(); if (F.eyes === 4) { ctx.moveTo(x - 2.2, ey - 4.2 - s * .9); ctx.lineTo(x + 2.2, ey - 4.2 + s * .9); } else { ctx.moveTo(x - 2, ey - 4); ctx.quadraticCurveTo(x, ey - 5, x + 2, ey - 4); } ctx.stroke(); });
+  // bıyık
+  ctx.fillStyle = hc; ctx.strokeStyle = hc;
+  const mx = 2.5 + off, my = -63.2;
+  if (F.mus === 1) { ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(mx - 4, my + .4); ctx.quadraticCurveTo(mx, my - 1, mx + 4, my + .4); ctx.stroke(); }
+  if (F.mus === 2) { ctx.beginPath(); ctx.moveTo(mx, my - 1.4); ctx.quadraticCurveTo(mx - 5, my - 2, mx - 7.5, my - 4); ctx.quadraticCurveTo(mx - 6, my + 1.6, mx, my + .8); ctx.quadraticCurveTo(mx + 6, my + 1.6, mx + 7.5, my - 4); ctx.quadraticCurveTo(mx + 5, my - 2, mx, my - 1.4); ctx.fill(); }
+  if (F.mus === 3) { ctx.beginPath(); ctx.moveTo(mx, my - 1.4); ctx.quadraticCurveTo(mx - 5, my - 1.4, mx - 6.5, my + 5); ctx.quadraticCurveTo(mx - 3.5, my + 1.4, mx, my + .8); ctx.quadraticCurveTo(mx + 3.5, my + 1.4, mx + 6.5, my + 5); ctx.quadraticCurveTo(mx + 5, my - 1.4, mx, my - 1.4); ctx.fill(); }
+  if (F.mus === 4) ctx.fillRect(mx - 2.5, my - .6, 5, 1.1);
+  // ağız
+  const mouth = cheer ? 1 : F.mouth, oy = -60.2;
+  ctx.strokeStyle = "#5a1a1a"; ctx.lineWidth = 1.2;
+  if (mouth === 0) { ctx.beginPath(); ctx.arc(mx, oy - 1.6, 2.6, .25, Math.PI - .25); ctx.stroke(); }
+  if (mouth === 1) { ctx.fillStyle = "#5a1a1a"; ctx.beginPath(); ctx.moveTo(mx - 3.4, oy - .8); ctx.quadraticCurveTo(mx, oy + 4.2, mx + 3.4, oy - .8); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.fillRect(mx - 2.4, oy - .8, 4.8, 1); }
+  if (mouth === 2) { ctx.beginPath(); ctx.moveTo(mx - 2.6, oy); ctx.lineTo(mx + 2.6, oy); ctx.stroke(); }
+  if (mouth === 3) { ctx.fillStyle = "#5a1a1a"; ctx.beginPath(); ctx.ellipse(mx, oy, 1.5, 1.9, 0, 0, 7); ctx.fill(); }
+  if (mouth === 4) { ctx.beginPath(); ctx.moveTo(mx - 2.8, oy + .2); ctx.quadraticCurveTo(mx + .5, oy + 1.4, mx + 3, oy - 1.6); ctx.stroke(); }
+}
+
+/* ---------- Avatar küçük resimleri ---------- */
+// İstenen bir çizimi başka bir tuvale yap: global ctx geçici olarak değişir
+function withCanvas(canvas, fn) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = canvas.clientWidth || canvas.width, h = canvas.clientHeight || canvas.height;
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const g = canvas.getContext("2d"), prev = ctx; ctx = g;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  try { fn(w, h); } finally { ctx = prev; }
+}
+function avatarMember(av, opts = {}) {
+  return { name: av.nick || "", color: "#ff7a1a", skin: av.skin, cos: null, hero: true, heroC: costumeFor(av), face: faceFor(av), x: 0, y: 0, phase: 0, dying: 0, alpha: 1, recoil: 0, joined: true, seed: opts.seed ?? .3, period: 8, cheer: 0 };
+}
+function drawAvatarHead(canvas, av) {
+  withCanvas(canvas, (w, h) => {
+    const m = avatarMember(av), k = w * .2 / (10 * PS);
+    ctx.save(); ctx.translate(w / 2 - 1 * PS * k, h * .64 + 67 * PS * k); ctx.scale(k, k); drawPerson(m, false, false); ctx.restore();
+  });
+}
+function drawAvatarBody(canvas, av) {
+  withCanvas(canvas, (w, h) => {
+    const m = avatarMember(av), k = h * .8 / (100 * PS);
+    ctx.save(); ctx.translate(w / 2 - 8 * PS * k, h * .96); ctx.scale(k, k); drawPerson(m, false, false); ctx.restore();
+  });
+}
+
+/* ---------- Profil ekranı ---------- */
+const PRO_TABS = [
+  ["hat", "Başlık"], ["outfit", "Kıyafet"], ["skin", "Ten rengi"], ["eyes", "Göz"], ["mouth", "Ağız"], ["beard", "Sakal"], ["mus", "Bıyık"], ["hairC", "Kıl rengi"],
+];
+let proTab = "hat";
+function buildProfileUI() {
+  const tabs = $("proTabs"); tabs.replaceChildren();
+  PRO_TABS.forEach(([k, label]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "tab"; b.role = "tab"; b.textContent = label;
+    b.setAttribute("aria-selected", String(k === proTab)); b.addEventListener("click", () => { proTab = k; buildProfileUI(); });
+    tabs.appendChild(b);
+  });
+  const panel = $("proPanel"); panel.replaceChildren();
+  const choose = (key, val) => { profile[key] = val; persistProfile(); buildProfileUI(); refreshProCard(); };
+  if (proTab === "skin" || proTab === "hairC") {
+    const wrap = document.createElement("div"); wrap.className = "swatches";
+    (proTab === "skin" ? SKINS : HAIRC).forEach(c => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = c; b.setAttribute("aria-label", c);
+      b.setAttribute("aria-pressed", String(profile[proTab] === c)); b.addEventListener("click", () => choose(proTab, c)); wrap.appendChild(b);
+    });
+    panel.appendChild(wrap); return;
+  }
+  const grid = document.createElement("div"); grid.className = "opts";
+  const items = proTab === "hat" ? HATS.map(h => [h.id, h.label]) : proTab === "outfit" ? OUTFITS.map(o => [o.id, o.label])
+    : ({ eyes: EYES, mouth: MOUTHS, beard: BEARDS, mus: MUS })[proTab].map((l, i) => [i, l]);
+  const thumbs = [];
+  items.forEach(([val, label]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "opt"; b.setAttribute("aria-pressed", String(profile[proTab] === val));
+    const c = document.createElement("canvas"); const s = document.createElement("span"); s.textContent = label;
+    b.append(c, s); b.addEventListener("click", () => choose(proTab, val)); grid.appendChild(b);
+    thumbs.push([c, { ...profile, [proTab]: val }]);
+  });
+  panel.appendChild(grid);
+  requestAnimationFrame(() => thumbs.forEach(([c, av]) => proTab === "outfit" ? drawAvatarBody(c, av) : drawAvatarHead(c, av)));
+}
+function refreshProCard() {
+  const c = $("proCardCv"); if (c && !ui.menuConsole.hidden) drawAvatarHead(c, profile);
+  $("proCardName").textContent = profile.nick || "İsimsiz oyuncu";
+  $("proCardInfo").textContent = `${HAT_BY[profile.hat].label} · ${OUTFIT_BY[profile.outfit].label}`;
+}
+function showProfile() {
+  hideAll(); screen = "profile";
+  cv.hidden = false; ui.profileConsole.hidden = false;
+  $("nickInput").value = profile.nick;
+  buildProfileUI(); resize();
+}
+// Profil ekranındaki büyük önizleme
+function drawProfileScene(dt) {
+  mainCtx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#5ec4ff"); g.addColorStop(.62, "#c9f0ff"); g.addColorStop(.63, "#8fd86c"); g.addColorStop(1, "#6cc24a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  [[160, 90, 1], [700, 70, 1.3], [430, 140, .8]].forEach(([x, y, s], i) => { const xx = (x + T * 8 * (i + 1)) % (W + 200) - 100; [[0, 0, 26], [24, -10, 30], [52, 0, 24]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(xx + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); }); });
+  ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(480, 535, 120, 16, 0, 0, 7); ctx.fill();
+  const m = avatarMember(profile, { seed: .37 });
+  ctx.save(); ctx.translate(470, 532); ctx.scale(2.6, 2.6); drawPerson(m, false, false); ctx.restore();
+  ctx.font = "34px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 7; ctx.strokeStyle = "#1e2d4a"; ctx.fillStyle = "#ffffff";
+  const nm = profile.nick || "Oyuncu Profili"; ctx.strokeText(nm, 480, 64); ctx.fillText(nm, 480, 64);
+}
+
+/* ---------- Müzik: yürüyüş marşı, savaş müziği, ring zili ---------- */
+const Music = (() => {
+  let ac = null, out = null, noiseBuf = null, cur = null, timer = null, nextT = 0, step = 0;
+  let on = true;
+  try { on = localStorage.getItem("bilgi-ordusu-muzik") !== "0"; } catch (e) {}
+  const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+  const _ = null;
+  // Marş: Do majör, 8 ölçü, sekizlik notalar (özgün melodi)
+  const MARCH = {
+    bpm: 116,
+    mel: [67, 67, 72, 72, 76, 76, 74, 72, 74, _, 67, _, 71, 74, 79, _, 76, 76, 77, 76, 74, 72, 74, 76, 72, _, 67, _, 72, _, _, _,
+          69, 69, 72, 72, 77, 77, 76, 74, 76, _, 72, _, 67, 72, 76, _, 74, 74, 76, 77, 79, 77, 76, 74, 72, _, 79, _, 84, _, _, _],
+    roots: [48, 43, 48, 48, 41, 48, 43, 48],
+  };
+  // Savaş: La minör, 4 ölçü, hızlı ve sert
+  const BATTLE = {
+    bpm: 150,
+    arp: [69, 72, 76, 72, 81, 76, 72, 76, 65, 69, 72, 69, 77, 72, 69, 72, 67, 71, 74, 71, 79, 74, 71, 74, 64, 68, 71, 68, 76, 71, 68, 71],
+    lead: [[76, 4], [74, 4], [72, 4], [69, 4], [74, 4], [71, 4], [68, 8]],
+    roots: [45, 41, 43, 40],
+  };
+  function init() {
+    if (ac) return;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; return; }
+    out = ac.createGain(); out.gain.value = on ? .16 : 0; out.connect(ac.destination);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate * .5, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function tone(t, n, dur, type, vol, cutoff = 2400, vib = 0) {
+    const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
+    o.type = type; o.frequency.setValueAtTime(mtof(n), t);
+    if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = 5.5; lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
+    f.type = "lowpass"; f.frequency.value = cutoff;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .015); g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + dur + .02);
+  }
+  function noise(t, dur, vol, hp = 1000, lp = 9000) {
+    const s = ac.createBufferSource(), g = ac.createGain(), h = ac.createBiquadFilter(), l = ac.createBiquadFilter();
+    s.buffer = noiseBuf; h.type = "highpass"; h.frequency.value = hp; l.type = "lowpass"; l.frequency.value = lp;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    s.connect(h).connect(l).connect(g).connect(out); s.start(t); s.stop(t + dur + .02);
+  }
+  function kick(t, vol = .9) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + .14);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .22);
+    o.connect(g).connect(out); o.start(t); o.stop(t + .25);
+  }
+  function tom(t, n) { tone(t, n, .25, "sine", .5, 900); noise(t, .08, .12, 200, 2000); }
+  const snare = (t, v = .45) => { noise(t, .14, v, 1200, 8000); tone(t, 50, .08, "triangle", .2, 1200); };
+  function scheduleMarch(s, t, sp) { // s: 16'lık adım (0..127)
+    const bar = s >> 4, inBar = s % 16;
+    if (s % 2 === 0) { const n = MARCH.mel[s >> 1]; if (n) { tone(t, n, sp * 1.8, "sawtooth", .16, 2200, 3); tone(t, n - 12, sp * 1.8, "square", .05, 1400); } }
+    if (inBar % 4 === 0) { const beat = inBar >> 2, r = MARCH.roots[bar]; tone(t, beat % 2 ? r + 7 : r, sp * 3, "triangle", .32, 900); }
+    if (inBar === 0 || inBar === 8) kick(t, .8);
+    if (inBar === 4 || inBar === 12) snare(t, .4);
+    if (inBar === 6 || inBar === 14) snare(t, .12);
+    if ((bar === 3 || bar === 7) && inBar >= 12) snare(t, .16 + (inBar - 12) * .06);
+    if (s === 0 || s === 64) noise(t, .9, .12, 4000, 12000);
+  }
+  function scheduleBattle(s, t, sp) { // 4 ölçü × 16 adım
+    const bar = s >> 4, inBar = s % 16, r = BATTLE.roots[bar];
+    if (s % 2 === 0) tone(t, BATTLE.arp[s >> 1], sp * 1.6, "sawtooth", .07, 3000);
+    tone(t, inBar % 4 === 2 ? r + 12 : r, sp * .9, "sawtooth", .16, 700);
+    let acc = 0; for (const [n, len] of BATTLE.lead) { if (s === acc * 2) tone(t, n, sp * len * 2 * .95, "square", .07, 1800, 4); acc += len; }
+    if (inBar === 0 || inBar === 6 || inBar === 8 || inBar === 10) kick(t);
+    if (inBar === 4 || inBar === 12) snare(t, .5);
+    if (inBar % 2 === 1) noise(t, .04, .08, 7000, 14000);
+    if (bar === 3 && inBar >= 12) tom(t, [52, 50, 47, 45][inBar - 12]);
+  }
+  function tick() {
+    if (!ac || !cur) return;
+    const song = cur === "march" ? MARCH : BATTLE, len = cur === "march" ? 128 : 64, sp = 60 / song.bpm / 4;
+    if (nextT < ac.currentTime) nextT = ac.currentTime + .05;
+    while (nextT < ac.currentTime + .15) {
+      if (on) (cur === "march" ? scheduleMarch : scheduleBattle)(step, nextT, sp);
+      nextT += sp; step = (step + 1) % len;
+    }
+  }
+  return {
+    get on() { return on; },
+    init,
+    play(name) {
+      if (name === cur) return;
+      cur = name; step = 0;
+      if (!ac || !name) return;
+      nextT = ac.currentTime + .08;
+      if (!timer) timer = setInterval(tick, 25);
+    },
+    bell() { // ring zili: üç vuruş
+      if (!ac || !on) return;
+      for (let k = 0; k < 3; k++) {
+        const t = ac.currentTime + .02 + k * .32;
+        [1240, 2610, 3720].forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.setValueAtTime([.28, .12, .06][i], t); g.gain.exponentialRampToValueAtTime(.0005, t + 1.3); o.connect(g).connect(out); o.start(t); o.stop(t + 1.35); });
+      }
+    },
+    toggle() {
+      on = !on; try { localStorage.setItem("bilgi-ordusu-muzik", on ? "1" : "0"); } catch (e) {}
+      if (out) out.gain.setTargetAtTime(on ? .16 : 0, ac.currentTime, .05);
+      return on;
+    },
+  };
+})();
+
+/* ---------- Skor tablosu (bütün oyuncular) ---------- */
+// scores/<oyuncu id> belgeleri: herkes okur, herkes yalnızca kendi satırını yazar.
+let DB = null, myId = null, lbRows = [], lbStatus = "loading", lbWriteFail = false;
+async function initCloud() {
+  try {
+    if (!window.claude || typeof window.claude.use !== "function") { lbStatus = "off"; renderLB(); return; }
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db) { lbStatus = "off"; renderLB(); return; }
+    DB = db;
+    myId = user ? await user.id() : null;
+    if (myId) {
+      try { const mine = await DB.doc("scores/" + myId).get(); const s = mine.exists ? mine.data().score : 0; if (typeof s === "number" && s > save.score) { save.score = Math.floor(s); persist(); } } catch (e) {}
+    }
+    let loaded = false;
+    const to = setTimeout(() => { if (!loaded) { lbStatus = "slow"; renderLB(); } }, 10000);
+    DB.collection("scores").orderBy("score", "desc").limit(25).onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { loaded = true; clearTimeout(to); }
+      lbRows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      lbStatus = "ok"; renderLB();
+    }, () => { loaded = true; clearTimeout(to); lbStatus = "err"; renderLB(); });
+    if (save.score > 0) pushScore();
+  } catch (e) { lbStatus = "off"; renderLB(); }
+}
+let pushing = false, pushAgain = false;
+async function pushScore() {
+  if (!DB || !myId) return;
+  if (pushing) { pushAgain = true; return; }
+  pushing = true;
+  try {
+    await DB.doc("scores/" + myId).set({
+      nick: (profile.nick || "Oyuncu").slice(0, 20), score: save.score,
+      tr: save.tr.done.length, world: save.world.done.length, avatar: avatarData(), updatedAt: new Date().toISOString(),
+    });
+    lbWriteFail = false;
+  } catch (e) { lbWriteFail = true; }
+  pushing = false; renderLB();
+  if (pushAgain) { pushAgain = false; pushScore(); }
+}
+function renderLB() {
+  const list = $("lbList"), note = $("lbNote");
+  if (!list) return;
+  list.replaceChildren();
+  const msg = {
+    loading: "Skor tablosu yükleniyor…",
+    slow: "Skor tablosuna şu an ulaşılamıyor. Bağlantı gelince kendiliğinden dolacak.",
+    off: "Ortak skor tablosu bu görünümde açılamıyor. Skorun bu cihazda saklanıyor.",
+    err: "Skor tablosu yüklenemedi. Skorun bu cihazda saklanıyor.",
+  }[lbStatus];
+  note.textContent = lbWriteFail ? "Skorun tabloya yazılamadı: bu sayfada veri yazma iznin olmayabilir." : "";
+  if (msg || !lbRows.length) {
+    const p = document.createElement("p"); p.className = "lbempty";
+    p.textContent = msg || "Henüz kimse skor kaydetmedi. İlk şehrini kurtar, tabloya ilk sen gir!";
+    list.appendChild(p); return;
+  }
+  lbRows.forEach((r, i) => {
+    const li = document.createElement("li"); if (r.id === myId) li.className = "me";
+    const rk = document.createElement("span"); rk.className = "rk"; rk.textContent = i + 1;
+    const cvs = document.createElement("canvas");
+    const nm = document.createElement("div"); nm.className = "nm";
+    const b = document.createElement("b"); b.textContent = (typeof r.nick === "string" && r.nick.trim() ? r.nick.slice(0, 20) : "Oyuncu") + (r.id === myId ? " (sen)" : "");
+    const sm = document.createElement("small");
+    const tr = Number.isFinite(r.tr) ? r.tr : 0, wd = Number.isFinite(r.world) ? r.world : 0;
+    sm.textContent = `${tr} il · ${wd} şehir`;
+    nm.append(b, sm);
+    const pt = document.createElement("span"); pt.className = "pt"; pt.textContent = Number.isFinite(r.score) ? Math.floor(r.score).toLocaleString("tr-TR") : "0";
+    li.append(rk, cvs, nm, pt); list.appendChild(li);
+    requestAnimationFrame(() => drawAvatarHead(cvs, sanitizeAvatar(r.avatar)));
+  });
+}
+
 /* ---------- Oyun durumu ---------- */
 let G = null, running = false;
 // Yol planı: 5 yabancı → şeytan bölüğü → 5 yabancı → şeytan bölüğü → canavar
@@ -1149,7 +1709,7 @@ function startCity(i) {
   if (c.local) deck.push(c.local); else trLocal(c).forEach(q => deck.push(q));
   G = {
     ci: i, c, phase: "walk", t: 0, worldX: 0, walkLeft: 240,
-    team: [makeMember(0)], stranger: null, boss: null, devils: [],
+    team: [heroMember()], stranger: null, boss: null, devils: [],
     step: 0, sCount: 0, results: [], deck, q: null, qTimer: 0, locked: true,
     score: 0, shake: 0, bullets: [], fireballs: [], sparks: [], floaters: [], timers: [], flakes: [], usedNames: [],
   };
@@ -1157,7 +1717,7 @@ function startCity(i) {
   const g0 = G;
   for (let k = 0; k < 60; k++) G.flakes.push({ x: Math.random() * W, y: Math.random() * H, s: 1 + Math.random() * 2, v: 20 + Math.random() * 40 });
   layoutTeam(true);
-  hideAll(); G = g0; cv.hidden = false;
+  hideAll(); G = g0; screen = "battle"; cv.hidden = false;
   ui.battleConsole.hidden = false;
   ui.cityBadge.hidden = false; ui.backBtn.hidden = false; ui.bossHp.hidden = true; ui.overlay.hidden = true;
   ui.badgeFlag.src = flagUrl(c.flag); ui.badgeFlag.alt = `${c.country} bayrağı`;
@@ -1250,6 +1810,7 @@ function onJoined(m) {
 function spawnStranger() {
   const cos = G.cosBag[G.sCount % G.cosBag.length], C = COSTUMES[cos];
   const m = makeMember(G.team.length, cos);
+  m.face = randomFace(C);
   m.skin = SKIN[(G.sCount * 3 + G.ci) % SKIN.length];
   G.stranger = { ...m, name: pickName(C), x: W + 40, joined: false, leaving: false, bubble: "?" };
   G.phase = "approach";
@@ -1278,7 +1839,7 @@ function strangerResolve(ok, timeout, rightText) {
 /* ---------- Şeytan askerleri ---------- */
 function spawnDevils() {
   G.devils = [0, 1, 2].map(k => ({ x: W + 40 + k * 70, tx: 680 + k * 74, y: GROUND, phase: Math.random() * 6, dying: 0, alpha: 1, attack: 0 }));
-  G.phase = "devilIntro"; renderHud();
+  G.phase = "devilIntro"; renderHud(); Music.bell();
   clearQuestion("Şeytan askerleri yolunu kesti!");
   ui.qlabel.textContent = "Şeytan askerleri · kalan 3";
   ui.feedback.textContent = "Her doğru cevapta ekip bir şeytanı vurur. Her yanlışta bir arkadaşını kaybedersin."; ui.feedback.className = "feedback";
@@ -1323,7 +1884,7 @@ function devilsCleared() {
 function spawnBoss() {
   const max = bossHpFor(G.ci);
   G.boss = { x: W + 300, tx: 735, hp: max, max, flash: 0, attack: 0, dead: 0, rise: 0, mouth: { x: 700, y: 180 } };
-  G.phase = "bossIntro"; layoutTeam(false);
+  G.phase = "bossIntro"; layoutTeam(false); Music.bell();
   ui.bossHp.hidden = false; renderHud();
   clearQuestion(`${G.c.foe} yolunu kesti!`);
   ui.feedback.textContent = `Ekibin ${G.team.length} kişi. Her doğru cevap ${dmgFor(G.team.length)} hasar verir.`; ui.feedback.className = "feedback";
@@ -1374,7 +1935,7 @@ function winCity() {
   const c = G.c, P = prog();
   if (!P.done.includes(c.id)) P.done.push(c.id);
   P.unlocked = Math.max(P.unlocked || 0, Math.min(LIST.length - 1, G.ci + 1));
-  save.score += G.score; persist(); renderHud();
+  save.score += G.score; persist(); renderHud(); pushScore();
   clearQuestion(`${c.foe} yenildi!`);
   let ni = -1;
   for (let k = 1; k < LIST.length && ni < 0; k++) { const j = (G.ci + k) % LIST.length; if (!P.done.includes(LIST[j].id)) ni = j; }
@@ -1389,7 +1950,7 @@ function winCity() {
 }
 function loseCity() {
   G.phase = "lose"; clearQuestion("Ekibin tamamı düştü.");
-  save.score += G.score; persist();
+  save.score += G.score; persist(); pushScore();
   const why = G.boss ? `${G.c.foe} son askeri de devirdi. Kalan canı: ${Math.max(0, G.boss.hp)}.` : `Şeytan askerleri son askeri de devirdi.`;
   later(1.0, () => showOverlay("Yenildin", `${why} Yolda daha çok yabancıyı ekibine katarsan ateş gücün artar.`,
     "Tekrar Dene", () => startCity(G.ci), "Haritaya Dön", showMap));
@@ -1483,27 +2044,27 @@ function draw() {
   ctx.translate(0, OFFY);
   if (G.shake > 0) ctx.translate((Math.random() - .5) * 14 * G.shake, (Math.random() - .5) * 10 * G.shake);
   const dk = G.boss ? Math.min(1, (W + 300 - G.boss.x) / 300) * .45 : 0;
-  const D = col => mix(col, "#120818", dk);
+  const D = col => mix(col, "#2a3550", dk * .8), day = dayOf(c);
 
   const sky = ctx.createLinearGradient(0, -OFFY, 0, GROUND);
-  sky.addColorStop(0, D(c.sky[0])); sky.addColorStop(.62, D(c.sky[1])); sky.addColorStop(1, D(c.sky[2]));
+  sky.addColorStop(0, D(day.sky[0])); sky.addColorStop(.62, D(day.sky[1])); sky.addColorStop(1, D(day.sky[2]));
   ctx.fillStyle = sky; ctx.fillRect(-20, -OFFY - 20, W + 40, GROUND + OFFY + 20);
-  ctx.fillStyle = "#fff6e6";
-  for (let i = 0; i < 36; i++) { const tw = .5 + .5 * Math.sin(G.t * 2 + i); ctx.globalAlpha = (.15 + .4 * tw) * (c.moon ? 1.4 : 1); ctx.fillRect((i * 197 + 31) % W, (i * 71) % (140 + OFFY) - OFFY, 2, 2); }
-  ctx.globalAlpha = 1;
+  // güneş ve bulutlar
+  ctx.fillStyle = D("#fff6b0"); ctx.globalAlpha = .35; ctx.beginPath(); ctx.arc(W * .82, -70, 70, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = D("#ffe866"); ctx.beginPath(); ctx.arc(W * .82, -70, 46, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.9)";
+  [[120, -110, 1.1, 6], [520, -60, .8, 9], [820, 10, 1, 4], [330, 40, .7, 7]].forEach(([x, y, s, v]) => {
+    const xx = ((x - G.worldX * .03 - T * v) % (W + 260) + W + 260) % (W + 260) - 130;
+    [[0, 0, 26], [26, -12, 32], [56, 0, 24], [28, 6, 22]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(xx + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); });
+  });
 
-  // güneş / ay
-  const sx = W * .8, sy = c.moon ? 80 : GROUND - 110;
-  ctx.fillStyle = D(c.sun); ctx.beginPath(); ctx.arc(sx, sy, c.moon ? 34 : 56, 0, 7); ctx.fill();
-  if (c.moon) { ctx.fillStyle = D(c.sky[0]); ctx.beginPath(); ctx.arc(sx + 14, sy - 8, 30, 0, 7); ctx.fill(); }
-
-  ridge(G.worldX * .08, 205, 70, D(c.hills[0]), .006, 1, c.snowcaps);
+  ridge(G.worldX * .08, 205, 70, D(day.hills[0]), .006, 1, c.snowcaps);
   // simge yapı (yavaş kayar)
   const lx = 640 - Math.min(G.worldX * .1, 330);
-  ctx.save(); ctx.translate(lx, 0); LANDMARK[c.landmark](D(shade(c.hills[1], -.15)), D(c.sky[2])); ctx.restore();
-  ridge(G.worldX * .3, 272, 32, D(c.hills[1]), .012, 2);
+  ctx.save(); ctx.translate(lx, 0); LANDMARK[c.landmark](D(shade(day.hills[1], -.2)), D(day.sky[2])); ctx.restore();
+  ridge(G.worldX * .3, 272, 32, D(day.hills[1]), .012, 2);
   if (c.lake) { ctx.fillStyle = D(c.lake); ctx.fillRect(-20, 300, W + 40, GROUND - 300); ctx.fillStyle = "rgba(255,255,255,.18)"; for (let i = 0; i < 18; i++) ctx.fillRect(((i * 131 - G.worldX * .4) % W + W) % W, 306 + (i % 4) * 7, 26, 2); }
-  ridge(G.worldX * .55, 312, 14, D(c.hills[2]), .02, 3);
+  ridge(G.worldX * .55, 312, 14, D(day.hills[2]), .02, 3);
 
   ctx.fillStyle = D(c.ground[0]); ctx.fillRect(-20, GROUND, W + 40, H - GROUND + 20);
   ctx.fillStyle = D(c.ground[1]); ctx.fillRect(-20, GROUND, W + 40, 6);
@@ -1531,6 +2092,11 @@ function draw() {
   });
   ctx.globalAlpha = 1;
   ctx.restore();
+}
+function dayOf(c) {
+  if (c._day) return c._day;
+  const tint = ["#86c6e8", "#78b890", "#5fa070"];
+  return (c._day = { sky: ["#3fa9f0", "#8fd3ff", mix(c.sky[2], "#fff8e0", .6)], hills: c.hills.map((h, i) => shade(mix(h, tint[i], .5), .1)) });
 }
 function ridge(off, base, amp, color, freq, seed, snow) {
   const pts = [];
@@ -1980,10 +2546,11 @@ Object.assign(LANDMARK, {
 
 /* ---------- İnsanlar ---------- */
 // Bekleme hareketleri: her askerin kendi tohumu olduğu için hepsi aynı anda kıpırdamaz
-function gunAdjust(m) { const p = m.period || 7, c = (G.t + (m.seed || 0) * 9) % p; return c < .9 ? -Math.sin(c / .9 * Math.PI) * .45 : 0; }
-function blinking(m) { const p = 2.6 + (m.seed || 0) * 2.4, c = (G.t + (m.seed || 0) * 5) % p; return c < .13; }
+function gunAdjust(m) { const p = m.period || 7, c = (T + (m.seed || 0) * 9) % p; return c < .9 ? -Math.sin(c / .9 * Math.PI) * .45 : 0; }
+const DEFAULT_FACE = { eyes: 0, mouth: 0, beard: 0, mus: 0, hairC: "#1c1418" };
+function blinking(m) { const p = 2.6 + (m.seed || 0) * 2.4, c = (T + (m.seed || 0) * 5) % p; return c < .13; }
 function drawPerson(m, walking, isHero) {
-  const x = m.x, y = m.y, C = m.cos ? COSTUMES[m.cos] : null;
+  const x = m.x, y = m.y, C = m.hero ? m.heroC : (m.cos ? COSTUMES[m.cos] : null);
   const idle = !walking && !m.dying && !(m.cheer > 0);
   const jump = m.cheer > 0 ? Math.abs(Math.sin((1 - m.cheer) * Math.PI * 2)) * 16 : 0;
   ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha ?? 1); ctx.translate(x, y - jump);
@@ -1998,7 +2565,7 @@ function drawPerson(m, walking, isHero) {
   ctx.beginPath(); ctx.moveTo(4, -24 + bob); ctx.lineTo(4 - sw * 10, -2); ctx.stroke();
   ctx.fillStyle = "#1a1418"; ctx.fillRect(-7 + sw * 10, -4, 9, 4); ctx.fillRect(0 - sw * 10, -4, 9, 4);
   ctx.translate(0, bob);
-  if (idle) { const br = Math.sin(G.t * 2.2 + (m.seed || 0) * 6.3) * .03; ctx.translate(0, -24); ctx.scale(1, 1 + br); ctx.translate(0, 24); }
+  if (idle) { const br = Math.sin(T * 2.2 + (m.seed || 0) * 6.3) * .03; ctx.translate(0, -24); ctx.scale(1, 1 + br); ctx.translate(0, 24); }
   // uzun ceket / aba / kaftan (arkada)
   if (C && C.coat) { ctx.fillStyle = C.coat.c; roundRect(-12, -56, 24, 34 + C.coat.len, 5); ctx.fill(); if (C.trim) { ctx.fillStyle = C.trim; ctx.fillRect(-12, -24 + C.coat.len, 24, 2); } }
   if (C && C.skirt) drawSkirt(C.skirt);
@@ -2028,15 +2595,14 @@ function drawPerson(m, walking, isHero) {
   const female = C && C.g === "f";
   if (C && female && ["none", "hairbun", "braids", "kokoshnik"].includes(C.hat.t)) { ctx.fillStyle = C.hair || "#2a1a12"; ctx.beginPath(); ctx.ellipse(-6, -60, 7, 14, .15, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -68, 11, Math.PI * .8, Math.PI * 1.9); ctx.fill(); }
   ctx.fillStyle = m.skin; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.fill();
-  ctx.fillStyle = "#2b2236"; if (blinking(m)) ctx.fillRect(3.5, -67.5, 4, 1); else ctx.fillRect(4, -69, 3, 3);
-  if (m.cheer > .2) { ctx.strokeStyle = "#2b2236"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(5, -62.5, 2.5, .2, Math.PI - .2); ctx.stroke(); }
-  if (C && !female && ["kalpak", "kafkas", "dogu", "yoruk", "zeybek"].includes(m.cos)) { ctx.fillStyle = "#2a1a12"; ctx.fillRect(2, -62, 9, 2.5); }
+  ctx.fillStyle = shade(m.skin, -.12); ctx.beginPath(); ctx.arc(-7.5, -66, 2.4, 0, 7); ctx.fill();
   if (C) { C.skinNow = m.skin; drawHat(C.hat, C, female); }
-  else { ctx.fillStyle = isHero ? "#2b2236" : shade(m.color, -.35); ctx.beginPath(); ctx.arc(1, -69, 10.5, Math.PI, 0); ctx.fill(); if (isHero) { ctx.fillStyle = "#ffc857"; ctx.fillRect(-9, -70, 20, 3); } }
+  else { ctx.fillStyle = shade(m.color, -.35); ctx.beginPath(); ctx.arc(1, -69, 10.5, Math.PI, 0); ctx.fill(); }
+  drawFace(m.face || DEFAULT_FACE, blinking(m), m.cheer > .2, C && C.hat.t === "yemeni" ? 2.5 : 0, m.skin);
   ctx.restore();
   if (m.bubble && (!m.joined || m.leaving)) {
     ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha);
-    const bx = x, by = y - 112 * PS + Math.sin(G.t * 4) * 3;
+    const bx = x, by = y - 112 * PS + Math.sin(T * 4) * 3;
     ctx.fillStyle = "#fbf1e1"; roundRect(bx - 16, by - 18, 32, 30, 8); ctx.fill();
     ctx.beginPath(); ctx.moveTo(bx - 5, by + 12); ctx.lineTo(bx, by + 20); ctx.lineTo(bx + 5, by + 12); ctx.fill();
     ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428"; ctx.font = "20px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
@@ -2048,7 +2614,7 @@ function drawPerson(m, walking, isHero) {
     ctx.fillStyle = "rgba(27,20,40,.8)"; roundRect(x - w / 2, y + 8, w, 16, 6); ctx.fill();
     ctx.fillStyle = "#fbf1e1"; ctx.fillText(txt, x, y + 20); ctx.restore();
   }
-  if (isHero && !m.dying) { ctx.font = "11px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffc857"; ctx.fillText("SEN", x, y - 92 * PS - jump); }
+  if (isHero && !m.dying) { ctx.font = "11px Bungee, Impact, sans-serif"; ctx.textAlign = "center"; const tag = (profile.nick || "Sen").toLocaleUpperCase("tr"); ctx.lineWidth = 3; ctx.strokeStyle = "#1e2d4a"; ctx.strokeText(tag, x, y - 92 * PS - jump); ctx.fillStyle = "#ffc21a"; ctx.fillText(tag, x, y - 92 * PS - jump); }
 }
 
 /* ---------- Canavarlar ---------- */
@@ -2535,12 +3101,15 @@ function resize() {
 window.addEventListener("resize", resize);
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  requestAnimationFrame(frame);
+  const dt = Math.min(.05, (now - last) / 1000); last = now; T = now / 1000;
+  if (screen === "profile") drawProfileScene(dt);
+  const want = !G || !running ? null : (G.phase === "win" || G.phase === "lose") ? null : (G.boss || G.devils.length) ? "battle" : "march";
+  Music.play(want);
   if (G && !cv.hidden) {
     if (running) update(dt);
     if (G) { mainCtx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0); draw(); }
   }
-  requestAnimationFrame(frame);
 }
 
 /* ---------- Girdiler ---------- */
@@ -2551,19 +3120,27 @@ ui.prevBtn.addEventListener("click", () => selectCity(selected - 1));
 ui.nextBtn.addEventListener("click", () => selectCity(selected + 1));
 ui.backBtn.addEventListener("click", showMap);
 $("menuBtn").addEventListener("click", showMenu);
+$("editProfile").addEventListener("click", showProfile);
+$("nickInput").addEventListener("input", e => { profile.nick = e.target.value.slice(0, 20); persistProfile(); });
+$("profileGo").addEventListener("click", () => { ensureAudio(); profile.nick = $("nickInput").value.trim().slice(0, 20); persistProfile(); pushScore(); showMenu(); });
+const musicBtn = $("musicBtn");
+musicBtn.setAttribute("aria-pressed", String(Music.on));
+musicBtn.addEventListener("click", () => { ensureAudio(); musicBtn.setAttribute("aria-pressed", String(Music.toggle())); });
+window.addEventListener("pointerdown", () => Music.init(), { once: true });
 ui.ilSelect.addEventListener("change", () => selectCity(+ui.ilSelect.value));
 $("modeTr").addEventListener("click", () => setMode("tr"));
 $("modeWorld").addEventListener("click", () => setMode("world"));
 $("menuTrPath").setAttribute("d", LAND_TR); $("menuWorldPath").setAttribute("d", LAND_WORLD); $("menuTrFlag").src = flagUrl("TR");
 window.addEventListener("keydown", e => {
-  if (!G || !ui.overlay.hidden) return;
+  if (!G || !ui.overlay.hidden || e.target.tagName === "INPUT") return;
   const map = { a: 0, b: 1, c: 2, d: 3, "1": 0, "2": 1, "3": 2, "4": 3 }, k = e.key.toLowerCase();
   if (k in map) { e.preventDefault(); answer(map[k]); }
 });
 
-showMenu();
+showProfile();
 requestAnimationFrame(frame);
-window.BilgiOrdusu = { setMode, startCity, list: () => LIST, state: () => G };
+initCloud();
+window.BilgiOrdusu = { setMode, startCity, showMenu, showProfile, list: () => LIST, state: () => G };
 })();
 </script>
 
