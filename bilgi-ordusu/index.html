@@ -2025,6 +2025,71 @@ const OUTFITS = [{ id: "klasik", label: "Klasik (turuncu)" }, { id: "klasikMavi"
   .concat(Object.keys(COSTUMES).map(k => ({ id: k, label: COSTUMES[k].label })));
 const OUTFIT_BY = Object.fromEntries(OUTFITS.map(o => [o.id, o]));
 const CLASSIC = { klasik: "#ff7a1a", klasikMavi: "#2f8fe0", klasikYesil: "#3fc45a" };
+/* ---------- Kendi bayrağın ---------- */
+const FLAG_COLS = ["#e30a17", "#b0101e", "#ffffff", "#111111", "#1f4fb8", "#5ab0f0", "#1f9a3a", "#8ad04a", "#ffd21a", "#f08a1a", "#7a3aa8", "#8a5a2a"];
+const FLAG_PATS = [["duz", "Düz"], ["yatay2", "İki yatay"], ["yatay3", "Üç yatay"], ["dikey2", "İki dikey"], ["dikey3", "Üç dikey"], ["kenar", "Kenar şeridi"], ["ucgen", "Üçgen"], ["hac", "Haç"], ["capraz", "Çapraz"]];
+const FLAG_EMS = [["yok", "Yok"], ["ayyildiz", "Ay yıldız"], ["hilal", "Hilal"], ["yildiz", "Yıldız"], ["gunes", "Güneş"], ["kilic", "Kılıç"], ["lale", "Lale"]];
+const DEFAULT_FLAG = { pat: "duz", c1: "#e30a17", c2: "#ffffff", c3: "#1f4fb8", em: "ayyildiz", ec: "#ffffff" };
+function sanitizeFlag(f) {
+  f = f && typeof f === "object" ? f : {};
+  const col = (v, d) => FLAG_COLS.includes(v) ? v : d, has = (v, list, d) => list.some(x => x[0] === v) ? v : d;
+  return { pat: has(f.pat, FLAG_PATS, DEFAULT_FLAG.pat), c1: col(f.c1, DEFAULT_FLAG.c1), c2: col(f.c2, DEFAULT_FLAG.c2), c3: col(f.c3, DEFAULT_FLAG.c3), em: has(f.em, FLAG_EMS, DEFAULT_FLAG.em), ec: col(f.ec, DEFAULT_FLAG.ec) };
+}
+function star5(g, x, y, r) { g.beginPath(); for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * .4 : r, a = -Math.PI / 2 + k * Math.PI / 5; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); }
+// Bayrağı w×h tuvale çiz (direk solda)
+function paintFlag(g, w, h, F) {
+  const { c1, c2, c3 } = F;
+  g.save(); g.fillStyle = c1; g.fillRect(0, 0, w, h);
+  g.fillStyle = c2;
+  if (F.pat === "yatay2") g.fillRect(0, h / 2, w, h / 2);
+  if (F.pat === "yatay3") { g.fillRect(0, h / 3, w, h / 3); g.fillStyle = c3; g.fillRect(0, h * 2 / 3, w, h / 3 + 1); }
+  if (F.pat === "dikey2") g.fillRect(w / 2, 0, w / 2, h);
+  if (F.pat === "dikey3") { g.fillRect(w / 3, 0, w / 3, h); g.fillStyle = c3; g.fillRect(w * 2 / 3, 0, w / 3 + 1, h); }
+  if (F.pat === "kenar") g.fillRect(0, 0, w * .26, h);
+  if (F.pat === "ucgen") { g.beginPath(); g.moveTo(0, 0); g.lineTo(w * .45, h / 2); g.lineTo(0, h); g.fill(); }
+  if (F.pat === "hac") { g.fillRect(w * .3, 0, h * .2, h); g.fillRect(0, h * .4, w, h * .2); }
+  if (F.pat === "capraz") { g.lineWidth = h * .22; g.strokeStyle = c2; g.beginPath(); g.moveTo(0, h); g.lineTo(w, 0); g.stroke(); }
+  // simge ayrı tuvalde (hilal oyuğu için)
+  if (F.em !== "yok") {
+    const e = document.createElement("canvas"); e.width = w; e.height = h; const q = e.getContext("2d");
+    const cx = F.pat === "kenar" || F.pat === "ucgen" ? w * .2 : F.em === "ayyildiz" || F.em === "hilal" ? w * .42 : w / 2, cy = h / 2, r = h * .3;
+    q.fillStyle = F.ec; q.strokeStyle = F.ec;
+    if (F.em === "ayyildiz" || F.em === "hilal") {
+      q.beginPath(); q.arc(cx, cy, r, 0, 7); q.fill(); q.globalCompositeOperation = "destination-out"; q.beginPath(); q.arc(cx + r * .28, cy, r * .8, 0, 7); q.fill(); q.globalCompositeOperation = "source-over";
+      if (F.em === "ayyildiz") star5(q, cx + r * 1.12, cy, r * .42);
+    }
+    if (F.em === "yildiz") star5(q, cx, cy, r * 1.05);
+    if (F.em === "gunes") { q.beginPath(); q.arc(cx, cy, r * .55, 0, 7); q.fill(); q.lineWidth = r * .16; q.lineCap = "round"; for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; q.beginPath(); q.moveTo(cx + Math.cos(a) * r * .72, cy + Math.sin(a) * r * .72); q.lineTo(cx + Math.cos(a) * r * 1.05, cy + Math.sin(a) * r * 1.05); q.stroke(); } }
+    if (F.em === "kilic") { q.save(); q.translate(cx, cy); q.rotate(-Math.PI / 4); q.beginPath(); q.moveTo(-r * .1, -r * 1.2); q.lineTo(r * .1, -r * 1.2); q.lineTo(r * .12, r * .55); q.lineTo(-r * .12, r * .55); q.closePath(); q.fill(); q.fillRect(-r * .45, r * .5, r * .9, r * .14); q.fillRect(-r * .08, r * .6, r * .16, r * .45); q.beginPath(); q.arc(0, r * 1.1, r * .12, 0, 7); q.fill(); q.restore(); }
+    if (F.em === "lale") { q.beginPath(); q.moveTo(cx, cy + r * .1); q.quadraticCurveTo(cx - r * .75, cy - r * .1, cx - r * .5, cy - r * .9); q.lineTo(cx - r * .22, cy - r * .5); q.lineTo(cx, cy - r * 1.05); q.lineTo(cx + r * .22, cy - r * .5); q.lineTo(cx + r * .5, cy - r * .9); q.quadraticCurveTo(cx + r * .75, cy - r * .1, cx, cy + r * .1); q.fill(); q.lineWidth = r * .14; q.beginPath(); q.moveTo(cx, cy); q.quadraticCurveTo(cx + r * .08, cy + r * .6, cx, cy + r * 1.1); q.stroke(); q.beginPath(); q.ellipse(cx - r * .32, cy + r * .72, r * .32, r * .12, -.5, 0, 7); q.fill(); }
+    g.drawImage(e, 0, 0);
+  }
+  const sh = g.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, "rgba(255,255,255,.18)"); sh.addColorStop(1, "rgba(0,0,0,.14)"); g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  g.restore();
+}
+let flagCache = { key: "", cv: null };
+function flagCanvas(F) {
+  const key = JSON.stringify(F);
+  if (flagCache.key !== key) { const c = document.createElement("canvas"); c.width = 120; c.height = 80; paintFlag(c.getContext("2d"), 120, 80, F); flagCache = { key, cv: c }; }
+  return flagCache.cv;
+}
+// Sancak: direk ve dalgalanan bayrak (kişinin yerel koordinatlarında, sırtında)
+function drawBanner(walking, ph) {
+  const F = profile.flag || DEFAULT_FLAG, img = flagCanvas(F), fw = 64, fh = 42, px = -13, top = -166;
+  ctx.save();
+  ctx.fillStyle = "#6a4422"; ctx.strokeStyle = "rgba(28,22,44,.55)"; ctx.lineWidth = .8;
+  roundRect(px - 1.6, top - 2, 3.2, -top - 20, 1.5); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffd040"; ctx.beginPath(); ctx.arc(px, top - 4, 3, 0, 7); ctx.fill(); ctx.stroke();
+  const amp = walking ? 3.4 : 1.8, sp = walking ? 9 : 4, N = 26;
+  ctx.translate(px, 0); ctx.scale(-1, 1); ctx.translate(-px, 0); // bayrak geriye doğru dalgalanır
+  for (let k = 0; k < N; k++) {
+    const u = k / N, x = px + 1.6 + u * fw, dy = Math.sin(u * 7 - T * sp) * amp * u, sh = Math.cos(u * 7 - T * sp) * .16 * u;
+    ctx.drawImage(img, u * img.width, 0, img.width / N + 1, img.height, x, top + dy, fw / N + .6, fh);
+    if (sh) { ctx.fillStyle = sh > 0 ? `rgba(255,255,255,${sh})` : `rgba(0,0,0,${-sh})`; ctx.fillRect(x, top + dy, fw / N + .6, fh); }
+  }
+  ctx.restore();
+}
+
 const DEFAULT_PROFILE = { look: "nefer", nick: "", skin: "#e0ac69", hairC: "#1c1418", eyes: 0, mouth: 0, beard: 0, mus: 1, hat: "fes", outfit: "klasik", flag: null };
 let profile = { ...DEFAULT_PROFILE };
 try { const p = JSON.parse(localStorage.getItem("bilgi-ordusu-profil") || "null"); if (p) profile = sanitizeAvatar({ ...DEFAULT_PROFILE, ...p }); } catch (e) {}
@@ -2211,71 +2276,6 @@ function drawAvatarBody(canvas, av) {
     const m = avatarMember(av), k = h * .8 / (112 * PS * PK);
     ctx.save(); ctx.translate(w / 2 - 10 * PS * PK * k, h * .96); ctx.scale(k, k); drawPerson(m, false, false); ctx.restore();
   });
-}
-
-/* ---------- Kendi bayrağın ---------- */
-const FLAG_COLS = ["#e30a17", "#b0101e", "#ffffff", "#111111", "#1f4fb8", "#5ab0f0", "#1f9a3a", "#8ad04a", "#ffd21a", "#f08a1a", "#7a3aa8", "#8a5a2a"];
-const FLAG_PATS = [["duz", "Düz"], ["yatay2", "İki yatay"], ["yatay3", "Üç yatay"], ["dikey2", "İki dikey"], ["dikey3", "Üç dikey"], ["kenar", "Kenar şeridi"], ["ucgen", "Üçgen"], ["hac", "Haç"], ["capraz", "Çapraz"]];
-const FLAG_EMS = [["yok", "Yok"], ["ayyildiz", "Ay yıldız"], ["hilal", "Hilal"], ["yildiz", "Yıldız"], ["gunes", "Güneş"], ["kilic", "Kılıç"], ["lale", "Lale"]];
-const DEFAULT_FLAG = { pat: "duz", c1: "#e30a17", c2: "#ffffff", c3: "#1f4fb8", em: "ayyildiz", ec: "#ffffff" };
-function sanitizeFlag(f) {
-  f = f && typeof f === "object" ? f : {};
-  const col = (v, d) => FLAG_COLS.includes(v) ? v : d, has = (v, list, d) => list.some(x => x[0] === v) ? v : d;
-  return { pat: has(f.pat, FLAG_PATS, DEFAULT_FLAG.pat), c1: col(f.c1, DEFAULT_FLAG.c1), c2: col(f.c2, DEFAULT_FLAG.c2), c3: col(f.c3, DEFAULT_FLAG.c3), em: has(f.em, FLAG_EMS, DEFAULT_FLAG.em), ec: col(f.ec, DEFAULT_FLAG.ec) };
-}
-function star5(g, x, y, r) { g.beginPath(); for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * .4 : r, a = -Math.PI / 2 + k * Math.PI / 5; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); }
-// Bayrağı w×h tuvale çiz (direk solda)
-function paintFlag(g, w, h, F) {
-  const { c1, c2, c3 } = F;
-  g.save(); g.fillStyle = c1; g.fillRect(0, 0, w, h);
-  g.fillStyle = c2;
-  if (F.pat === "yatay2") g.fillRect(0, h / 2, w, h / 2);
-  if (F.pat === "yatay3") { g.fillRect(0, h / 3, w, h / 3); g.fillStyle = c3; g.fillRect(0, h * 2 / 3, w, h / 3 + 1); }
-  if (F.pat === "dikey2") g.fillRect(w / 2, 0, w / 2, h);
-  if (F.pat === "dikey3") { g.fillRect(w / 3, 0, w / 3, h); g.fillStyle = c3; g.fillRect(w * 2 / 3, 0, w / 3 + 1, h); }
-  if (F.pat === "kenar") g.fillRect(0, 0, w * .26, h);
-  if (F.pat === "ucgen") { g.beginPath(); g.moveTo(0, 0); g.lineTo(w * .45, h / 2); g.lineTo(0, h); g.fill(); }
-  if (F.pat === "hac") { g.fillRect(w * .3, 0, h * .2, h); g.fillRect(0, h * .4, w, h * .2); }
-  if (F.pat === "capraz") { g.lineWidth = h * .22; g.strokeStyle = c2; g.beginPath(); g.moveTo(0, h); g.lineTo(w, 0); g.stroke(); }
-  // simge ayrı tuvalde (hilal oyuğu için)
-  if (F.em !== "yok") {
-    const e = document.createElement("canvas"); e.width = w; e.height = h; const q = e.getContext("2d");
-    const cx = F.pat === "kenar" || F.pat === "ucgen" ? w * .2 : F.em === "ayyildiz" || F.em === "hilal" ? w * .42 : w / 2, cy = h / 2, r = h * .3;
-    q.fillStyle = F.ec; q.strokeStyle = F.ec;
-    if (F.em === "ayyildiz" || F.em === "hilal") {
-      q.beginPath(); q.arc(cx, cy, r, 0, 7); q.fill(); q.globalCompositeOperation = "destination-out"; q.beginPath(); q.arc(cx + r * .28, cy, r * .8, 0, 7); q.fill(); q.globalCompositeOperation = "source-over";
-      if (F.em === "ayyildiz") star5(q, cx + r * 1.12, cy, r * .42);
-    }
-    if (F.em === "yildiz") star5(q, cx, cy, r * 1.05);
-    if (F.em === "gunes") { q.beginPath(); q.arc(cx, cy, r * .55, 0, 7); q.fill(); q.lineWidth = r * .16; q.lineCap = "round"; for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; q.beginPath(); q.moveTo(cx + Math.cos(a) * r * .72, cy + Math.sin(a) * r * .72); q.lineTo(cx + Math.cos(a) * r * 1.05, cy + Math.sin(a) * r * 1.05); q.stroke(); } }
-    if (F.em === "kilic") { q.save(); q.translate(cx, cy); q.rotate(-Math.PI / 4); q.beginPath(); q.moveTo(-r * .1, -r * 1.2); q.lineTo(r * .1, -r * 1.2); q.lineTo(r * .12, r * .55); q.lineTo(-r * .12, r * .55); q.closePath(); q.fill(); q.fillRect(-r * .45, r * .5, r * .9, r * .14); q.fillRect(-r * .08, r * .6, r * .16, r * .45); q.beginPath(); q.arc(0, r * 1.1, r * .12, 0, 7); q.fill(); q.restore(); }
-    if (F.em === "lale") { q.beginPath(); q.moveTo(cx, cy + r * .1); q.quadraticCurveTo(cx - r * .75, cy - r * .1, cx - r * .5, cy - r * .9); q.lineTo(cx - r * .22, cy - r * .5); q.lineTo(cx, cy - r * 1.05); q.lineTo(cx + r * .22, cy - r * .5); q.lineTo(cx + r * .5, cy - r * .9); q.quadraticCurveTo(cx + r * .75, cy - r * .1, cx, cy + r * .1); q.fill(); q.lineWidth = r * .14; q.beginPath(); q.moveTo(cx, cy); q.quadraticCurveTo(cx + r * .08, cy + r * .6, cx, cy + r * 1.1); q.stroke(); q.beginPath(); q.ellipse(cx - r * .32, cy + r * .72, r * .32, r * .12, -.5, 0, 7); q.fill(); }
-    g.drawImage(e, 0, 0);
-  }
-  const sh = g.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, "rgba(255,255,255,.18)"); sh.addColorStop(1, "rgba(0,0,0,.14)"); g.fillStyle = sh; g.fillRect(0, 0, w, h);
-  g.restore();
-}
-let flagCache = { key: "", cv: null };
-function flagCanvas(F) {
-  const key = JSON.stringify(F);
-  if (flagCache.key !== key) { const c = document.createElement("canvas"); c.width = 120; c.height = 80; paintFlag(c.getContext("2d"), 120, 80, F); flagCache = { key, cv: c }; }
-  return flagCache.cv;
-}
-// Sancak: direk ve dalgalanan bayrak (kişinin yerel koordinatlarında, sırtında)
-function drawBanner(walking, ph) {
-  const F = profile.flag || DEFAULT_FLAG, img = flagCanvas(F), fw = 64, fh = 42, px = -13, top = -166;
-  ctx.save();
-  ctx.fillStyle = "#6a4422"; ctx.strokeStyle = "rgba(28,22,44,.55)"; ctx.lineWidth = .8;
-  roundRect(px - 1.6, top - 2, 3.2, -top - 20, 1.5); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#ffd040"; ctx.beginPath(); ctx.arc(px, top - 4, 3, 0, 7); ctx.fill(); ctx.stroke();
-  const amp = walking ? 3.4 : 1.8, sp = walking ? 9 : 4, N = 26;
-  ctx.translate(px, 0); ctx.scale(-1, 1); ctx.translate(-px, 0); // bayrak geriye doğru dalgalanır
-  for (let k = 0; k < N; k++) {
-    const u = k / N, x = px + 1.6 + u * fw, dy = Math.sin(u * 7 - T * sp) * amp * u, sh = Math.cos(u * 7 - T * sp) * .16 * u;
-    ctx.drawImage(img, u * img.width, 0, img.width / N + 1, img.height, x, top + dy, fw / N + .6, fh);
-    if (sh) { ctx.fillStyle = sh > 0 ? `rgba(255,255,255,${sh})` : `rgba(0,0,0,${-sh})`; ctx.fillRect(x, top + dy, fw / N + .6, fh); }
-  }
-  ctx.restore();
 }
 
 /* ---------- Profil ekranı ---------- */
@@ -3599,11 +3599,15 @@ function drawPerson(m, walking, isHero) {
   ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha ?? 1); ctx.translate(x, y - jump);
   if (m.dying) ctx.rotate(-Math.min(1, m.dying * 2) * 1.4);
   ctx.scale(((m.facing || 1) < 0 ? -1 : 1) * PS * PK, PS * PK);
-  const ph = m.phase || 0, sw = walking ? Math.sin(ph) : 0, bob = walking ? -Math.abs(Math.cos(ph)) * 2.6 : 0;
+  const ph = m.phase || 0, sw = walking ? Math.sin(ph) : 0, bob = walking ? -Math.abs(Math.cos(ph)) * 3.6 : 0;
+  // esneme-sıkışma: adım teması ve sevinç zıplaması
+  const touch = walking ? 1 - Math.abs(Math.cos(ph)) : 0, sq = m.cheer > 0 ? Math.sin((1 - m.cheer) * Math.PI * 2) * .08 : 0;
+  ctx.scale(1 + touch * .04 - sq * .5, 1 - touch * .05 + sq);
   const shirt = C ? C.shirt : m.color, pants = C && C.pants ? C.pants : "#2b2a44", boot = "#2e2220";
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   if ((isHero || m.flagOn) && !m.dying) drawBanner(walking, ph);
   { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 22); sg.addColorStop(0, "rgba(10,30,50,.38)"); sg.addColorStop(1, "rgba(10,30,50,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 1, 22, 5, 0, 0, 7); ctx.fill(); }
+  if (walking) { const f = (ph % Math.PI) / Math.PI; ctx.fillStyle = `rgba(214,196,156,${((1 - f) * .5).toFixed(3)})`; ctx.beginPath(); ctx.arc(-9 - f * 13, -2 - f * 5, 2.4 + f * 4.5, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(-4 - f * 8, -1 - f * 2, 1.6 + f * 2.5, 0, 7); ctx.fill(); }
   if (C && C.coat) {
     ctx.save(); ctx.translate(0, bob); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
     const L = -22 + Math.min(C.coat.len, 16), fl = walking ? sw * 1.5 : 0;
@@ -3625,8 +3629,8 @@ function drawPerson(m, walking, isHero) {
     ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(fx - 3.5, -8 - lift, 3, 5);
   });
   ctx.translate(0, bob);
-  if (idle) { const br = Math.sin(T * 2.2 + (m.seed || 0) * 6.3) * .03; ctx.translate(0, -24); ctx.scale(1, 1 + br); ctx.translate(0, 24); }
-  if (walking) { ctx.translate(0, -24); ctx.rotate(sw * .04); ctx.translate(0, 24); }
+  if (idle) { const br = Math.sin(T * 2.2 + (m.seed || 0) * 6.3) * .035; ctx.translate(0, -24); ctx.rotate(Math.sin(T * 1.3 + (m.seed || 0) * 5) * .03); ctx.scale(1 - br * .3, 1 + br); ctx.translate(0, 24); }
+  if (walking) { ctx.translate(0, -24); ctx.rotate(sw * .06 + .07); ctx.translate(0, 24); }
   // gövde: geniş ve tombul
   ctx.save(); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
   if (C && C.skirt) drawSkirt(C.skirt);
@@ -3666,7 +3670,10 @@ function drawPerson(m, walking, isHero) {
   ctx.save(); ctx.translate(1, -53); ctx.scale(1.42, 1.42);
   if (m.leaving && T - (m.leaveAt || 0) < .9) ctx.rotate(Math.sin((T - m.leaveAt) * 22) * .16);
   if (mood === "scared") ctx.rotate(-.08);
-  if (mood === "happy") ctx.rotate(Math.sin(T * 10) * .05);
+  if (mood === "happy") ctx.rotate(Math.sin(T * 10) * .07);
+  if (walking) { ctx.rotate(-sw * .07 - .04); ctx.translate(0, -Math.abs(Math.sin(ph)) * .9); }
+  if (idle) { const lk = Math.sin(T * .7 + (m.seed || 0) * 11); ctx.rotate(lk > .7 ? (lk - .7) * .55 : lk < -.75 ? (lk + .75) * .45 : 0); }
+  if (!m.joined && !m.leaving && G && G.phase === "question") ctx.rotate(Math.sin(T * 2.4) * .08 - .06);
   ctx.translate(-1, 53);
   const female = C && C.g === "f";
   if (C && female && ["none", "hairbun", "braids", "kokoshnik"].includes(C.hat.t)) { ctx.fillStyle = C.hair || "#2a1a12"; ctx.beginPath(); ctx.ellipse(-6, -60, 7, 14, .15, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -68, 11, Math.PI * .8, Math.PI * 1.9); ctx.fill(); }
@@ -3707,7 +3714,7 @@ function drawDevil(d) {
   if (d.dying) ctx.rotate(Math.min(1, d.dying * 2) * 1.4);
   ctx.scale(-PS * PK, PS * PK);
   const walking = d.x > d.tx + 1, ph = d.phase, sw = walking ? Math.sin(ph) : 0, bob = walking ? -Math.abs(Math.cos(ph)) * 2.6 : 0;
-  const idle = !walking && !d.dying, br = idle ? Math.sin(T * 3 + ph) * .03 : 0;
+  const idle = !walking && !d.dying, br = idle ? Math.sin(T * 3 + ph) * .04 : 0, hop = idle ? -Math.abs(Math.sin(T * 4 + ph)) * 3.5 : 0;
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 22); sg.addColorStop(0, "rgba(60,0,0,.4)"); sg.addColorStop(1, "rgba(60,0,0,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 1, 22, 5, 0, 0, 7); ctx.fill(); }
   // kuyruk
@@ -3721,7 +3728,7 @@ function drawDevil(d) {
     ctx.beginPath(); ctx.ellipse(fx * .55, -14 + bob * .4 - lift * .4, 6.5, 9, s * .18, 0, 7); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#140a0c"; poly([[fx - 5, -lift], [fx - 4, -8 - lift], [fx + 5, -8 - lift], [fx + 7, -lift]]);
   });
-  ctx.translate(0, bob); ctx.translate(0, -24); ctx.scale(1, 1 + br); ctx.rotate(sw * .04); ctx.translate(0, 24);
+  ctx.translate(0, bob + hop); ctx.translate(0, -24); ctx.scale(1 - br * .3, 1 + br); ctx.rotate(sw * .04); ctx.translate(0, 24);
   // gövde zırhı
   ctx.save(); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
   ctx.save(); torsoPath(); ctx.fillStyle = "#1c1420"; ctx.fill(); ctx.clip();
@@ -3733,7 +3740,7 @@ function drawDevil(d) {
   ctx.restore();
   ctx.fillStyle = "#c81a28"; poly([[-15, -51], [-21, -60], [-9, -54]]); poly([[15, -51], [21, -60], [9, -54]]);
   // yaba
-  const lunge = d.attack * 14;
+  const lunge = d.attack * 14 + (idle ? Math.sin(T * 6 + ph) * 2 : 0);
   ctx.fillStyle = "#2a1a1a"; roundRect(-6 + lunge, -46.5, 50, 3.4, 1.5); ctx.fill();
   ctx.fillStyle = "#e0202c"; ctx.strokeStyle = OUTL; ctx.lineWidth = .8; roundRect(42 + lunge, -56, 3.6, 19, 1.5); ctx.fill(); ctx.stroke();
   [-55, -47, -39].forEach(yy => { poly([[44 + lunge, yy - 1.8], [55 + lunge, yy + 1.2], [44 + lunge, yy + 3]]); });
