@@ -180,6 +180,7 @@ const UI = {
     const st = body.scrollTop;
     this.body(h);
     body.scrollTop = st;
+    this.paintHats();
   },
 
   citySum(s) {
@@ -268,8 +269,15 @@ const UI = {
     const p = Game.S.player;
     return '<div class="hg">' + Object.entries(HEADGEARS).map(([k, H]) => {
       const owned = p.headgears.includes(k), on = p.headgear === k;
-      return `<button class="${on ? 'on' : ''}" onclick="Game.researchHeadgear('${k}');UI.live&&UI.live();UI.refreshTop()"><canvas class="hgc" data-hg="${k}" width="60" height="60"></canvas><b>${H.name}</b><small>${H.culture}</small><em>${H.desc}</em><small>${on ? '✓ Giyiliyor' : owned ? 'Giydir' : '🎓 Araştır 💰' + H.cost}</small></button>`;
+      return `<button class="${on ? 'on' : ''}" onclick="Game.researchHeadgear('${k}');UI.rerenderHats()"><canvas class="hgc" data-hg="${k}" width="80" height="80"></canvas><b>${H.name}</b><small>${H.culture}</small><em>${H.desc}</em><small>${on ? '✓ Giyiliyor' : owned ? 'Giydir' : '🎓 Araştır 💰' + H.cost}</small></button>`;
     }).join('') + '</div>';
+  },
+  rerenderHats() {
+    if (document.getElementById('char-cv')) this.renderChar(); else { this.renderCity(); this.paintHats(); }
+    this.refreshTop();
+  },
+  paintHats() {
+    document.querySelectorAll('canvas.hgc').forEach(c => Hats.preview(c, c.dataset.hg));
   },
 
   city_form(s) {
@@ -490,21 +498,13 @@ const UI = {
     const g = x.createRadialGradient(110, 150, 10, 110, 150, 140); g.addColorStop(0, '#fff8e6'); g.addColorStop(1, '#f1dfb8');
     x.fillStyle = g; x.fillRect(0, 0, cv.width, cv.height);
     x.fillStyle = '#9fcf7f'; x.fillRect(0, 210, cv.width, 50);
-    const f = { x: 0, y: 0, dir: 1, ph: 0.6, atkT: 0, alive: true, hp: 1, maxhp: 1, type: 'cmd', isCmd: true, preview: true, color: Game.S.player.color, outfit: Game.S.player.outfit, team: 0, armorTier: 0 };
-    x.save(); x.translate(110, 220); x.scale(3, 3);
-    const saveSc = Battle.sc, saveCam = Battle.camX; Battle.sc = 1; Battle.camX = 0;
-    Battle.drawFig(x, f);
-    Battle.sc = saveSc; Battle.camX = saveCam;
+    const f = { id: 1, x: 0, y: 0, dir: 1, ph: 0.6, atkT: 0, type: 'cmd', isCmd: true, color: Game.S.player.color, outfit: Game.S.player.outfit, team: 0, armorTier: 0 };
+    x.save(); x.translate(110, 222); x.scale(3, 3);
+    Battle.drawBody(x, f);
     x.restore();
-    // Başlık önizlemeleri
-    document.querySelectorAll('canvas.hgc').forEach(c => {
-      const cx = c.getContext('2d'); cx.clearRect(0, 0, 60, 60);
-      cx.save(); cx.translate(30, 40); cx.scale(2.4, 2.4);
-      cx.fillStyle = '#fff6e6'; cx.strokeStyle = '#2b2018'; cx.lineWidth = 2; cx.beginPath(); cx.arc(0, 0, 6.5, 0, 7); cx.fill(); cx.stroke();
-      cx.fillStyle = '#2b2018'; cx.beginPath(); cx.arc(2.6, -1, 1.1, 0, 7); cx.fill();
-      Battle.drawHelmet(cx, c.dataset.hg === 'yok' ? 'enemy' : c.dataset.hg, 0, 0, Game.S.player.color, null);
-      cx.restore();
-    });
+    const sol = { id: 2, x: 0, y: 0, dir: 1, ph: 2, atkT: 0, type: 'inf', color: Game.S.player.color, hat: Game.S.player.headgear, team: 0, armorTier: Game.S.player.armor.inf };
+    x.save(); x.translate(185, 232); x.scale(1.6, 1.6); Battle.drawBody(x, sol); x.restore();
+    this.paintHats();
   },
   wear(cat, id) {
     const p = Game.S.player;
@@ -542,7 +542,7 @@ const UI = {
       <li>💰 Vergi nüfusa göre her gün gelir. Tek para birimi altındır.</li>
       <li>⚔️ <b>Asker Kuşan</b>: okçu, mızraklı, piyade, atlı anında alınır. Mancınık, kuşatma kulesi, top, gülle ve zırh al.</li>
       <li>🚩 <b>Ordu Çıkar</b> → haritada ordunu seç → hedef şehre dokun → <b>Kuşat</b>.</li>
-      <li>🕹️ Savaşta sol joystick ile komutanını yönet, ⚔️ ile vur. Hücum/Mevzi/Bana Uy emirleri ver, 📣 nida at, 🏳️ ricat et.</li>
+      <li>🕹️ Savaş kuşbakışıdır: alttan bölük seç (👑 komutan, 1 piyade, 2 okçu, 3 mızraklı, 4 atlı, 5 kuşatma), sahaya dokun → oraya yürürler. İleri / Saldır / Savun / Bekle / Geri Çekil / Formasyon komutlarını ver, 📣 nida at. Tümü seçiliyken Geri Çekil = Ricat!</li>
       <li>🏰 Kuşatmada surları mancınık/topla yık ya da kuşatma kulesiyle aş, sonra sancağı ele geçir.</li>
       <li>🌿 Pusu: ordunu yol üstünde pusuya yatır. 🏴 Yol kes: geçen kervanları yağmala.</li>
       <li>🤝 İttifak kur, müttefikten asker iste, himayeye gir, ulak gönder, meydan savaşına davet et.</li></ul>`);

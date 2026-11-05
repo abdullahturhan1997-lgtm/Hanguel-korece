@@ -27,23 +27,7 @@ const WAR_CRIES = [
 /* ---------- Kültürler ve kültürel başlıklar (madde 6) ---------- */
 const CULTURES = ['Türk', 'Arap', 'Fars', 'Rum', 'Frank', 'İber', 'Slav', 'Moğol', 'Çin', 'Hint', 'Japon', 'Afrika', 'Aztek', 'İnka', 'Viking', 'Latin'];
 
-// Araştırılınca (altınla) askerlerin başlığı olarak seçilebilir. Küçük bonus verir.
-const HEADGEARS = {
-  yok:     { name: 'Başlıksız',             culture: '-',      cost: 0,   hp: 0,    dmg: 0,    spd: 0,    desc: 'Sade asker.' },
-  bork:    { name: 'Börk',                  culture: 'Türk',   cost: 140, hp: 0.04, dmg: 0.06, spd: 0,    desc: 'Disiplinli piyade. Hasar +%6' },
-  sivri:   { name: 'Sivri Miğfer',          culture: 'Türk',   cost: 220, hp: 0.10, dmg: 0,    spd: 0,    desc: 'Selçuklu tarzı. Can +%10' },
-  sarik:   { name: 'Sarık',                 culture: 'Arap',   cost: 70,  hp: 0.03, dmg: 0.03, spd: 0.03, desc: 'Çöl savaşçısı. Hafif bonuslar' },
-  tolga:   { name: 'Tolga',                 culture: 'Fars',   cost: 180, hp: 0.07, dmg: 0.03, spd: 0,    desc: 'Tüylü sorguç. Can +%7' },
-  sorguc:  { name: 'Sorguçlu Miğfer',       culture: 'Rum',    cost: 200, hp: 0.08, dmg: 0.02, spd: 0,    desc: 'Bizans muhafız tarzı.' },
-  kask:    { name: 'Haçlı Kaskı',           culture: 'Frank',  cost: 260, hp: 0.14, dmg: 0,    spd: -0.05,desc: 'Ağır ama sağlam. Can +%14, hız -%5' },
-  kalpak:  { name: 'Kalpak',                culture: 'Moğol',  cost: 150, hp: 0.02, dmg: 0.02, spd: 0.10, desc: 'Bozkır süvarisi. Hız +%10' },
-  hasir:   { name: 'Hasır Şapka',           culture: 'Çin',    cost: 50,  hp: 0,    dmg: 0,    spd: 0.06, desc: 'Ucuz ve hafif. Hız +%6' },
-  sarikH:  { name: 'Pagri',                 culture: 'Hint',   cost: 90,  hp: 0.04, dmg: 0.04, spd: 0,    desc: 'Racput savaşçısı.' },
-  kabuto:  { name: 'Kabuto',                culture: 'Japon',  cost: 280, hp: 0.10, dmg: 0.08, spd: 0,    desc: 'Samuray miğferi. Can+Hasar' },
-  viking:  { name: 'Viking Miğferi',        culture: 'Viking', cost: 160, hp: 0.06, dmg: 0.06, spd: 0,    desc: 'Kalkan duvarı ruhu.' },
-  tuy:     { name: 'Tüylü Başlık',          culture: 'Aztek',  cost: 110, hp: 0,    dmg: 0.09, spd: 0.02, desc: 'Kartal savaşçısı. Hasar +%9' },
-  kurk:    { name: 'Kürk Şapka',            culture: 'Slav',   cost: 80,  hp: 0.06, dmg: 0,    spd: 0,    desc: 'Soğuğa dayanıklı.' }
-};
+// Kültürel başlıklar: js/hats.js (HEADGEARS, 46 çeşit)
 
 /* ---------- Birlikler (madde 16, 38) ---------- */
 const UNITS = {

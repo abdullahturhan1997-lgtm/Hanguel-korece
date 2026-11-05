@@ -25,7 +25,7 @@ const Game = {
         cry: opt.cry || 'Allah Allah Allah!', customCry: '',
         capital: null, gold: 350, prestige: 0, overlord: null, wounded: 0,
         armor: { inf: 0, spear: 0, archer: 0, cav: 0 },
-        headgears: ['yok'], headgear: 'yok',
+        headgears: ['yok', CULTURE_HAT[opt.culture] || 'fes'], headgear: CULTURE_HAT[opt.culture] || 'fes',
         outfit: { helmet: 'yok', armor: 'yok', weapon: 'kilic', shield: 'yok', beard: 'kisa', cape: '#c0392b', body: '#222222' },
         owned: { helmet: ['yok'], armor: ['yok'], weapon: ['kilic'], shield: ['yok'], beard: ['yok', 'kisa', 'uzun', 'biyik'] },
         settings: { gore: true, sound: true, voice: true },
@@ -134,6 +134,10 @@ const Game = {
       if (!raw) return false;
       const S = JSON.parse(raw);
       if (!S || S.ver !== 1) return false;
+      const p = S.player;
+      p.headgears = (p.headgears || ['yok']).filter(h => HEADGEARS[h]);
+      if (!p.headgears.length) p.headgears = ['yok'];
+      if (!HEADGEARS[p.headgear]) p.headgear = p.headgears[p.headgears.length - 1];
       this.S = S; this.pending = []; this.mapDirty = true;
       return true;
     } catch (e) { return false; }

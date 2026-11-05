@@ -69,68 +69,81 @@ const MapView = {
   buildBase() {
     const c = document.createElement('canvas'); c.width = MAP_W; c.height = MAP_H;
     const x = c.getContext('2d');
-    // Okyanus
-    const og = x.createLinearGradient(0, 0, 0, MAP_H);
-    og.addColorStop(0, '#8fd3ee'); og.addColorStop(0.5, '#6fc0e4'); og.addColorStop(1, '#5aaed8');
+    const INKC = '#2b2018';
+    // Deniz: soluk mavi mürekkep yıkaması
+    const og = x.createLinearGradient(0, 0, MAP_W, MAP_H);
+    og.addColorStop(0, '#cbd7cc'); og.addColorStop(1, '#b7c8c1');
     x.fillStyle = og; x.fillRect(0, 0, MAP_W, MAP_H);
-    // Dalgacıklar
-    x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 2; x.lineCap = 'round';
-    for (let i = 0; i < 420; i++) {
-      const wx = Math.random() * MAP_W, wy = Math.random() * MAP_H;
-      if (this.isLand(wx, wy)) continue;
-      x.beginPath(); x.arc(wx, wy, 6, Math.PI * 1.1, Math.PI * 1.9); x.arc(wx + 10, wy, 6, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
-    }
-    // Sığ su parlaması
+    // Kıyı çizgileri (eski harita tarzı halkalar)
     x.lineJoin = 'round';
-    x.strokeStyle = 'rgba(255,255,255,0.22)'; x.lineWidth = 26; x.stroke(this.landPath);
-    x.strokeStyle = 'rgba(255,255,255,0.28)'; x.lineWidth = 12; x.stroke(this.landPath);
-    // Gölge
-    x.save(); x.translate(5, 8); x.fillStyle = 'rgba(25,60,95,0.35)'; x.fill(this.landPath); x.restore();
-    // Kara
+    for (const w of [34, 24, 14]) {
+      x.strokeStyle = 'rgba(43,32,24,0.28)'; x.lineWidth = w; x.stroke(this.landPath);
+      x.strokeStyle = og; x.lineWidth = w - 2.2; x.stroke(this.landPath);
+    }
+    // Dalgacıklar
+    x.strokeStyle = 'rgba(43,32,24,0.32)'; x.lineWidth = 1.1; x.lineCap = 'round';
+    for (let i = 0; i < 520; i++) {
+      const wx = Math.random() * MAP_W, wy = Math.random() * MAP_H;
+      if (this.isLand(wx, wy) || this.isLand(wx + 20, wy) || this.isLand(wx - 20, wy)) continue;
+      x.beginPath(); x.moveTo(wx - 7, wy); x.quadraticCurveTo(wx - 3.5, wy - 3, wx, wy); x.quadraticCurveTo(wx + 3.5, wy + 3, wx + 7, wy); x.stroke();
+    }
+    // Kara: parşömen
+    x.save(); x.translate(3, 4); x.fillStyle = 'rgba(60,40,20,0.18)'; x.fill(this.landPath); x.restore();
     const lg = x.createLinearGradient(0, 0, 0, MAP_H);
-    lg.addColorStop(0, '#d9ecc2'); lg.addColorStop(0.18, '#b7de88'); lg.addColorStop(0.5, '#a6d46e'); lg.addColorStop(1, '#9ccf68');
+    lg.addColorStop(0, '#f3e8cc'); lg.addColorStop(0.5, '#ecdcb4'); lg.addColorStop(1, '#e6d2a4');
     x.fillStyle = lg; x.fill(this.landPath);
     x.save(); x.clip(this.landPath);
-    // Çöller
+    // Çöller: noktalı kum
     for (const [lo, la, r] of DESERTS) {
       const [dx, dy] = Proj.p(lo, la); const [ex] = Proj.p(lo + r, la); const rr = Math.abs(ex - dx);
       const g = x.createRadialGradient(dx, dy, 0, dx, dy, rr);
-      g.addColorStop(0, 'rgba(244,215,140,0.95)'); g.addColorStop(0.6, 'rgba(240,210,135,0.7)'); g.addColorStop(1, 'rgba(240,210,135,0)');
-      x.fillStyle = g; x.beginPath(); x.ellipse(dx, dy, rr, rr * 0.7, 0, 0, Math.PI * 2); x.fill();
+      g.addColorStop(0, 'rgba(222,190,122,0.75)'); g.addColorStop(1, 'rgba(222,190,122,0)');
+      x.fillStyle = g; x.beginPath(); x.ellipse(dx, dy, rr, rr * 0.7, 0, 0, 7); x.fill();
+      x.fillStyle = 'rgba(43,32,24,0.35)';
+      for (let i = 0; i < rr * 1.2; i++) { const a = Math.random() * 7, d = Math.sqrt(Math.random()) * rr * 0.8; x.fillRect(dx + Math.cos(a) * d, dy + Math.sin(a) * d * 0.7, 1.2, 1.2); }
+      x.strokeStyle = 'rgba(43,32,24,0.3)'; x.lineWidth = 0.9;
+      for (let i = 0; i < rr / 6; i++) { const a = Math.random() * 7, d = Math.sqrt(Math.random()) * rr * 0.7, px = dx + Math.cos(a) * d, py = dy + Math.sin(a) * d * 0.7; x.beginPath(); x.moveTo(px - 5, py); x.quadraticCurveTo(px, py - 4, px + 5, py); x.stroke(); }
     }
-    // Kar (kuzey)
     const [, snowY] = Proj.p(0, 64);
     const sg = x.createLinearGradient(0, 0, 0, snowY);
-    sg.addColorStop(0, 'rgba(255,255,255,0.95)'); sg.addColorStop(0.7, 'rgba(255,255,255,0.4)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    sg.addColorStop(0, 'rgba(255,253,245,0.9)'); sg.addColorStop(1, 'rgba(255,253,245,0)');
     x.fillStyle = sg; x.fillRect(0, 0, MAP_W, snowY);
-    // Ormanlar (sevimli ağaçlar)
+    // Çam ormanları (mürekkep)
     for (const [lo, la, r] of FORESTS) {
       const [fx, fy] = Proj.p(lo, la); const [ex] = Proj.p(lo + r, la); const rr = Math.abs(ex - fx);
-      for (let i = 0; i < rr / 3; i++) {
+      for (let i = 0; i < rr / 2.2; i++) {
         const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * rr;
         const tx = fx + Math.cos(a) * d, ty = fy + Math.sin(a) * d * 0.6;
         if (!this.isLand(tx, ty)) continue;
-        tree(x, tx, ty, rand(4, 6.5));
+        inkPine(x, tx, ty, rand(5, 8));
       }
     }
-    // İç kenar ışık / gölge — yastık gibi kabarık görünüm
-    x.lineWidth = 9;
-    x.save(); x.translate(4, 4); x.strokeStyle = 'rgba(255,255,255,0.45)'; x.stroke(this.landPath); x.restore();
-    x.save(); x.translate(-5, -5); x.strokeStyle = 'rgba(60,110,40,0.35)'; x.stroke(this.landPath); x.restore();
+    // Kenar taraması
+    x.strokeStyle = 'rgba(43,32,24,0.18)'; x.lineWidth = 6;
+    x.save(); x.translate(-3, -3); x.stroke(this.landPath); x.restore();
     x.restore();
     // İç denizler
     x.save(); x.clip(this.waterPath);
-    x.fillStyle = '#72c3e6'; x.fill(this.waterPath);
-    x.lineWidth = 10; x.strokeStyle = 'rgba(255,255,255,0.3)'; x.stroke(this.waterPath);
-    x.save(); x.translate(4, 5); x.lineWidth = 8; x.strokeStyle = 'rgba(25,60,95,0.3)'; x.stroke(this.waterPath); x.restore();
+    x.fillStyle = og; x.fill(this.waterPath);
+    x.strokeStyle = 'rgba(43,32,24,0.28)'; x.lineWidth = 12; x.stroke(this.waterPath);
+    x.strokeStyle = og; x.lineWidth = 9.8; x.stroke(this.waterPath);
     x.restore();
     // Dağlar
     for (const [lo, la, s] of MOUNTAINS) {
       const [mx, my] = Proj.p(lo, la);
-      mountain(x, mx, my, 16 * s); mountain(x, mx + 14 * s, my + 5 * s, 11 * s); mountain(x, mx - 12 * s, my + 6 * s, 10 * s);
+      mountain(x, mx - 12 * s, my + 6 * s, 10 * s); mountain(x, mx + 14 * s, my + 5 * s, 11 * s); mountain(x, mx, my, 16 * s);
     }
-    // Kıyı çizgisi (koyu, yuvarlak)
-    x.lineWidth = 2.6; x.strokeStyle = '#4b3a28'; x.stroke(this.landPath); x.stroke(this.waterPath);
+    // Kıyı çizgisi
+    x.lineWidth = 2.2; x.strokeStyle = INKC; x.stroke(this.landPath); x.stroke(this.waterPath);
+    // Kâğıt dokusu, defter çizgileri, kenar karartması
+    for (let i = 0; i < 14000; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '90,60,30' : '255,250,235'},${rand(0.03, 0.08)})`; x.fillRect(Math.random() * MAP_W, Math.random() * MAP_H, rand(1, 3), rand(1, 3)); }
+    x.strokeStyle = 'rgba(80,110,140,0.10)'; x.lineWidth = 1.2;
+    for (let y = 30; y < MAP_H; y += 30) { x.beginPath(); x.moveTo(0, y); x.lineTo(MAP_W, y); x.stroke(); }
+    const vg = x.createRadialGradient(MAP_W / 2, MAP_H / 2, MAP_H * 0.4, MAP_W / 2, MAP_H / 2, MAP_W * 0.62);
+    vg.addColorStop(0, 'rgba(90,60,30,0)'); vg.addColorStop(1, 'rgba(90,60,30,0.3)');
+    x.fillStyle = vg; x.fillRect(0, 0, MAP_W, MAP_H);
+    // Pusula gülü
+    compass(x, MAP_W - 150, MAP_H - 160, 60);
     this.base = c;
   },
 
@@ -159,7 +172,7 @@ const MapView = {
     const tx = t.getContext('2d'); const img = tx.createImageData(gw, gh);
     const rgb = owners.map(o => {
       const h = Game.ownerColor(o).replace('#', '');
-      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), o === NEUTRAL ? 70 : 120];
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), o === NEUTRAL ? 30 : 85];
     });
     for (let i = 0; i < own.length; i++) {
       const o = own[i]; if (o < 0) continue;
@@ -186,9 +199,8 @@ const MapView = {
       }
     }
     x.lineCap = 'round'; x.lineJoin = 'round';
-    x.strokeStyle = 'rgba(255,255,255,0.75)'; x.lineWidth = 3.4; x.stroke(pAll);
-    x.strokeStyle = 'rgba(70,45,30,0.55)'; x.lineWidth = 1.3; x.setLineDash([4, 3]); x.stroke(pAll); x.setLineDash([]);
-    x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 5; x.stroke(pMine);
+    x.strokeStyle = 'rgba(43,32,24,0.65)'; x.lineWidth = 1.4; x.setLineDash([5, 4]); x.stroke(pAll); x.setLineDash([]);
+    x.strokeStyle = 'rgba(43,32,24,0.8)'; x.lineWidth = 4.2; x.stroke(pMine);
     x.strokeStyle = S.player.color; x.lineWidth = 2.4; x.stroke(pMine);
     x.restore();
     // Yollar
@@ -197,7 +209,7 @@ const MapView = {
       const A = Game.sett(a), B = Game.sett(b); if (!A || !B) continue;
       const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
       const sea = !this.isLand(mx, my);
-      x.strokeStyle = sea ? 'rgba(255,255,255,0.65)' : 'rgba(120,85,50,0.6)';
+      x.strokeStyle = sea ? 'rgba(43,32,24,0.35)' : 'rgba(43,32,24,0.55)';
       x.lineWidth = sea ? 1.6 : 2.2;
       x.setLineDash(sea ? [2, 6] : [5, 5]);
       x.beginPath(); x.moveTo(A.x, A.y); x.quadraticCurveTo(mx + (A.y - B.y) * 0.08, my + (B.x - A.x) * 0.08, B.x, B.y); x.stroke();
@@ -221,7 +233,7 @@ const MapView = {
     const x = this.fog.getContext('2d');
     x.globalCompositeOperation = 'source-over';
     x.clearRect(0, 0, fw, fh);
-    x.fillStyle = 'rgba(30,40,70,0.30)'; x.fillRect(0, 0, fw, fh);
+    x.fillStyle = 'rgba(70,50,25,0.28)'; x.fillRect(0, 0, fw, fh);
     x.globalCompositeOperation = 'destination-out';
     const sx = fw / MAP_W, sy = fh / MAP_H;
     for (const [vx, vy, r] of Game.visionSources()) {
@@ -240,7 +252,7 @@ const MapView = {
     this.fogT -= dt; if (this.fogT <= 0) { this.buildFog(); this.fogT = 0.25; }
     const x = this.ctx, c = this.cam, W = this.W, H = this.H;
     x.setTransform(1, 0, 0, 1, 0, 0);
-    x.fillStyle = '#5aaed8'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#c9b88f'; x.fillRect(0, 0, W, H);
     x.setTransform(c.z, 0, 0, c.z, W / 2 - c.x * c.z, H / 2 - c.y * c.z);
     x.imageSmoothingEnabled = true;
     x.drawImage(this.base, 0, 0);
@@ -296,12 +308,12 @@ const MapView = {
 
   label(x, s, sx, sy, k) {
     const fs = Math.round((s.big ? 12 : 10) * k);
-    x.font = `bold ${fs}px system-ui, sans-serif`;
+    x.font = `bold ${fs}px Georgia, 'Times New Roman', serif`;
     let name = s.name + (s.ruined ? ' (harabe)' : '');
     if (Game.S.player.capital === s.id) name = '👑 ' + name;
     const w = x.measureText(name).width + 14 * k, h = fs + 7 * k;
     rrect(x, sx - w / 2, sy - h / 2, w, h, h / 2);
-    x.fillStyle = 'rgba(255,250,238,0.92)'; x.fill();
+    x.fillStyle = 'rgba(246,235,207,0.95)'; x.fill();
     x.lineWidth = 1.4 * k; x.strokeStyle = s.ruined ? '#777' : Game.ownerColor(s.owner || NEUTRAL); x.stroke();
     x.fillStyle = '#3b2a1c'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText(name, sx, sy + 0.5);
@@ -399,17 +411,30 @@ function tree(x, tx, ty, r) {
   x.strokeStyle = 'rgba(40,60,25,0.6)'; x.lineWidth = 0.8; x.beginPath(); x.arc(tx, ty - r * 0.2, r, 0, 7); x.stroke();
 }
 function mountain(x, mx, my, s) {
-  x.lineJoin = 'round';
-  x.fillStyle = 'rgba(60,50,30,0.25)'; x.beginPath(); x.ellipse(mx + 3, my + 2, s * 0.9, s * 0.25, 0, 0, 7); x.fill();
-  x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx, my - s * 1.25); x.lineTo(mx + s, my); x.closePath();
-  x.fillStyle = '#b39470'; x.fill();
-  x.beginPath(); x.moveTo(mx, my - s * 1.25); x.lineTo(mx + s, my); x.lineTo(mx + s * 0.1, my); x.closePath();
-  x.fillStyle = '#8c6f50'; x.fill();
-  x.beginPath(); x.moveTo(mx - s * 0.38, my - s * 0.78); x.lineTo(mx, my - s * 1.25); x.lineTo(mx + s * 0.38, my - s * 0.78);
-  x.quadraticCurveTo(mx + s * 0.15, my - s * 0.62, mx, my - s * 0.8); x.quadraticCurveTo(mx - s * 0.15, my - s * 0.62, mx - s * 0.38, my - s * 0.78);
-  x.fillStyle = '#fff'; x.fill();
-  x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx, my - s * 1.25); x.lineTo(mx + s, my);
-  x.strokeStyle = '#4b3a28'; x.lineWidth = 1.4; x.stroke();
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  x.fillStyle = '#ecdcb4'; x.strokeStyle = '#2b2018'; x.lineWidth = 1.3;
+  x.beginPath(); x.moveTo(mx - s, my); x.quadraticCurveTo(mx - s * 0.4, my - s * 0.7, mx, my - s * 1.2); x.quadraticCurveTo(mx + s * 0.5, my - s * 0.6, mx + s, my); x.fill(); x.stroke();
+  x.lineWidth = 0.8; x.strokeStyle = 'rgba(43,32,24,0.6)';
+  for (let i = 1; i < 6; i++) { const t = i / 6; const px = mx + s * t * 0.85, py = my - s * 1.2 * (1 - t) + 1; x.beginPath(); x.moveTo(px, py + 1); x.lineTo(px - s * 0.12, py + s * 0.35); x.stroke(); }
+  x.beginPath(); x.moveTo(mx - s * 0.5, my - s * 0.15); x.quadraticCurveTo(mx - s * 0.3, my - s * 0.45, mx - s * 0.05, my - s * 0.9); x.stroke();
+}
+function inkPine(x, px, py, s) {
+  x.strokeStyle = '#2b2018'; x.lineWidth = 0.8; x.fillStyle = '#a7ae90';
+  x.beginPath(); x.moveTo(px, py - s * 1.6); x.lineTo(px - s * 0.45, py - s * 0.2); x.lineTo(px + s * 0.45, py - s * 0.2); x.closePath(); x.fill(); x.stroke();
+  x.beginPath(); x.moveTo(px, py - s * 0.2); x.lineTo(px, py + 1); x.stroke();
+}
+function compass(x, cx, cy, r) {
+  x.save(); x.translate(cx, cy);
+  x.strokeStyle = '#2b2018'; x.lineWidth = 1.2;
+  x.beginPath(); x.arc(0, 0, r, 0, 7); x.stroke(); x.beginPath(); x.arc(0, 0, r * 0.82, 0, 7); x.stroke();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4 - Math.PI / 2, L = i % 2 ? r * 0.55 : r * 0.95;
+    x.fillStyle = i % 2 ? '#ecdcb4' : (i === 0 ? '#a3241b' : '#2b2018');
+    x.beginPath(); x.moveTo(Math.cos(a) * L, Math.sin(a) * L); x.lineTo(Math.cos(a + 0.35) * r * 0.18, Math.sin(a + 0.35) * r * 0.18); x.lineTo(0, 0); x.lineTo(Math.cos(a - 0.35) * r * 0.18, Math.sin(a - 0.35) * r * 0.18); x.closePath(); x.fill(); x.stroke();
+  }
+  x.fillStyle = '#2b2018'; x.font = 'bold 18px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('K', 0, -r - 12); x.fillText('G', 0, r + 12); x.fillText('D', r + 12, 0); x.fillText('B', -r - 12, 0);
+  x.restore();
 }
 function ring(x, sx, sy, r, t) {
   x.strokeStyle = `rgba(255,255,255,${0.6 + 0.4 * Math.sin(t * 6)})`; x.lineWidth = 3;
