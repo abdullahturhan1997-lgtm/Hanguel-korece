@@ -2266,8 +2266,8 @@ function avatarMember(av, opts = {}) {
 function drawAvatarHead(canvas, av) {
   if ((av.look || "nefer") === "nefer" && heroReady()) return drawHeroThumb(canvas, false);
   withCanvas(canvas, (w, h) => {
-    const m = avatarMember(av), k = w * .2 / (14.2 * PS * PK);
-    ctx.save(); ctx.translate(w / 2 - 1 * PS * PK * k, h * .64 + 72.9 * PS * PK * k); ctx.scale(k, k); drawPerson(m, false, false); ctx.restore();
+    const m = avatarMember(av), k = w * .2 / (10.6 * PS * PK);
+    ctx.save(); ctx.translate(w / 2 - 1 * PS * PK * k, h * .62 + 90 * PS * PK * k); ctx.scale(k, k); drawPerson(m, false, false); ctx.restore();
   });
 }
 function drawAvatarBody(canvas, av) {
@@ -2359,7 +2359,7 @@ function drawProfileScene(dt) {
   [[160, 90, 1], [700, 70, 1.3], [430, 140, .8]].forEach(([x, y, s], i) => { const xx = (x + T * 8 * (i + 1)) % (W + 200) - 100; [[0, 0, 26], [24, -10, 30], [52, 0, 24]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(xx + dx * s, y + dy * s, r * s, 0, 7); ctx.fill(); }); });
   ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(480, 535, 120, 16, 0, 0, 7); ctx.fill();
   const m = avatarMember(profile, { seed: .37 }); m.flagOn = true;
-  ctx.save(); ctx.translate(470, 566); ctx.scale(1.7, 1.7); drawPerson(m, false, false); ctx.restore();
+  ctx.save(); ctx.translate(490, 576); ctx.scale(1.92, 1.92); drawPerson(m, false, false); ctx.restore();
   ctx.font = "700 34px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 7; ctx.strokeStyle = "#1e2d4a"; ctx.fillStyle = "#ffffff";
   const nm = profile.nick || "Oyuncu Profili"; ctx.strokeText(nm, 480, 64); ctx.fillText(nm, 480, 64);
 }
@@ -2713,7 +2713,7 @@ function nextWalk() {
 
 /* ---------- Yabancılar ---------- */
 function onJoined(m) {
-  float(m.x, m.y - 144 * PS, `${m.name} ekibine katıldı!`, "#ffc857", 22);
+  float(m.x, m.y - 160 * PS, `${m.name} ekibine katıldı!`, "#ffc857", 22);
   burst(m.x, m.y - 60 * PS, "#ffc857", 18);
   sfx.join();
   renderHud();
@@ -3528,7 +3528,7 @@ const useSprite = m => false;
 function heroSize() { const h = HERO_H * PS; return [h * heroImg.naturalWidth / heroImg.naturalHeight, h]; }
 function muzzleXY(m) {
   if (useSprite(m)) { const [w, h] = heroSize(); return [m.x + w * (HERO_MUZ[0] - HERO_FOOT), m.y - h * (1 - HERO_MUZ[1])]; }
-  return [m.x + 50 * PK * PS, m.y - 46 * PK * PS];
+  return [m.x + 54 * PK * PS, m.y - 61 * PK * PS];
 }
 function drawHeroSprite(m, walking, isHero) {
   const [w, h] = heroSize();
@@ -3590,50 +3590,84 @@ function torsoPath() {
   ctx.beginPath(); ctx.moveTo(-7, -57); ctx.quadraticCurveTo(0, -59, 7, -57); ctx.quadraticCurveTo(12, -55, 12.5, -46);
   ctx.quadraticCurveTo(13.5, -30, 10.5, -22); ctx.lineTo(-10.5, -22); ctx.quadraticCurveTo(-13.5, -30, -12.5, -46); ctx.quadraticCurveTo(-12, -55, -7, -57); ctx.closePath();
 }
+// Gerçekçi oranlı insan: dizli bacak, dirsekli kol, boyun; kafa ~1/5 boy
+const HIP = -44, L_TH = 21, L_SH = 20, L_UA = 13.5, L_FA = 13;
+function legPose(p, walking, idleSide) {
+  if (!walking) return { th: idleSide * .05, kb: .06 };
+  const s = Math.sin(p), c = Math.cos(p);
+  return { th: s * .46, kb: .1 + Math.max(0, c) * .95 * (1 - Math.max(0, -s) * .4) };
+}
+function legPts(hx, hy, P) {
+  const kx = hx + Math.sin(P.th) * L_TH, ky = hy + Math.cos(P.th) * L_TH, sa = P.th - P.kb;
+  return { kx, ky, ax: kx + Math.sin(sa) * L_SH, ay: ky + Math.cos(sa) * L_SH, sa };
+}
+function seg(x1, y1, x2, y2, w, col) {
+  ctx.strokeStyle = OUTL; ctx.lineWidth = w + 1.6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+function drawLeg(hx, hy, Q, pc, bc, w, hoof) {
+  // uyluk ve baldır (pantolon), dizden aşağısı çizme
+  seg(hx, hy, Q.kx, Q.ky, w, pc);
+  ctx.fillStyle = pc; ctx.beginPath(); ctx.arc(Q.kx, Q.ky, w / 2, 0, 7); ctx.fill();
+  const mx = Q.kx + (Q.ax - Q.kx) * .35, my = Q.ky + (Q.ay - Q.ky) * .35;
+  seg(Q.kx, Q.ky, mx, my, w * .9, pc);
+  seg(mx, my, Q.ax, Q.ay, w * .74, bc);
+  ctx.save(); ctx.translate(Q.ax, Q.ay); ctx.rotate(Q.sa * .45);
+  ctx.fillStyle = bc; ctx.strokeStyle = OUTL; ctx.lineWidth = .9;
+  if (hoof) { poly([[-3.5, -1], [-3, 3.4], [6.5, 3.4], [4, -1.5]]); }
+  else { ctx.beginPath(); ctx.moveTo(-3.6, -2); ctx.lineTo(-3.6, 3.4); ctx.lineTo(8.6, 3.4); ctx.quadraticCurveTo(9, .2, 4.5, -.4); ctx.lineTo(2.5, -2.6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(-3.6, 2.4, 12.2, 1.1); }
+  ctx.restore();
+}
+// İki kemikli kol: omuzdan ele, dirsek aşağı bükülür
+function drawArm(sx, sy, hx, hy, col, skin, w, back) {
+  const dx = hx - sx, dy = hy - sy, d = Math.min(L_UA + L_FA - .1, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+  const b = Math.acos(Math.max(-1, Math.min(1, (L_UA * L_UA + d * d - L_FA * L_FA) / (2 * L_UA * d))));
+  const ea = a + b, ex = sx + Math.cos(ea) * L_UA, ey = sy + Math.sin(ea) * L_UA;
+  const c = back ? shade(col, -.2) : col;
+  seg(sx, sy, ex, ey, w, c); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(ex, ey, w / 2, 0, 7); ctx.fill();
+  seg(ex, ey, hx, hy, w * .86, c);
+  ctx.fillStyle = back ? shade(skin, -.12) : skin; ctx.strokeStyle = OUTL; ctx.lineWidth = .8; ctx.beginPath(); ctx.arc(hx, hy, 3.1, 0, 7); ctx.fill(); ctx.stroke();
+}
 function drawPerson(m, walking, isHero) {
   if (useSprite(m)) return drawHeroSprite(m, walking, isHero);
   const x = m.x, y = m.y, C = m.hero ? m.heroC : (m.cos ? COSTUMES[m.cos] : null);
   const idle = !walking && !m.dying && !(m.cheer > 0);
-  const jump = m.cheer > 0 ? Math.abs(Math.sin((1 - m.cheer) * Math.PI * 2)) * 16 : 0;
-  const mood = personMood(m);
+  const jump = m.cheer > 0 ? Math.abs(Math.sin((1 - m.cheer) * Math.PI * 2)) * 18 : 0;
+  const mood = personMood(m), sd = m.seed || 0;
   ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha ?? 1); ctx.translate(x, y - jump);
   if (m.dying) ctx.rotate(-Math.min(1, m.dying * 2) * 1.4);
   ctx.scale(((m.facing || 1) < 0 ? -1 : 1) * PS * PK, PS * PK);
-  const ph = m.phase || 0, sw = walking ? Math.sin(ph) : 0, bob = walking ? -Math.abs(Math.cos(ph)) * 3.6 : 0;
-  // esneme-sıkışma: adım teması ve sevinç zıplaması
-  const touch = walking ? 1 - Math.abs(Math.cos(ph)) : 0, sq = m.cheer > 0 ? Math.sin((1 - m.cheer) * Math.PI * 2) * .08 : 0;
-  ctx.scale(1 + touch * .04 - sq * .5, 1 - touch * .05 + sq);
-  const shirt = C ? C.shirt : m.color, pants = C && C.pants ? C.pants : "#2b2a44", boot = "#2e2220";
+  const ph = m.phase || 0, sw = walking ? Math.sin(ph) : 0;
+  const shirt = C ? C.shirt : m.color, pants = C && C.pants ? C.pants : "#2b2a44", boot = "#2a1e1a";
+  const wide = C && C.wide, LW = wide ? 11.5 : 8.6;
   ctx.lineJoin = "round"; ctx.lineCap = "round";
-  if ((isHero || m.flagOn) && !m.dying) drawBanner(walking, ph);
-  { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 22); sg.addColorStop(0, "rgba(10,30,50,.38)"); sg.addColorStop(1, "rgba(10,30,50,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 1, 22, 5, 0, 0, 7); ctx.fill(); }
-  if (walking) { const f = (ph % Math.PI) / Math.PI; ctx.fillStyle = `rgba(214,196,156,${((1 - f) * .5).toFixed(3)})`; ctx.beginPath(); ctx.arc(-9 - f * 13, -2 - f * 5, 2.4 + f * 4.5, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(-4 - f * 8, -1 - f * 2, 1.6 + f * 2.5, 0, 7); ctx.fill(); }
+  // bacak pozları ve yere basma: en alttaki ayak zemine değer
+  const P1 = legPose(ph, walking, 1), P2 = legPose(ph + Math.PI, walking, -1);
+  const A = legPts(2, HIP, P1), B = legPts(-2, HIP, P2);
+  const lift = -Math.max(A.ay, B.ay) - 3.4, sq = m.cheer > 0 ? Math.sin((1 - m.cheer) * Math.PI * 2) * .06 : 0;
+  ctx.scale(1 - sq * .5, 1 + sq);
+  if ((isHero || m.flagOn) && !m.dying) { ctx.save(); ctx.translate(0, lift); drawBanner(walking, ph); ctx.restore(); }
+  { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 20); sg.addColorStop(0, "rgba(10,30,50,.36)"); sg.addColorStop(1, "rgba(10,30,50,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(2, 1, 20, 4.5, 0, 0, 7); ctx.fill(); }
+  if (walking) { const f = (ph % Math.PI) / Math.PI; ctx.fillStyle = `rgba(214,196,156,${((1 - f) * .5).toFixed(3)})`; ctx.beginPath(); ctx.arc(-8 - f * 13, -2 - f * 5, 2.4 + f * 4.5, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(-3 - f * 8, -1 - f * 2, 1.6 + f * 2.5, 0, 7); ctx.fill(); }
+  ctx.translate(0, lift);
+  // gövde eğilmesi ve nefes
+  const lean = walking ? .07 + sw * .03 : idle ? Math.sin(T * 1.3 + sd * 5) * .02 : 0, br = idle ? Math.sin(T * 2.2 + sd * 6.3) * .025 : 0;
+  // ceket eteği bacakların arkasında
   if (C && C.coat) {
-    ctx.save(); ctx.translate(0, bob); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
-    const L = -22 + Math.min(C.coat.len, 16), fl = walking ? sw * 1.5 : 0;
+    ctx.save(); ctx.translate(0, HIP); ctx.rotate(lean * .5);
+    const L = Math.min(C.coat.len, 16) * 1.35 + 4, fl = walking ? -sw * 2 - 2 : 0;
     ctx.fillStyle = shade(C.coat.c, -.12); ctx.strokeStyle = OUTL; ctx.lineWidth = .9;
-    ctx.beginPath(); ctx.moveTo(-11, -40); ctx.lineTo(11, -40); ctx.quadraticCurveTo(14 + fl, L - 4, 13.5 + fl, L); ctx.quadraticCurveTo(0, L + 2, -13.5 + fl, L); ctx.quadraticCurveTo(-14 + fl, L - 4, -11, -40); ctx.fill(); ctx.stroke();
-    if (C.trim) { ctx.strokeStyle = C.trim; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-13.2 + fl, L - .6); ctx.quadraticCurveTo(0, L + 1.4, 13.2 + fl, L - .6); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(-12, -4); ctx.lineTo(12, -4); ctx.quadraticCurveTo(15 + fl * .3, L * .6, 13.5 + fl, L); ctx.quadraticCurveTo(0, L + 2.5, -14 + fl, L); ctx.quadraticCurveTo(-15 + fl * .3, L * .6, -12, -4); ctx.fill(); ctx.stroke();
+    if (C.trim) { ctx.strokeStyle = C.trim; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-13.4 + fl, L - .6); ctx.quadraticCurveTo(0, L + 1.8, 13 + fl, L - .6); ctx.stroke(); }
     ctx.restore();
   }
-  // bacaklar: kabarık şalvar + çizme; arkadaki bacak önce
-  const legs = [[1, -sw, 1], [-1, sw, 0]].sort((a, b) => a[1] - b[1]);
-  legs.forEach(([side, s, k]) => {
-    const fx = side * 4.5 + s * 7, lift = walking ? Math.max(0, s) * 3 : 0, dark = s < 0;
-    const pc = dark ? shade(pants, -.16) : pants;
-    ctx.fillStyle = pc; ctx.strokeStyle = OUTL; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.ellipse(fx * .55, -15 + bob * .4 - lift * .4, C && C.wide ? 8.4 : 7, 9.5, s * .18, 0, 7); ctx.fill(); ctx.stroke();
-    const bc = dark ? shade(boot, -.2) : boot;
-    ctx.fillStyle = bc; roundRect(fx - 5, -9 - lift, 10.5, 9, 3); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(fx + 5, -2.6 - lift, 4.6, 2.8, 0, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(fx - 3.5, -8 - lift, 3, 5);
-  });
-  ctx.translate(0, bob);
-  if (idle) { const br = Math.sin(T * 2.2 + (m.seed || 0) * 6.3) * .035; ctx.translate(0, -24); ctx.rotate(Math.sin(T * 1.3 + (m.seed || 0) * 5) * .03); ctx.scale(1 - br * .3, 1 + br); ctx.translate(0, 24); }
-  if (walking) { ctx.translate(0, -24); ctx.rotate(sw * .06 + .07); ctx.translate(0, 24); }
-  // gövde: geniş ve tombul
-  ctx.save(); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
-  if (C && C.skirt) drawSkirt(C.skirt);
+  // bacaklar: arkadaki önce, daha koyu
+  [[B, -2, true], [A, 2, false]].forEach(([Q, hx, far]) => drawLeg(hx, HIP, Q, far ? shade(pants, -.18) : pants, far ? shade(boot, -.2) : boot, LW, false));
+  ctx.translate(0, HIP); ctx.rotate(lean); ctx.scale(1 - br * .3, 1 + br); ctx.translate(0, -HIP);
+  // elbise eteği (kadın kıyafetleri)
+  if (C && C.skirt) { ctx.save(); ctx.translate(0, HIP + 2); ctx.scale(1.12, 1.45); ctx.translate(0, 22); drawSkirt(C.skirt); ctx.restore(); }
+  // gövde: omuz -77, bel -44
+  ctx.save(); ctx.translate(0, HIP); ctx.scale(1.2, .943); ctx.translate(0, 22);
   ctx.save(); torsoPath(); ctx.fillStyle = shirt; ctx.fill(); ctx.clip();
   if (C && C.check) { ctx.fillStyle = C.check; ctx.globalAlpha *= .35; for (let k = 0; k < 4; k++) { ctx.fillRect(-11, -52 + k * 8, 22, 2); ctx.fillRect(-9 + k * 6, -56, 2, 34); } ctx.globalAlpha = Math.max(0, m.alpha ?? 1); }
   if (C && C.coat) { ctx.fillStyle = C.coat.c; ctx.fillRect(-11, -56, 8, 34); ctx.fillRect(4, -56, 7, 34); if (C.trim) { ctx.fillStyle = C.trim; ctx.fillRect(3, -56, 1.5, 34); } }
@@ -3650,31 +3684,31 @@ function drawPerson(m, walking, isHero) {
   ctx.restore();
   ctx.strokeStyle = OUTL; ctx.lineWidth = .9; torsoPath(); ctx.stroke();
   ctx.restore();
-  // tüfek ve kollar
-  const adj = (m.cheer > 0 ? -1.15 * Math.min(1, m.cheer * 2.5) : idle ? gunAdjust(m) : 0) + sw * .05 + (mood === "scared" ? -.25 : 0);
+  // tüfek ve kollar (omuz döner)
+  const adj = (m.cheer > 0 ? -1.1 * Math.min(1, m.cheer * 2.5) : idle ? gunAdjust(m) : 0) + (walking ? Math.sin(ph * 2) * .035 : 0) + (mood === "scared" ? -.25 : 0) - (mood === "angry" ? .03 : 0);
   const armC = C ? (C.coat ? C.coat.c : C.poncho ? C.poncho.c : shirt) : (m.joined ? m.color : "#8b7f99");
-  ctx.save(); ctx.translate(2, -44); ctx.rotate(adj); ctx.translate(-2, 44);
-  const rc = m.recoil * -6;
-  ctx.strokeStyle = shade(armC, -.18); ctx.lineWidth = 7.5; ctx.beginPath(); ctx.moveTo(-9, -47); ctx.lineTo(-3 + rc, -39); ctx.stroke();
+  const rc = m.recoil * -6, SHX = 1, SHY = -73;
+  ctx.save(); ctx.translate(SHX, SHY); ctx.rotate(adj); ctx.translate(-SHX, -SHY);
+  drawArm(-3, -74, 27 + rc, -62.5, armC, m.skin, 6.6, true);
   ctx.fillStyle = "#6a3e22"; ctx.strokeStyle = OUTL; ctx.lineWidth = .9;
-  ctx.beginPath(); ctx.moveTo(-9 + rc, -36); ctx.lineTo(-2 + rc, -45); ctx.lineTo(14 + rc, -46); ctx.lineTo(14 + rc, -42); ctx.lineTo(3 + rc, -41); ctx.lineTo(-4 + rc, -33); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#2a2a34"; roundRect(10 + rc, -47.5, 37, 4.6, 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#d8a830"; ctx.fillRect(28 + rc, -48, 2.4, 5.6); ctx.fillRect(43 + rc, -48.2, 3, 6); ctx.fillRect(4 + rc, -45, 5, 3);
-  ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.fillRect(11 + rc, -47, 34, 1);
-  if (m.recoil > .6) { const fg = ctx.createRadialGradient(50 + rc, -45, 1, 50 + rc, -45, 9); fg.addColorStop(0, "#fffbe0"); fg.addColorStop(.5, "#ffc040"); fg.addColorStop(1, "rgba(255,120,20,0)"); ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(50 + rc, -45, 9, 0, 7); ctx.fill(); }
-  ctx.strokeStyle = armC; ctx.lineWidth = 7.5; ctx.beginPath(); ctx.moveTo(5, -49); ctx.lineTo(15 + rc, -43); ctx.stroke();
-  ctx.fillStyle = m.skin; ctx.strokeStyle = OUTL; ctx.lineWidth = .8;
-  [[16.5 + rc, -43.5], [-2.5 + rc, -38.5]].forEach(([hx, hy]) => { ctx.beginPath(); ctx.arc(hx, hy, 3.7, 0, 7); ctx.fill(); ctx.stroke(); });
+  ctx.beginPath(); ctx.moveTo(-8 + rc, -51); ctx.lineTo(-1 + rc, -61); ctx.lineTo(15 + rc, -62); ctx.lineTo(15 + rc, -58); ctx.lineTo(4 + rc, -57); ctx.lineTo(-3 + rc, -48); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#2a2a34"; roundRect(11 + rc, -63.4, 40, 4.4, 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#d8a830"; ctx.fillRect(29 + rc, -63.9, 2.4, 5.4); ctx.fillRect(47 + rc, -64.1, 3, 5.8); ctx.fillRect(5 + rc, -61, 5, 3);
+  ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.fillRect(12 + rc, -62.9, 37, 1);
+  if (m.recoil > .6) { const fg = ctx.createRadialGradient(54 + rc, -61, 1, 54 + rc, -61, 9); fg.addColorStop(0, "#fffbe0"); fg.addColorStop(.5, "#ffc040"); fg.addColorStop(1, "rgba(255,120,20,0)"); ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(54 + rc, -61, 9, 0, 7); ctx.fill(); }
+  drawArm(4, -73, 9 + rc, -58.5, armC, m.skin, 7, false);
   ctx.restore();
-  // kafa: büyük ve ifadeli
-  ctx.save(); ctx.translate(1, -53); ctx.scale(1.42, 1.42);
+  // boyun ve kafa
+  ctx.fillStyle = shade(m.skin, -.08); ctx.strokeStyle = OUTL; ctx.lineWidth = .7; roundRect(-2.6, -83, 7, 9, 2); ctx.fill(); ctx.stroke();
+  const HS = 1.06;
+  ctx.save(); ctx.translate(1, -80);
   if (m.leaving && T - (m.leaveAt || 0) < .9) ctx.rotate(Math.sin((T - m.leaveAt) * 22) * .16);
-  if (mood === "scared") ctx.rotate(-.08);
+  if (mood === "scared") ctx.rotate(-.1);
   if (mood === "happy") ctx.rotate(Math.sin(T * 10) * .07);
-  if (walking) { ctx.rotate(-sw * .07 - .04); ctx.translate(0, -Math.abs(Math.sin(ph)) * .9); }
-  if (idle) { const lk = Math.sin(T * .7 + (m.seed || 0) * 11); ctx.rotate(lk > .7 ? (lk - .7) * .55 : lk < -.75 ? (lk + .75) * .45 : 0); }
+  if (walking) { ctx.rotate(-sw * .05 - .05); ctx.translate(0, -Math.abs(Math.sin(ph)) * .8); }
+  if (idle) { const lk = Math.sin(T * .7 + sd * 11); ctx.rotate(lk > .7 ? (lk - .7) * .55 : lk < -.75 ? (lk + .75) * .45 : 0); }
   if (!m.joined && !m.leaving && G && G.phase === "question") ctx.rotate(Math.sin(T * 2.4) * .08 - .06);
-  ctx.translate(-1, 53);
+  ctx.scale(HS, HS); ctx.translate(-1, 67 - 10 / HS);
   const female = C && C.g === "f";
   if (C && female && ["none", "hairbun", "braids", "kokoshnik"].includes(C.hat.t)) { ctx.fillStyle = C.hair || "#2a1a12"; ctx.beginPath(); ctx.ellipse(-6, -60, 7, 14, .15, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -68, 11, Math.PI * .8, Math.PI * 1.9); ctx.fill(); }
   ctx.fillStyle = m.skin; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.fill();
@@ -3693,7 +3727,7 @@ function drawPerson(m, walking, isHero) {
   ctx.restore();
   if (m.bubble && (!m.joined || m.leaving)) {
     ctx.save(); ctx.globalAlpha = Math.max(0, m.alpha);
-    const bx = x, by = y - 140 * PS + Math.sin(T * 4) * 3;
+    const bx = x, by = y - 150 * PS + Math.sin(T * 4) * 3;
     ctx.fillStyle = "#fbf1e1"; roundRect(bx - 16, by - 18, 32, 30, 8); ctx.fill();
     ctx.beginPath(); ctx.moveTo(bx - 5, by + 12); ctx.lineTo(bx, by + 20); ctx.lineTo(bx + 5, by + 12); ctx.fill();
     ctx.fillStyle = m.leaving ? "#ff4d6a" : "#1b1428"; ctx.font = "800 20px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; ctx.fillText(m.bubble, bx, by + 6);
@@ -3705,49 +3739,49 @@ function drawPerson(m, walking, isHero) {
     ctx.fillStyle = "rgba(27,20,40,.8)"; roundRect(x - w / 2, y + 8, w, 16, 6); ctx.fill();
     ctx.fillStyle = "#fbf1e1"; ctx.fillText(txt, x, y + 20); ctx.restore();
   }
-  if (isHero && !m.dying) { ctx.font = "800 12px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; const tag = (profile.nick || "Sen").toLocaleUpperCase("tr"), ty = y - 124 * PS - jump; ctx.lineWidth = 3; ctx.strokeStyle = "#1e2d4a"; ctx.strokeText(tag, x, ty); ctx.fillStyle = "#ffc21a"; ctx.fillText(tag, x, ty); }
+  if (isHero && !m.dying) { ctx.font = "800 12px 'Baloo 2', Nunito, sans-serif"; ctx.textAlign = "center"; const tag = (profile.nick || "Sen").toLocaleUpperCase("tr"), ty = y - 140 * PS - jump; ctx.lineWidth = 3; ctx.strokeStyle = "#1e2d4a"; ctx.strokeText(tag, x, ty); ctx.fillStyle = "#ffc21a"; ctx.fillText(tag, x, ty); }
 }
 
-// Şeytan askeri: aynı tombul tarzda, sırıtan ve öfkeli
+// Şeytan askeri: insan oranında, toynaklı, kuyruklu, yabalı
 function drawDevil(d) {
   ctx.save(); ctx.globalAlpha = Math.max(0, d.alpha); ctx.translate(d.x, d.y);
   if (d.dying) ctx.rotate(Math.min(1, d.dying * 2) * 1.4);
   ctx.scale(-PS * PK, PS * PK);
-  const walking = d.x > d.tx + 1, ph = d.phase, sw = walking ? Math.sin(ph) : 0, bob = walking ? -Math.abs(Math.cos(ph)) * 2.6 : 0;
-  const idle = !walking && !d.dying, br = idle ? Math.sin(T * 3 + ph) * .04 : 0, hop = idle ? -Math.abs(Math.sin(T * 4 + ph)) * 3.5 : 0;
+  const walking = d.x > d.tx + 1, ph = d.phase, sw = walking ? Math.sin(ph) : 0;
+  const idle = !walking && !d.dying, br = idle ? Math.sin(T * 3 + ph) * .03 : 0, hop = idle ? -Math.abs(Math.sin(T * 4 + ph)) * 3 : 0;
   ctx.lineJoin = "round"; ctx.lineCap = "round";
-  { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 22); sg.addColorStop(0, "rgba(60,0,0,.4)"); sg.addColorStop(1, "rgba(60,0,0,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 1, 22, 5, 0, 0, 7); ctx.fill(); }
+  { const sg = ctx.createRadialGradient(0, 1, 2, 0, 1, 20); sg.addColorStop(0, "rgba(60,0,0,.4)"); sg.addColorStop(1, "rgba(60,0,0,0)"); ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(2, 1, 20, 4.5, 0, 0, 7); ctx.fill(); }
+  const P1 = legPose(ph, walking, 1), P2 = legPose(ph + Math.PI, walking, -1);
+  if (idle) { P1.kb = P2.kb = .12 + Math.abs(Math.sin(T * 4 + ph)) * .25; }
+  const A = legPts(2, HIP, P1), B = legPts(-2, HIP, P2), lift = -Math.max(A.ay, B.ay) - 3.4;
+  ctx.translate(0, lift + hop);
   // kuyruk
-  ctx.strokeStyle = "#1a1018"; ctx.lineWidth = 3.4;
-  ctx.beginPath(); ctx.moveTo(-10, -26 + bob); ctx.quadraticCurveTo(-32, -16 + Math.sin(T * 4 + ph) * 7, -30, -44); ctx.stroke();
-  ctx.fillStyle = "#e0202c"; poly([[-30, -53], [-36, -42], [-24, -42]]);
-  // bacaklar ve toynak
-  [[1, -sw], [-1, sw]].sort((a, b) => a[1] - b[1]).forEach(([side, s]) => {
-    const fx = side * 4.5 + s * 7, lift = walking ? Math.max(0, s) * 3 : 0;
-    ctx.fillStyle = s < 0 ? "#3a1218" : "#4e1820"; ctx.strokeStyle = OUTL; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.ellipse(fx * .55, -14 + bob * .4 - lift * .4, 6.5, 9, s * .18, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#140a0c"; poly([[fx - 5, -lift], [fx - 4, -8 - lift], [fx + 5, -8 - lift], [fx + 7, -lift]]);
-  });
-  ctx.translate(0, bob + hop); ctx.translate(0, -24); ctx.scale(1 - br * .3, 1 + br); ctx.rotate(sw * .04); ctx.translate(0, 24);
-  // gövde zırhı
-  ctx.save(); ctx.translate(0, -22); ctx.scale(1.34, .93); ctx.translate(0, 22);
+  ctx.strokeStyle = "#1a1018"; ctx.lineWidth = 3.2;
+  ctx.beginPath(); ctx.moveTo(-9, HIP + 2); ctx.quadraticCurveTo(-34, HIP + 12 + Math.sin(T * 4 + ph) * 8, -31, HIP - 18); ctx.stroke();
+  ctx.fillStyle = "#e0202c"; poly([[-31, HIP - 27], [-37, HIP - 16], [-25, HIP - 16]]);
+  [[B, -2, true], [A, 2, false]].forEach(([Q, hx, far]) => drawLeg(hx, HIP, Q, far ? "#3a1218" : "#521a22", "#120a0c", 8.6, true));
+  ctx.translate(0, HIP); ctx.rotate(walking ? .08 + sw * .03 : 0); ctx.scale(1 - br * .3, 1 + br); ctx.translate(0, -HIP);
+  // zırh
+  ctx.save(); ctx.translate(0, HIP); ctx.scale(1.2, .943); ctx.translate(0, 22);
   ctx.save(); torsoPath(); ctx.fillStyle = "#1c1420"; ctx.fill(); ctx.clip();
   ctx.fillStyle = "#c81a28"; roundRect(-11.5, -35, 23, 6, 2); ctx.fill();
   ctx.fillStyle = "#ffd040"; ctx.beginPath(); ctx.arc(0, -32, 2.4, 0, 7); ctx.fill();
   ctx.fillStyle = "#3a2430"; poly([[-11, -56], [-3, -56], [-11, -44]]); poly([[11, -56], [3, -56], [11, -44]]);
+  ctx.strokeStyle = "rgba(255,60,60,.35)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -55); ctx.lineTo(0, -36); ctx.stroke();
   { const lg = ctx.createLinearGradient(-11, -56, 11, -22); lg.addColorStop(0, "rgba(255,255,255,.22)"); lg.addColorStop(.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(0,0,0,.3)"); ctx.fillStyle = lg; ctx.fillRect(-15, -60, 30, 40); }
   ctx.restore(); ctx.strokeStyle = OUTL; ctx.lineWidth = .9; torsoPath(); ctx.stroke();
   ctx.restore();
-  ctx.fillStyle = "#c81a28"; poly([[-15, -51], [-21, -60], [-9, -54]]); poly([[15, -51], [21, -60], [9, -54]]);
-  // yaba
-  const lunge = d.attack * 14 + (idle ? Math.sin(T * 6 + ph) * 2 : 0);
-  ctx.fillStyle = "#2a1a1a"; roundRect(-6 + lunge, -46.5, 50, 3.4, 1.5); ctx.fill();
-  ctx.fillStyle = "#e0202c"; ctx.strokeStyle = OUTL; ctx.lineWidth = .8; roundRect(42 + lunge, -56, 3.6, 19, 1.5); ctx.fill(); ctx.stroke();
-  [-55, -47, -39].forEach(yy => { poly([[44 + lunge, yy - 1.8], [55 + lunge, yy + 1.2], [44 + lunge, yy + 3]]); });
-  ctx.strokeStyle = "#a8141e"; ctx.lineWidth = 7.5; ctx.beginPath(); ctx.moveTo(4, -49); ctx.lineTo(13 + lunge * .6, -45); ctx.stroke();
-  ctx.fillStyle = "#c8202a"; ctx.beginPath(); ctx.arc(14 + lunge * .6, -45, 3.7, 0, 7); ctx.fill();
-  // kafa
-  ctx.save(); ctx.translate(1, -53); ctx.scale(1.42, 1.42); ctx.translate(-1, 53);
+  ctx.fillStyle = "#c81a28"; ctx.strokeStyle = OUTL; ctx.lineWidth = .8; [-9, 9].forEach(sx => { ctx.beginPath(); ctx.moveTo(sx - 5, -73); ctx.lineTo(sx + 1, -83); ctx.lineTo(sx + 5, -73); ctx.closePath(); ctx.fill(); ctx.stroke(); });
+  // yaba ve kollar
+  const lunge = d.attack * 14 + (idle ? Math.sin(T * 6 + ph) * 2 : 0), YY = -62;
+  drawArm(-3, -74, 30 + lunge, YY, "#8a1018", "#c8202a", 6.4, true);
+  ctx.fillStyle = "#2a1a1a"; roundRect(-8 + lunge, YY - 1.7, 56, 3.4, 1.5); ctx.fill();
+  ctx.fillStyle = "#e0202c"; ctx.strokeStyle = OUTL; ctx.lineWidth = .8; roundRect(46 + lunge, YY - 9.5, 3.6, 19, 1.5); ctx.fill(); ctx.stroke();
+  [-8.5, -.5, 7.5].forEach(o => { poly([[48 + lunge, YY + o - 1.8], [59 + lunge, YY + o + 1.2], [48 + lunge, YY + o + 3]]); });
+  drawArm(4, -73, 12 + lunge * .6, YY + 1.5, "#a8141e", "#c8202a", 7, false);
+  // boyun ve kafa
+  ctx.fillStyle = "#a81a24"; ctx.strokeStyle = OUTL; ctx.lineWidth = .7; roundRect(-2.6, -83, 7, 9, 2); ctx.fill(); ctx.stroke();
+  ctx.save(); ctx.translate(1, -80); if (idle) ctx.rotate(Math.sin(T * 3 + ph) * .06); ctx.scale(1.06, 1.06); ctx.translate(-1, 67 - 10 / 1.06);
   ctx.fillStyle = "#d42230"; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.fill();
   { const hg = ctx.createRadialGradient(-2, -71, 1, 1, -67, 11); hg.addColorStop(0, "rgba(255,200,200,.35)"); hg.addColorStop(.6, "rgba(255,255,255,0)"); hg.addColorStop(1, "rgba(60,0,0,.35)"); ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.fill(); }
   ctx.strokeStyle = OUTL; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(1, -67, 10, 0, 7); ctx.stroke();
