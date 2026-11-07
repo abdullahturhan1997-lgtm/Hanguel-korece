@@ -14,6 +14,24 @@ input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:2px s
 canvas{display:block}
 #map,#battle{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 #battle{display:none;z-index:20}#battle.show{display:block}
+#village{display:none;z-index:15;position:fixed;inset:0;width:100%;height:100%;touch-action:none}#village.show{display:block}
+#village-ui{display:none;position:fixed;inset:0;z-index:16;pointer-events:none;font-family:Georgia,serif;color:#2b2018}#village-ui.show{display:block}
+.vpar{position:absolute;top:max(4px,env(safe-area-inset-top));background:linear-gradient(#f3e4c0,#e3cc9c);border:2.5px solid #4a3622;border-radius:6px;box-shadow:inset 0 0 0 2px rgba(255,248,225,.6),0 3px 10px rgba(0,0,0,.35);pointer-events:auto;display:flex;align-items:center;gap:8px;padding:3px 10px 3px 0;font-size:13px}
+#vtl{left:6px}#vtr{right:6px;padding:3px 6px 3px 10px}
+#vtl span{display:flex;flex-direction:column;align-items:center;line-height:1.1;font-size:15px}#vtl b{font-size:12px}
+#vtl .flag{display:flex;align-items:center;justify-content:center;width:34px;height:48px;margin:-3px 2px -3px 0;background:var(--c);color:#fff;font-style:normal;font-size:20px;clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
+#vtr .spd{width:30px;height:28px;font-size:12px;box-shadow:none}
+#vbanner{position:absolute;top:66px;left:50%;transform:translateX(-50%);background:#fbeedd;border:2.5px solid #8b1a12;border-radius:6px;padding:5px 12px;font-weight:700;font-size:13px;pointer-events:auto;box-shadow:0 3px 10px rgba(0,0,0,.3);white-space:nowrap}
+#vbanner button{margin-left:8px;background:linear-gradient(#e8836f,#c0392b);color:#fff;border:2px solid #4a3622;border-radius:4px;padding:3px 8px;font-weight:700}
+.vbar{position:absolute;bottom:max(6px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:4px;background:#3b2a1c;padding:5px;border-radius:6px;pointer-events:auto;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.vbar button{width:68px;height:58px;background:linear-gradient(#f3e4c0,#e3cc9c);border:2px solid #4a3622;border-radius:4px;font-weight:700;font-size:12px;color:#2b2018;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.vbar i{font-style:normal;font-size:22px}
+#vbuild{display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);gap:4px;background:#3b2a1c;padding:5px;border-radius:6px;pointer-events:auto}
+#vbuild.show{display:flex}
+#vbuild button{width:76px;background:linear-gradient(#f3e4c0,#e3cc9c);border:2px solid #4a3622;border-radius:4px;display:flex;flex-direction:column;align-items:center;font-size:11px;color:#2b2018;padding:2px}
+#vbuild button.on{background:linear-gradient(#fff3c4,#f0cf7a);box-shadow:0 0 0 2px #c0281e inset}
+#vbuild canvas{width:54px;height:45px}
+@media (max-width:700px){#vtl span:nth-child(n+8){display:none}.vbar button{width:52px;height:50px;font-size:10px}}
 
 /* Üst çubuk */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
@@ -181,6 +199,9 @@ label{display:block;font-size:13px;font-weight:600;margin:7px 0}
 <body>
 <canvas id="map"></canvas>
 <canvas id="battle"></canvas>
+<canvas id="village"></canvas>
+<div id="village-ui"><div id="vtl" class="vpar"></div><div id="vtr" class="vpar"></div><div id="vbanner"></div><div id="vbuild"></div>
+  <div class="vbar"><button onclick="Village.showPalette('tent')"><i>⛺</i>Çadır</button><button onclick="Village.showPalette('prod')"><i>⚒</i>Üretim</button><button onclick="Village.showPalette('farm')"><i>🌾</i>Tarım</button><button onclick="Village.showPalette('store')"><i>🪵</i>Depo</button><button onclick="Village.showPalette('def')"><i>🛡</i>Savunma</button><button onclick="UI.city(Village.sid,'army')"><i>👥</i>Asker</button></div></div>
 
 <div id="hud">
   <div class="top">
@@ -237,6 +258,7 @@ label{display:block;font-size:13px;font-weight:600;margin:7px 0}
 <script src="js/data.js"></script>
 <script src="js/hats.js"></script>
 <script src="js/town.js"></script>
+<script src="js/village.js"></script>
 <script src="js/util.js"></script>
 <script src="js/game.js"></script>
 <script src="js/map.js"></script>

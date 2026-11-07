@@ -1213,6 +1213,17 @@ const Battle = {
   },
   town(x) {
     const inner = this.walls[this.walls.length - 1].x;
+    if (this.cfg.defense && this.cfg.defense.key === 'koy') {
+      // Köy savunması: çit içinde çadırlar, ateş, kuyu
+      for (let i = 0; i < 14; i++) {
+        const tx = rand(inner + 80, this.BW - 60), ty = rand(80, BH - 60);
+        if (Math.hypot(tx - this.keepX, ty - this.keepY) < 160) continue;
+        Village.drawTent(x, tx, ty, rand(34, 46), rand(22, 30));
+      }
+      Village.drawProp(x, { type: 'well', x: inner + 200, y: BH * 0.3 });
+      Village.drawProp(x, { type: 'logs', x: inner + 260, y: BH * 0.72 });
+      return;
+    }
     for (let i = 0; i < 30; i++) {
       const hx = rand(inner + 60, this.BW - 40), hy = rand(60, BH - 40);
       if (Math.hypot(hx - this.keepX, hy - this.keepY) < 150) continue;

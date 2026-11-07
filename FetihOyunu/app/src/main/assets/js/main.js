@@ -8,6 +8,7 @@ const Main = {
   boot() {
     MapView.init(document.getElementById('map'));
     Battle.init(document.getElementById('battle'));
+    Village.init(document.getElementById('village'));
     UI.init();
     UI.startScreen();
     requestAnimationFrame(t => this.loop(t));
@@ -28,6 +29,10 @@ const Main = {
     try {
       if (this.started) {
         if (Battle.active) { Battle.update(dt); Battle.draw(); }
+        else if (Village.active) {
+          if (!UI.isOpen() || UI.live) Game.update(dt);
+          Village.update(dt); Village.draw();
+        }
         else {
           if (!UI.isOpen() || UI.live) Game.update(dt);
           if (Game.pending.length && !UI.promptOpen && !Game.hold) UI.battlePrompt(Game.pending[0]);
@@ -46,6 +51,7 @@ window.addEventListener('load', () => Main.boot());
 // Android geri tuşu: açık pencereyi kapat; harita açıksa uygulamadan çık
 window.onAndroidBack = () => {
   if (Battle.active) return true;
+  if (Village.active && !UI.isOpen()) { Village.close(); return true; }
   if (UI.isOpen() && !UI.lockModal) { UI.close(); return true; }
   if (UI.cardHit) { UI.hideCard(); MapView.selected = null; return true; }
   if (Game.S) Game.save();

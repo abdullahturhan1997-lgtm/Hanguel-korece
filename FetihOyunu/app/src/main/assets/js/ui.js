@@ -87,7 +87,7 @@ const UI = {
         h += `<div class="c-row def">🏰 <b>${esc(D.name)}</b><br><small>${esc(D.desc)} · Sur: ${D.walls.map(fmt).join(' / ')} · Kule: ${D.towers}</small></div>`;
       }
       h += '<div class="c-acts">';
-      if (own) h += `<button onclick="UI.city('${s.id}')">🏗️ Yönet</button>`;
+      if (own) h += `<button onclick="Village.open('${s.id}')">🏕️ Köye gir</button><button onclick="UI.city('${s.id}')">🏗️ Yönet</button>`;
       if (selArmy && selArmy.owner === P && !s.ruined) {
         if (own || Game.relation(s.owner) === 'ally') h += `<button onclick="UI.go('${s.id}')">🚶 Buraya git</button>`;
         else {
@@ -165,7 +165,7 @@ const UI = {
     const s = Game.sett(id); if (!s || s.owner !== P) return;
     this.curCity = id;
     if (tab) this.cityTab = tab;
-    this.open(`🏰 ${esc(s.name)}`, '', true);
+    this.open(`🏰 ${esc(s.name)} <button class="mini" onclick="UI.close();Village.open('${s.id}')">🏕️ Köye gir</button>`, '', true);
     this.live = () => { const el = $('.city-sum'), c = Game.sett(this.curCity); if (!c || c.owner !== P) { this.close(); return; } if (el) el.innerHTML = this.citySum(c); };
     this.renderCity();
   },
@@ -216,7 +216,7 @@ const UI = {
     return `${full ? '<div class="warn">🏠 Konut yetersiz! Nüfus artmıyor — ev veya konak yap.</div>' : ''}
       <p class="hint">Bir bina seç, sonra boş kareye dokun. Evlerin önündeki insanlar orada oturan halkı gösterir; halk evlere nüfusa göre yerleşir. Köy en fazla ${VILLAGE_CAP} kişiye kadar büyür.</p>${g}${pal}`;
   },
-  tile(i) {
+  tile(i, fromVillage) {
     const s = Game.sett(this.curCity);
     const cur = s.grid[i], sel = this.buildSel;
     if (sel === 'yik') {
@@ -232,7 +232,8 @@ const UI = {
       toast(`${B.icon} ${B.name} inşa edildi!`, 'good');
     }
     Game.mapDirty = true;
-    this.renderCity(); this.refreshTop();
+    if (!fromVillage) this.renderCity();
+    this.refreshTop();
   },
 
   city_army(s) {
@@ -566,7 +567,7 @@ const UI = {
       <div class="bpre">${side(mine, true)}<div class="vs">VS</div>${side(th)}</div>
       ${D ? `<div class="info">🏰 <b>${esc(D.name)}</b> — ${esc(D.desc)}<br>🧱 Surlar: ${D.walls.map(fmt).join(' → ')} · 🗼 Kule: ${D.towers}</div>` : ''}
       ${cfg.ambush ? '<div class="info">🌿 Pusu! Düşman şaşkın ve dağınık.</div>' : ''}
-      <div class="acts"><button class="big" onclick="UI.fight(true)">🕹️ Savaşı Yönet</button><button onclick="UI.fight(false)">🎲 Komutanlara Bırak</button></div>
+      <div class="acts"><button class="big" onclick="UI.fight(true)">🕹️ Savaşı Yönet</button><button onclick="UI.fight(false)">🎲 Komutanlara Bırak</button>${cfg.context && cfg.context.type === 'defense' ? `<button onclick="UI.lockModal=false;UI.close();Village.open('${cfg.context.settId}')">👁 Köye bak</button>` : ''}</div>
       <p class="hint">Savaşı kendin yönetirsen çöp adam komutanın sahaya iner. Ölürsen yaralanıp şehrine götürülürsün ve ordun geri çekilir.</p>`);
     this.lockModal = true;
   },

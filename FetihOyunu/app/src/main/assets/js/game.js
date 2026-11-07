@@ -586,6 +586,8 @@ const Game = {
     });
   },
   requestDefense(enemy, s) {
+    s.attack = { owner: enemy.owner, n: this.count(enemy.units), day: this.S.day };
+    if (s.owner === P) toast(`⚔️ ${s.name} saldırı altında! Köye girip bakabilirsin.`, 'bad');
     const nearby = this.S.armies.filter(b => b.owner === P && dist(b.x, b.y, s.x, s.y) < 60);
     const side = this.sideFromArmies(nearby);
     for (const k of UNIT_KEYS) side.units[k] += s.garrison[k];
@@ -680,6 +682,12 @@ const Game = {
     }
     if (ctx.type === 'defense') {
       const s = this.sett(ctx.settId);
+      const killed = this.count(cfg.att.units) - this.count(res.attRemain.units);
+      const lost = this.count(mine.units) - this.count(myRemain.units);
+      s.attack = null;
+      s.after = { day: S.day, seed: randi(1, 1e6), kills: Math.max(0, killed), losses: Math.max(0, lost), owner: cfg.att.owner, won };
+      // Saldırıda halktan da kayıp olur
+      if (!won) for (const k of ['m', 'w', 'e', 'c']) s.pop[k] *= 0.9; else s.pop.m = Math.max(0, s.pop.m - lost * 0.1);
       if (!won) {
         const enemy = this.army(ctx.enemyArmy);
         const owner = cfg.att.owner;
