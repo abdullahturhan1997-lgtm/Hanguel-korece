@@ -198,11 +198,10 @@ const UI = {
         let occ = '';
         if (B.cap) {
           const cap = B.cap * sc, n = Math.min(cap, Math.max(0, remain)); remain -= n;
-          const dots = Math.round(n / cap * 5);
-          occ = `<span class="occ">${'●'.repeat(dots)}${'○'.repeat(5 - dots)}</span>`;
+          occ = (n / cap).toFixed(2);
         }
-        g += `<button class="tile b-${b}" onclick="UI.tile(${i})" title="${B.name}">${B.icon}${occ}</button>`;
-      } else g += `<button class="tile empty" onclick="UI.tile(${i})"></button>`;
+        g += `<button class="tile b-${b}" onclick="UI.tile(${i})" title="${B.name}"><canvas class="bt" data-b="${b}" data-o="${occ || 0}" data-i="${i}" width="80" height="80"></canvas></button>`;
+      } else g += `<button class="tile empty" onclick="UI.tile(${i})"><canvas class="bt" data-b="" data-i="${i}" width="80" height="80"></canvas></button>`;
     });
     g += '</div>';
     const full = tot >= Game.capacity(s) * 0.98;
@@ -215,7 +214,7 @@ const UI = {
     }
     pal += `<button class="${this.buildSel === 'yik' ? 'on red' : ''}" onclick="UI.buildSel='yik';UI.renderCity()"><span>🔨</span><b>Yık</b><small>%50 iade</small><em>Binayı kaldır</em></button></div>`;
     return `${full ? '<div class="warn">🏠 Konut yetersiz! Nüfus artmıyor — ev veya konak yap.</div>' : ''}
-      <p class="hint">Bir bina seç, sonra boş kareye dokun. ● dolu konut, ○ boş yer. Halkın evlere nüfusa göre yerleşir.</p>${g}${pal}`;
+      <p class="hint">Bir bina seç, sonra boş kareye dokun. Evlerin önündeki insanlar orada oturan halkı gösterir; halk evlere nüfusa göre yerleşir. Köy en fazla ${VILLAGE_CAP} kişiye kadar büyür.</p>${g}${pal}`;
   },
   tile(i) {
     const s = Game.sett(this.curCity);
@@ -277,6 +276,10 @@ const UI = {
     this.refreshTop();
   },
   paintHats() {
+    document.querySelectorAll('canvas.bt').forEach(c => {
+      const x = c.getContext('2d'); x.clearRect(0, 0, 80, 80);
+      Town.draw(x, c.dataset.b, 40, 66, 1.9, +(c.dataset.o || 0), Game.S.player.religion, +c.dataset.i);
+    });
     document.querySelectorAll('canvas.hgc').forEach(c => Hats.preview(c, c.dataset.hg));
   },
 
@@ -535,7 +538,7 @@ const UI = {
   settings() {
     const st = Game.S.player.settings;
     const tg = (k, label) => `<label class="tgl"><input type="checkbox" ${st[k] ? 'checked' : ''} onchange="UI.setOpt('${k}',this.checked)"> ${label}</label>`;
-    this.open('⚙️ Ayarlar', `${tg('gore', '🩸 Kan efektleri ve ikiye bölünme')}${tg('sound', '🔊 Ses efektleri')}${tg('voice', '🗣️ Nida ve komut sesleri (konuşma)')}
+    this.open('⚙️ Ayarlar', `${tg('gore', '⚔️ Parçalanma (kafa kopması, ikiye/üçe bölünme — kansız)')}${tg('sound', '🔊 Ses efektleri')}${tg('voice', '🗣️ Nida ve komut sesleri (konuşma)')}
       <div class="acts"><button onclick="Game.save();toast('💾 Kaydedildi','good')">💾 Kaydet</button><button class="red" onclick="UI.confirmNew()">🆕 Yeni oyun</button></div>
       <h3>Nasıl oynanır?</h3><ul class="help">
       <li>🏡 40 kişilik halkla başlarsın. Şehrini aç → <b>Yapılar</b>: ev yaparak nüfusa yer aç.</li>

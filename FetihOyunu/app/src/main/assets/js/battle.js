@@ -1,13 +1,16 @@
 /* ==========================================================
    FETİH — Kuşbakışı savaş sahnesi (parşömen / mürekkep çizimi)
-   Birlik seçimi (1-5), komutlar: İleri, Saldır, Savun, Bekle,
-   Geri Çekil, Formasyon; nida; kuşatma, kan ve ikiye bölünme.
+   - Her figür tam olarak 1 askerdir (sayılar gerçek).
+   - Savaş öncesi konuşlanma: repertuardan birlik seç, sahaya yerleştir.
+   - Kan yok; silaha göre kafa kopması, ikiye / üçe bölünme.
+   - Oklar isabet ettiği yerde saplı kalır.
    ========================================================== */
 'use strict';
 
-const BH = 1100, FS = 0.56, GRAV = 620;
+const BH = 1100, FS = 0.56, GRAV = 620, MAXF = 320;
 const INK = '#2b2018';
 const GROUPS = ['cmd', 'inf', 'archer', 'spear', 'cav', 'siege'];
+const GROUP_NAME = { cmd: 'Komutan', inf: 'Piyade', archer: 'Okçu', spear: 'Mızraklı', cav: 'Atlı', siege: 'Kuşatma' };
 const ORDER_NAME = { advance: 'İleri!', attack: 'Saldırın!', defend: 'Mevzi tutun!', wait: 'Bekleyin!', retreat: 'Ricat!', move: 'Oraya!' };
 const FORMS = ['hat', 'kare', 'kama'];
 const FORM_NAME = { hat: 'Hat düzeni', kare: 'Kare düzen', kama: 'Kama düzeni' };
@@ -17,6 +20,7 @@ const HAT_ALIAS = { sarik: 'akSarik', kalpak: 'siyahKalpak', sarikH: 'hintSarik'
 const Battle = {
   active: false, cv: null, ctx: null, W: 0, H: 0, dpr: 1,
   cam: { x: 0, y: 0, z: 1 },
+  depAmount: 0,
 
   init(cv) {
     this.cv = cv; this.ctx = cv.getContext('2d');
@@ -46,8 +50,9 @@ const Battle = {
     const S = Game.S;
     this.gore = S.player.settings.gore;
     this.t = 0; this.figs = []; this.proj = []; this.parts = []; this.decals = []; this.corpses = []; this.bubbles = []; this.texts = [];
+    this.blocks = []; this.blockId = 1;
     this.kills = 0; this.ballsUsed = 0; this.capture = 0; this.retreatT = -1; this.cryT = [0, 0]; this.cryCd = 0; this.retarget = 0; this.slotT = 0;
-    this.myBalls = null; this.marker = null; this._hk = null;
+    this.myBalls = null; this.marker = null; this._hk = null; this.R = 1;
     this.siege = cfg.kind === 'siege';
     this.BW = this.siege ? 2400 : 2100;
     this.teamSide = cfg.playerSide === 'att' ? ['att', 'def'] : ['def', 'att'];
@@ -72,39 +77,47 @@ const Battle = {
       }
     }
     this.specialT = 2;
-    this.gc = [{}, {}]; this.gOrd = [{}, {}]; this.gForm = [{}, {}];
-    for (const t of [0, 1]) for (const g of GROUPS) { this.gOrd[t][g] = 'defend'; this.gForm[t][g] = g === 'cav' ? 'kama' : 'hat'; }
+    this.gOrd = [{}, {}];
     this.initCenters();
-    const att = cfg.att, def = cfg.def;
-    const sideTot = s => Game.count(s.units) + (s.allies || []).reduce((n, a) => n + Game.count(a.units), 0);
-    this.R = Math.max(1, Math.ceil(Math.max(sideTot(att), sideTot(def)) / 90));
     this.initial = {};
-    this.spawnSide(this.teamOf('att'), att, 'att');
-    this.spawnSide(this.teamOf('def'), def, 'def');
+    this.spawnSide(this.teamOf('att'), cfg.att, 'att');
+    this.spawnSide(this.teamOf('def'), cfg.def, 'def');
     if (!S.player.wounded) this.player = this.spawnCommander(0, true);
     else { this.player = null; toast('🩹 Komutan yaralı: savaşı uzaktan yönetiyorsun.', 'bad'); }
     this.enemyCmd = S.nations[this.ownerOfTeam(1)] ? this.spawnCommander(1, false) : null;
-    this.refreshSlots(true);
+    // Düşman ve (pusuda) herkes hazır dizilir; oyuncu konuşlanmayı kendisi yapar
+    this.autoDeploy(1);
     const ambushMe = cfg.ambush && cfg.playerSide === 'att';
     for (const g of GROUPS) {
       this.gOrd[0][g] = ambushMe ? 'attack' : (g === 'cmd' ? 'wait' : 'defend');
       this.gOrd[1][g] = this.siege && this.teamSide[1] === 'def' ? 'defend' : 'wait';
     }
     if (this.siege && this.teamSide[1] === 'def' && ['sortie', 'horsearch', 'elephants'].includes(this.special)) this.gOrd[1].cav = 'attack';
-    if (cfg.ambush) {
-      const amb = cfg.playerSide === 'att' ? 1 : 0;
-      for (const f of this.figs) if (f.team === amb) f.stun = 2.5;
-      this.say(this.player || this.figs.find(f => f.team === 0), 'Pusu! Saldırın!', 2);
-    }
     this.sel = new Set(GROUPS);
     this.cry = S.player.customCry || S.player.cry;
     this.buildTerrain();
-    const mine = this.figs.filter(f => f.team === 0);
-    const cx = mine.reduce((s, f) => s + f.x, 0) / Math.max(1, mine.length);
-    this.cam.z = this.H / 640; this.cam.x = cx + this.fdir(0) * 250; this.cam.y = BH / 2;
+    if (cfg.ambush) {
+      this.autoDeploy(0);
+      const amb = cfg.playerSide === 'att' ? 1 : 0;
+      for (const f of this.figs) if (f.team === amb) f.stun = 2.5;
+      this.phase = 'battle';
+      this.say(this.player || this.figs.find(f => f.team === 0), 'Pusu! Saldırın!', 2);
+    } else {
+      // Konuşlanma aşaması: askerler repertuarda (yedekte) bekler
+      for (const f of this.figs) if (f.team === 0 && !f.isCmd && f.type !== 'cleric') { f.escaped = true; f.reserve = true; f.blk = null; }
+      this.phase = 'deploy';
+      const z = this.deployZone();
+      this.makeBlock(0, 'cmd', clamp(this.defC[0].cmd.x, z.x0, z.x1), this.defC[0].cmd.y, this.figs.filter(f => f.team === 0 && f.isCmd));
+      this.selectGroup('inf', false, true);
+    }
+    this.refreshSlots(true);
+    const z = this.deployZone();
+    this.cam.z = this.H / 700; this.cam.x = (z.x0 + z.x1) / 2 + this.fdir(0) * 200; this.cam.y = BH / 2;
     this.clampCam();
+    document.getElementById('battle-ui').classList.toggle('deploying', this.phase === 'deploy');
     this.buildGroupBar();
     this.updateHud(true);
+    if (this.phase === 'deploy') toast('⚑ Konuşlanma: alttan birlik seç, kendi bölgende sahaya dokun.');
     SFX.horn();
   },
   teamOf(side) { return this.teamSide[0] === side ? 0 : 1; },
@@ -123,9 +136,16 @@ const Battle = {
   enemyColor() { return this.colorOf(this.ownerOfTeam(1)); },
   teamColor(t) { return t === 0 ? Game.S.player.color : this.enemyColor(); },
 
+  deployZone() {
+    if (this.siege && this.teamSide[0] === 'def') return { x0: this.walls[0].x - 10, x1: this.BW - 60 };
+    if (this.teamSide[0] === 'att') return { x0: 70, x1: this.siege ? this.walls[0].x - 420 : this.BW * 0.36 };
+    return { x0: this.BW * 0.64, x1: this.BW - 70 };
+  },
+
   initCenters() {
     const mid = BH / 2;
     const left = { spear: [640, mid], inf: [560, mid], archer: [450, mid], cav: [520, mid - 330], siege: [250, mid], cmd: [420, mid] };
+    this.defC = [{}, {}];
     const ambush = this.cfg.ambush;
     for (const t of [0, 1]) {
       const att = this.teamSide[t] === 'att';
@@ -142,7 +162,7 @@ const Battle = {
         const ambushed = ambush && ((this.cfg.playerSide === 'att' && t === 1) || (this.cfg.playerSide === 'def' && t === 0));
         if (ambushed) x = this.BW / 2 + (att ? -120 : 120);
         if (ambush && this.cfg.playerSide === 'att' && t === 0) x += 300;
-        this.gc[t][g] = { x, y };
+        this.defC[t][g] = { x, y };
       }
     }
   },
@@ -152,18 +172,21 @@ const Battle = {
     const armor = owner === P ? Game.S.player.armor : null;
     const n = Game.S.nations[owner];
     const hatId = owner === P ? Game.S.player.headgear : (n ? CULTURE_HAT[n.culture] : (owner === 'B' ? 'eskiya' : 'koyluKepi'));
-    const special = this.special;
+    let placed = 0;
     const add = (units, col, ally) => {
       for (const k of UNIT_KEYS) {
         const cnt = units[k] || 0; if (cnt <= 0) continue;
-        let figs = Math.max(1, Math.round(cnt / this.R));
-        if (!isAtt && this.siege && k === 'archer' && special === 'archers') figs = Math.round(figs * 1.6);
-        if (!isAtt && this.siege && k === 'cav' && (special === 'sortie' || special === 'horsearch')) figs = Math.round(figs * 1.4);
         const key = team + ':' + k + (ally ? ':' + ally : '');
-        this.initial[key] = (this.initial[key] || 0) + figs;
+        this.initial[key] = (this.initial[key] || 0) + cnt;
         const allyN = ally && Game.S.nations[ally];
         const hid = ally ? (allyN ? CULTURE_HAT[allyN.culture] : 'yok') : hatId;
-        for (let i = 0; i < figs; i++) this.figs.push(this.makeFig(team, k, isAtt, col, armor && !ally ? armor[k] : 0, hid, ally, i));
+        for (let i = 0; i < cnt; i++) {
+          const f = this.makeFig(team, k, isAtt, col, armor && !ally ? armor[k] : 0, hid, ally, i);
+          // Sahaya en fazla MAXF asker sığar; fazlası yedekte bekler (ölmez, sayılır)
+          if (placed >= MAXF) { f.escaped = true; f.reserve = true; f.overflow = true; }
+          placed++;
+          this.figs.push(f);
+        }
       }
     };
     add(side.units, color, null);
@@ -177,7 +200,7 @@ const Battle = {
     if (team === 0 && isAtt) this.myBalls = sg.balls || 0;
     if (owner === P) this.figs.push(this.makeCleric(team, isAtt));
     else if (n && Math.random() < 0.7) this.figs.push(this.makeCleric(team, isAtt, n.religion));
-    if (!isAtt && this.siege && special === 'elephants') for (let i = 0; i < 3; i++) this.figs.push(this.makeFig(team, 'elephant', false, color, 0, 'yok', null, i));
+    if (!isAtt && this.siege && this.special === 'elephants') for (let i = 0; i < 3; i++) this.figs.push(this.makeFig(team, 'elephant', false, color, 0, 'yok', null, i));
   },
 
   makeFig(team, type, isAtt, color, armorTier, hatId, ally, i) {
@@ -187,12 +210,12 @@ const Battle = {
     const f = {
       id: uid(), team, type, color, ally, alive: true,
       hp: U.hp * am, maxhp: U.hp * am, dmg: U.dmg * (1 + (H.dmg || 0)), range: U.range, cd: U.cd, cdT: rand(0, U.cd),
-      speed: U.speed * 1.5 * (1 + (H.spd || 0)) * rand(0.92, 1.08), dir: isAtt ? 1 : -1, ph: rand(0, 6), atkT: 0, stun: 0,
-      armorTier: armorTier || 0, hat: HEADGEARS[hatId] ? hatId : 'yok', x: 0, y: 0
+      speed: U.speed * 1.5 * (1 + (H.spd || 0)) * rand(0.82, 1.15), dir: isAtt ? 1 : -1, ph: rand(0, 6), atkT: 0, stun: 0,
+      armorTier: armorTier || 0, hat: HEADGEARS[hatId] ? hatId : 'yok', x: 0, y: 0, lagT: 0, stuck: [],
+      off: rand(-14, 14)
     };
     if (team === 0 && Game.S.player.religion === 'tengri' && type === 'cav') f.speed *= 1.15;
     if (team === 0 && Game.S.player.religion === 'pagan' && type === 'inf') f.dmg *= 1.1;
-    if (!isAtt && this.siege && type === 'archer') f.onWall = i % this.walls.length;
     if (!isAtt && this.siege && this.special === 'samurai' && (type === 'inf' || type === 'spear')) f.dmg *= 1.4;
     if (!isAtt && this.siege && this.special === 'shieldwall' && (type === 'inf' || type === 'spear')) f.dmgTaken = 0.6;
     if (!isAtt && this.siege && (type === 'elephant' || (type === 'cav' && (this.special === 'sortie' || this.special === 'horsearch')))) f.sortie = true;
@@ -200,17 +223,16 @@ const Battle = {
   },
   makeMachine(team, type, isAtt, color, i) {
     const hp = { catapult: 320, cannon: 380, tower: 1100 }[type];
-    const c = this.gc[team].siege;
-    return { id: uid(), team, type, machine: true, color, alive: true, hp, maxhp: hp, x: c.x, y: c.y - 200 + i * 120 + (type === 'tower' ? 60 : 0) + (type === 'cannon' ? 40 : 0), dir: isAtt ? 1 : -1, cdT: rand(1, 3), cd: type === 'cannon' ? 4.5 : 5.5, speed: type === 'tower' ? 30 : 18, dmg: 0, range: type === 'cannon' ? 1300 : 1050, atkT: 0, ph: 0, stun: 0 };
+    return { id: uid(), team, type, machine: true, color, alive: true, hp, maxhp: hp, x: 0, y: 0, dir: isAtt ? 1 : -1, cdT: rand(1, 3), cd: type === 'cannon' ? 4.5 : 5.5, speed: type === 'tower' ? 30 : 18, dmg: 0, range: type === 'cannon' ? 1300 : 1050, atkT: 0, ph: 0, stun: 0, stuck: [] };
   },
   makeCleric(team, isAtt, rel) {
     rel = rel || Game.S.player.religion;
     const R = RELIGIONS[rel] || RELIGIONS.islam;
     const mb = team === 0 ? 1 + Game.bonus(Game.sett(Game.S.player.capital) || {}, 'morale') : 1;
-    const c = this.gc[team].archer;
+    const c = this.defC[team].archer;
     return {
       id: uid(), team, type: 'cleric', cleric: R.cleric, robe: R.robe, color: this.teamColor(team),
-      alive: true, hp: 90, maxhp: 90, x: c.x - this.fdir(team) * 60, y: c.y + 40, dir: isAtt ? 1 : -1,
+      alive: true, hp: 90, maxhp: 90, x: c.x - this.fdir(team) * 60, y: c.y + 40, dir: isAtt ? 1 : -1, stuck: [],
       heal: 7 * mb * (rel === 'hristiyan' ? 1.25 : 1), speed: 75, dmg: 0, range: 0, cd: 1, cdT: 0, ph: 0, atkT: 0, stun: 0
     };
   },
@@ -221,23 +243,42 @@ const Battle = {
       for (const cat of ['helmet', 'armor', 'shield']) { const it = OUTFIT[cat].find(x => x.id === o[cat]); if (it && it.hp) hp += it.hp; }
       const w = OUTFIT.weapon.find(x => x.id === o.weapon); if (w) { dmg += w.dmg || 0; reach += w.reach || 0; }
     }
-    const c = this.gc[team].cmd;
+    const c = this.defC[team].cmd;
     const f = {
       id: uid(), team, type: 'cmd', isCmd: true, isPlayer, alive: true, color: this.teamColor(team),
-      hp, maxhp: hp, dmg, range: reach, cd: 0.55, cdT: 0, speed: 140, dir: this.fdir(team), ph: 0, atkT: 0, stun: 0,
+      hp, maxhp: hp, dmg, range: reach, cd: 0.55, cdT: 0, speed: 140, dir: this.fdir(team), ph: 0, atkT: 0, stun: 0, stuck: [], off: 0, lagT: 0,
       x: c.x, y: c.y, outfit: isPlayer ? o : null, hat: isPlayer ? null : (CULTURE_HAT[(S.nations[this.ownerOfTeam(team)] || {}).culture] || 'yok')
     };
     this.figs.push(f);
     return f;
   },
 
-  /* ---------- Formasyon yuvaları ---------- */
+  /* ---------- Bölükler (blok) ve formasyon yuvaları ---------- */
+  makeBlock(team, g, x, y, figs) {
+    const b = { id: this.blockId++, team, g, x, y, form: g === 'cav' ? 'kama' : 'hat' };
+    this.blocks.push(b);
+    for (const f of figs) f.blk = b;
+    return b;
+  },
+  autoDeploy(team) {
+    for (const g of GROUPS) {
+      const figs = this.figs.filter(f => f.team === team && grpOf(f) === g && !f.overflow && !f.blk);
+      if (!figs.length) continue;
+      for (const f of figs) { f.escaped = false; f.reserve = false; }
+      const c = this.defC[team][g];
+      this.makeBlock(team, g, c.x, c.y, figs);
+      // Savunan okçular surlara çıkar
+      if (g === 'archer' && this.siege && this.teamSide[team] === 'def') figs.forEach((f, i) => { f.onWall = i % this.walls.length; });
+    }
+    for (const f of this.figs) if (f.team === team && f.type === 'cleric' && !f.blk) { f.escaped = false; }
+    this.refreshSlots(true);
+  },
   refreshSlots(place) {
-    for (const t of [0, 1]) for (const g of GROUPS) {
-      const figs = this.figs.filter(f => f.alive && !f.escaped && f.team === t && grpOf(f) === g).sort((a, b) => a.id - b.id);
+    for (const b of this.blocks) {
+      const figs = this.figs.filter(f => f.blk === b && f.alive && !f.escaped).sort((p, q) => p.id - q.id);
       const n = figs.length; if (!n) continue;
-      const c = this.gc[t][g], fd = this.fdir(t), form = this.gForm[t][g];
-      const sp = g === 'cav' ? 22 : g === 'siege' ? 90 : g === 'cmd' ? 0 : 15;
+      const t = b.team, g = b.g, fd = this.fdir(t), form = b.form;
+      const sp = g === 'cav' ? 22 : g === 'siege' ? 90 : g === 'cmd' ? 0 : 16;
       const cols = form === 'kare' ? Math.ceil(Math.sqrt(n)) : Math.max(1, Math.min(n, Math.ceil(Math.sqrt(n * 6))));
       const ambushed = place && this.cfg.ambush && ((this.cfg.playerSide === 'att' && t === 1) || (this.cfg.playerSide === 'def' && t === 0));
       figs.forEach((f, i) => {
@@ -247,13 +288,71 @@ const Battle = {
         if (f.onWall != null && this.walls[f.onWall] && this.walls[f.onWall].hp > 0) {
           if (f.wy == null) f.wy = clamp(BH * (i + 0.5) / n + rand(-5, 5), 40, BH - 40);
           f.sx = this.walls[f.onWall].x + 4; f.sy = f.wy;
-        } else if (g === 'siege') { f.sx = clamp(c.x + (f.machine && place ? 0 : 0), 20, this.BW - 20); f.sy = place ? f.y : clamp(c.y + (i - (n - 1) / 2) * sp, 30, BH - 30); }
-        else { f.sx = clamp(c.x + fw * fd, 20, this.BW - 20); f.sy = clamp(c.y + lat, 30, BH - 30); }
-        if (place && !f.machine) {
-          if (ambushed) { f.x = c.x + rand(-250, 250); f.y = rand(120, BH - 120); }
-          else { f.x = f.sx + rand(-3, 3); f.y = f.sy + rand(-3, 3); }
+        } else if (g === 'siege') { f.sx = clamp(b.x, 20, this.BW - 20); f.sy = clamp(b.y + (i - (n - 1) / 2) * sp, 30, BH - 30); }
+        else { f.sx = clamp(b.x + fw * fd, 20, this.BW - 20); f.sy = clamp(b.y + lat, 30, BH - 30); }
+        if (place) {
+          if (ambushed && !f.machine) { f.x = b.x + rand(-250, 250); f.y = rand(120, BH - 120); }
+          else { f.x = f.sx + (f.machine ? 0 : rand(-2, 2)); f.y = f.sy + (f.machine ? 0 : rand(-2, 2)); }
         }
       });
+    }
+  },
+  blocksOf(t, g) { return this.blocks.filter(b => b.team === t && b.g === g && this.figs.some(f => f.blk === b && f.alive && !f.escaped)); },
+
+  /* ================== KONUŞLANMA ================== */
+  reserveOf(g) { return this.figs.filter(f => f.team === 0 && f.reserve && !f.overflow && f.alive && grpOf(f) === g); },
+  deployedCount() { return this.figs.filter(f => f.team === 0 && !f.escaped && !f.machine && !f.isCmd && f.type !== 'cleric').length; },
+  deployAt(wx, wy) {
+    const z = this.deployZone();
+    const x = clamp(wx, z.x0, z.x1), y = clamp(wy, 50, BH - 50);
+    if (wx < z.x0 - 30 || wx > z.x1 + 30) { toast('Sadece kendi konuşlanma bölgene yerleştirebilirsin.', 'bad'); return; }
+    const gs = this.selected(true);
+    let any = false;
+    for (const g of gs) {
+      const res = this.reserveOf(g);
+      if (res.length) {
+        let n = this.depAmount > 0 ? Math.min(this.depAmount, res.length) : res.length;
+        if (g !== 'siege') n = Math.min(n, MAXF - this.deployedCount());
+        if (n <= 0) { toast(`Sahaya en fazla ${MAXF} asker sığar.`, 'bad'); continue; }
+        const figs = res.slice(0, n);
+        for (const f of figs) { f.escaped = false; f.reserve = false; }
+        const off = gs.length > 1 ? { x: (this.defC[0][g].x - this.defC[0].inf.x), y: this.defC[0][g].y - this.defC[0].inf.y } : { x: 0, y: 0 };
+        const b = this.makeBlock(0, g, clamp(x + off.x, z.x0, z.x1), clamp(y + off.y, 50, BH - 50), figs);
+        if (g === 'archer' && this.siege && this.teamSide[0] === 'def') {
+          const w = this.walls.reduce((p, q) => Math.abs(q.x - b.x) < Math.abs(p.x - b.x) ? q : p);
+          if (Math.abs(w.x - b.x) < 70) figs.forEach(f => { f.onWall = this.walls.indexOf(w); });
+        }
+        any = true;
+      } else {
+        // Yedeği kalmamış bölükleri yeni yere taşı
+        for (const b of this.blocksOf(0, g)) { b.x = x; b.y = y; any = true; }
+      }
+    }
+    if (any) { this.refreshSlots(true); this.marker = { x, y, t: 1 }; SFX.drum(); this.buildGroupBar(); this.updateHud(true); }
+    else toast('Bu birliğin yedeği kalmadı.', 'bad');
+  },
+  deployAction(a) {
+    if (a === 'amount') return;
+    if (a === 'auto') { this.autoDeploy(0); this.buildGroupBar(); this.updateHud(true); return; }
+    if (a === 'undo') {
+      const b = [...this.blocks].reverse().find(b => b.team === 0 && b.g !== 'cmd');
+      if (!b) return;
+      for (const f of this.figs) if (f.blk === b) { f.blk = null; f.escaped = true; f.reserve = true; f.onWall = null; f.wy = null; }
+      this.blocks.splice(this.blocks.indexOf(b), 1);
+      this.buildGroupBar(); this.updateHud(true);
+      return;
+    }
+    if (a === 'start') {
+      if (this.deployedCount() === 0 && !this.figs.some(f => f.team === 0 && f.machine && !f.escaped)) this.autoDeploy(0);
+      const left = this.figs.filter(f => f.team === 0 && f.reserve && f.alive && !f.machine).length;
+      if (left) toast(`🏕️ ${left} asker yedekte kaldı; savaşa katılmayacak.`);
+      this.phase = 'battle';
+      document.getElementById('battle-ui').classList.remove('deploying');
+      this.sel = new Set(GROUPS);
+      this.buildGroupBar();
+      this.refreshSlots();
+      SFX.horn();
+      this.say(this.player || this.figs.find(f => f.team === 0 && !f.escaped), 'Hazır olun!', 1.5);
     }
   },
 
@@ -286,7 +385,10 @@ const Battle = {
     const up = e => {
       if (!pts.has(e.pointerId)) return;
       const p = pos(e); pts.delete(e.pointerId);
-      if (drag && !drag.moved && performance.now() - drag.t < 500) this.tapField(...this.toWorld(p[0], p[1]));
+      if (drag && !drag.moved && performance.now() - drag.t < 500) {
+        const [wx, wy] = this.toWorld(p[0], p[1]);
+        if (this.phase === 'deploy') this.deployAt(wx, wy); else this.tapField(wx, wy);
+      }
       if (pts.size < 2) pinch = null;
       if (pts.size === 0) drag = null;
     };
@@ -305,12 +407,18 @@ const Battle = {
       this.cam.x = (e.clientX - r.left) / r.width * this.BW; this.cam.y = (e.clientY - r.top) / r.height * BH; this.clampCam();
     });
     document.querySelectorAll('#bcmds [data-c]').forEach(b => b.addEventListener('click', () => this.command(b.dataset.c)));
+    document.querySelectorAll('#bdeploy [data-d]').forEach(b => b.addEventListener('click', () => this.deployAction(b.dataset.d)));
+    document.querySelectorAll('#bdeploy [data-n]').forEach(b => b.addEventListener('click', () => {
+      this.depAmount = +b.dataset.n;
+      document.querySelectorAll('#bdeploy [data-n]').forEach(x => x.classList.toggle('on', x === b));
+    }));
     window.addEventListener('keydown', e => {
       if (!this.active) return;
       const k = e.key.toLowerCase();
       const gk = { '0': 'cmd', '1': 'inf', '2': 'archer', '3': 'spear', '4': 'cav', '5': 'siege' }[k];
       if (gk) this.selectGroup(gk, e.shiftKey);
       if (k === 'a') this.selectGroup('all');
+      if (this.phase === 'deploy') { if (k === 'enter') this.deployAction('start'); return; }
       const ck = { q: 'advance', w: 'attack', e: 'defend', r: 'wait', t: 'retreat', y: 'form', n: 'cry' }[k];
       if (ck) this.command(ck);
     });
@@ -318,56 +426,65 @@ const Battle = {
 
   buildGroupBar() {
     const bar = document.getElementById('bgroups');
+    const dep = this.phase === 'deploy';
     let h = '';
     for (const g of GROUPS) {
-      if (!this.figs.some(f => f.team === 0 && f.alive && grpOf(f) === g)) continue;
-      h += `<button data-g="${g}" class="${this.sel.has(g) ? 'on' : ''}"><canvas width="56" height="56" data-icon="${g}"></canvas><b>${g === 'cmd' ? '👑' : GROUPS.indexOf(g)}</b><small data-cnt="${g}"></small></button>`;
+      const all = this.figs.filter(f => f.team === 0 && f.alive && grpOf(f) === g && !f.overflow).length;
+      if (!all) continue;
+      const res = dep ? this.reserveOf(g).length : 0;
+      h += `<button data-g="${g}" class="${this.sel.has(g) ? 'on' : ''}"><canvas width="56" height="56" data-icon="${g}"></canvas><b>${g === 'cmd' ? '👑' : GROUPS.indexOf(g)}</b><small data-cnt="${g}">${dep && g !== 'cmd' ? res + '/' + all : ''}</small></button>`;
     }
-    h += `<button data-g="all" class="on"><span class="all">✱</span><b>Tümü</b></button>`;
+    h += `<button data-g="all" class="${this.sel.size >= GROUPS.length ? 'on' : ''}"><span class="all">✱</span><b>Tümü</b></button>`;
     bar.innerHTML = h;
     bar.querySelectorAll('button').forEach(b => b.addEventListener('click', e => this.selectGroup(b.dataset.g, e.shiftKey)));
     bar.querySelectorAll('canvas[data-icon]').forEach(c => this.drawIcon(c, c.dataset.icon, 0));
   },
-  selectGroup(g, add) {
+  selectGroup(g, add, quiet) {
     if (g === 'all') this.sel = new Set(GROUPS);
     else if (add) { if (this.sel.has(g) && this.sel.size > 1) this.sel.delete(g); else this.sel.add(g); }
     else this.sel = new Set([g]);
     document.querySelectorAll('#bgroups button').forEach(b => b.classList.toggle('on', b.dataset.g === 'all' ? this.sel.size >= GROUPS.length : this.sel.has(b.dataset.g)));
+    if (quiet) return;
     SFX.click();
-    if (g !== 'all' && !add) { const c = this.groupCenter(0, g); if (c) { this.cam.x = c[0]; this.cam.y = c[1]; this.clampCam(); } }
+    if (g !== 'all' && !add && this.phase !== 'deploy') { const c = this.groupCenter(0, g); if (c) { this.cam.x = c[0]; this.cam.y = c[1]; this.clampCam(); } }
   },
   groupCenter(t, g) {
     const l = this.figs.filter(f => f.team === t && f.alive && !f.escaped && grpOf(f) === g);
     if (!l.length) return null;
     return [l.reduce((s, f) => s + f.x, 0) / l.length, l.reduce((s, f) => s + f.y, 0) / l.length];
   },
-  selected() { return [...this.sel].filter(g => this.figs.some(f => f.team === 0 && f.alive && !f.escaped && grpOf(f) === g)); },
+  selected(includeReserve) { return [...this.sel].filter(g => this.figs.some(f => f.team === 0 && f.alive && grpOf(f) === g && !f.overflow && (includeReserve || !f.escaped))); },
 
   tapField(wx, wy) {
     if (this.over || this.retreatT >= 0) return;
     const gs = this.selected();
-    if (!gs.length) return;
-    let cx = 0, cy = 0;
-    const cs = {};
-    for (const g of gs) { cs[g] = this.groupCenter(0, g) || [this.gc[0][g].x, this.gc[0][g].y]; cx += cs[g][0]; cy += cs[g][1]; }
-    cx /= gs.length; cy /= gs.length;
-    for (const g of gs) {
-      this.gc[0][g] = { x: clamp(wx + (cs[g][0] - cx), 30, this.BW - 30), y: clamp(wy + (cs[g][1] - cy), 40, BH - 40) };
-      this.gOrd[0][g] = 'move';
-    }
+    const bl = this.blocks.filter(b => b.team === 0 && gs.includes(b.g) && this.figs.some(f => f.blk === b && f.alive && !f.escaped));
+    if (!bl.length) return;
+    // Bloklar aradaki düzeni koruyarak dokunulan yere yürür
+    for (const b of bl) { const c = this.blockCenter(b); if (c) { b.x = c[0]; b.y = c[1]; } }
+    const cx = bl.reduce((s, b) => s + b.x, 0) / bl.length, cy = bl.reduce((s, b) => s + b.y, 0) / bl.length;
+    for (const b of bl) { b.x = clamp(wx + (b.x - cx), 30, this.BW - 30); b.y = clamp(wy + (b.y - cy), 40, BH - 40); }
+    for (const g of gs) this.gOrd[0][g] = 'move';
     this.marker = { x: wx, y: wy, t: 1.2 };
     this.refreshSlots();
     SFX.click();
   },
+  blockCenter(b) {
+    const l = this.figs.filter(f => f.blk === b && f.alive && !f.escaped);
+    if (!l.length) return null;
+    return [l.reduce((s, f) => s + f.x, 0) / l.length, l.reduce((s, f) => s + f.y, 0) / l.length];
+  },
 
   command(c) {
-    if (this.over) return;
+    if (this.over || this.phase === 'deploy') return;
     if (c === 'cry') return this.warCry(0);
     const gs = this.selected();
     if (!gs.length) return;
+    const bl = this.blocks.filter(b => b.team === 0 && gs.includes(b.g));
     if (c === 'form') {
-      const nx = FORMS[(FORMS.indexOf(this.gForm[0][gs[0]]) + 1) % FORMS.length];
-      for (const g of gs) { this.gForm[0][g] = nx; const cc = this.groupCenter(0, g); if (cc) this.gc[0][g] = { x: cc[0], y: cc[1] }; if (this.gOrd[0][g] === 'attack') this.gOrd[0][g] = 'defend'; }
+      const nx = FORMS[(FORMS.indexOf((bl[0] || {}).form || 'hat') + 1) % FORMS.length];
+      for (const b of bl) { b.form = nx; const cc = this.blockCenter(b); if (cc) { b.x = cc[0]; b.y = cc[1]; } }
+      for (const g of gs) if (this.gOrd[0][g] === 'attack') this.gOrd[0][g] = 'defend';
       this.refreshSlots();
       toast('⁂ ' + FORM_NAME[nx]);
       this.flash('form');
@@ -375,15 +492,19 @@ const Battle = {
     }
     if (this.retreatT >= 0) return;
     if (c === 'retreat' && gs.length >= this.groupsAlive(0)) return this.retreat();
-    for (const g of gs) {
-      this.gOrd[0][g] = c;
-      if (c !== 'attack') { const cc = this.groupCenter(0, g); if (cc) this.gc[0][g] = { x: cc[0], y: cc[1] }; }
-    }
+    for (const g of gs) this.setOrder(0, g, c);
+    if (c !== 'attack') for (const b of bl) { const cc = this.blockCenter(b); if (cc) { b.x = cc[0]; b.y = cc[1]; } }
     this.refreshSlots();
     this.say(this.bearer(0, gs[0]) || this.player, ORDER_NAME[c], 1.6);
     if (c === 'retreat') Voice.speak('Ricat!', { pitch: 0.6 });
     if (c === 'attack' || c === 'advance') SFX.horn();
     this.flash(c);
+  },
+  setOrder(t, g, o) {
+    const prev = this.gOrd[t][g];
+    this.gOrd[t][g] = o;
+    // Hücumda herkes aynı anda fırlamaz: kimi önde, kimi arkada kalır
+    if ((o === 'attack' || o === 'advance') && prev !== o) for (const f of this.figs) if (f.team === t && grpOf(f) === g) f.lagT = rand(0, 2.2);
   },
   flash(c) {
     document.querySelectorAll('#bcmds [data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === c));
@@ -402,7 +523,7 @@ const Battle = {
       if (this.cryCd > 0 || this.over) return;
       this.cryCd = 18;
       Voice.speak(this.cry, { pitch: 0.7, rate: 1 });
-      const mine = this.figs.filter(f => f.team === 0 && f.alive && !f.machine);
+      const mine = this.figs.filter(f => f.team === 0 && f.alive && !f.escaped && !f.machine);
       for (let i = 0; i < Math.min(14, mine.length); i++) this.say(pick(mine), this.cry, 2.2);
       if (this.player) this.say(this.player, this.cry, 2.5);
       this.cryT[0] = 8 * (Game.S.player.religion === 'islam' ? 1.2 : 1);
@@ -411,7 +532,7 @@ const Battle = {
       this.cryT[1] = 7;
       const n = Game.S.nations[this.ownerOfTeam(1)];
       const txt = n ? pick(RELIGIONS[n.religion].cries) : 'Aaaaa!';
-      const en = this.figs.filter(f => f.team === 1 && f.alive && !f.machine);
+      const en = this.figs.filter(f => f.team === 1 && f.alive && !f.escaped && !f.machine);
       for (let i = 0; i < Math.min(8, en.length); i++) this.say(pick(en), txt, 2);
     }
   },
@@ -420,8 +541,8 @@ const Battle = {
     this.retreatT = 0;
     for (const g of GROUPS) this.gOrd[0][g] = 'retreat';
     Voice.speak('Ricat! Ricat!', { pitch: 0.6, rate: 1.1 });
-    this.say(this.player || this.figs.find(f => f.team === 0 && f.alive), 'RİCAT! RİCAT!', 3.5);
-    const mine = this.figs.filter(f => f.team === 0 && f.alive && !f.machine);
+    this.say(this.player || this.figs.find(f => f.team === 0 && f.alive && !f.escaped), 'RİCAT! RİCAT!', 3.5);
+    const mine = this.figs.filter(f => f.team === 0 && f.alive && !f.escaped && !f.machine);
     for (let i = 0; i < Math.min(6, mine.length); i++) this.say(pick(mine), 'Ricat!', 2);
     SFX.horn();
     this.flash('retreat');
@@ -437,33 +558,30 @@ const Battle = {
   update(dt) {
     if (!this.active) return;
     dt = Math.min(dt, 0.05);
-    if (this.over) { this.updateFx(dt); return; }
+    if (this.marker) { this.marker.t -= dt; if (this.marker.t <= 0) this.marker = null; }
+    if (this.over || this.phase === 'deploy') { this.updateFx(dt); this.hudT = (this.hudT || 0) - dt; if (this.hudT <= 0 && !this.over) { this.updateHud(); this.hudT = 0.3; } return; }
     this.t += dt;
     if (this.cryCd > 0) this.cryCd -= dt;
     for (let i = 0; i < 2; i++) if (this.cryT[i] > 0) this.cryT[i] -= dt;
-    if (this.marker) { this.marker.t -= dt; if (this.marker.t <= 0) this.marker = null; }
     this.aiOrders(dt);
-    for (const t of [0, 1]) for (const g of GROUPS) if (this.gOrd[t][g] === 'advance') this.advanceCenter(t, g, dt);
+    for (const b of this.blocks) if (this.gOrd[b.team][b.g] === 'advance') this.advanceBlock(b, dt);
     this.slotT -= dt; if (this.slotT <= 0) { this.slotT = 0.5; this.refreshSlots(); }
-    this.retarget -= dt;
-    const doRetarget = this.retarget <= 0;
-    if (doRetarget) this.retarget = 0.3;
     const alive = this.figs.filter(f => f.alive && !f.escaped);
     const byTeam = [alive.filter(f => f.team === 0), alive.filter(f => f.team === 1)];
-    for (const f of alive) {
-      if (doRetarget || !f.target || !f.target.alive || f.target.escaped) f.target = this.nearestEnemy(f, byTeam[1 - f.team]);
-      this.updateFig(f, dt);
-    }
-    for (let i = 0; i < alive.length; i++) {
-      const a = alive[i]; if (a.machine) continue;
-      for (let j = i + 1; j < alive.length; j++) {
-        const b = alive[j]; if (b.machine) continue;
-        const dx = b.x - a.x, dy = b.y - a.y;
-        if (dx > 11 || dx < -11 || dy > 11 || dy < -11) continue;
-        const d = Math.hypot(dx, dy) || 0.01;
-        if (d < 10) { const push = (10 - d) * 0.25; a.x -= dx / d * push; b.x += dx / d * push; a.y -= dy / d * push; b.y += dy / d * push; }
+    this.retarget -= dt;
+    if (this.retarget <= 0) {
+      this.retarget = 0.3;
+      for (const t of [0, 1]) {
+        const eng = new Map(), en = byTeam[1 - t];
+        for (const f of byTeam[t]) f.target = this.pickTarget(f, en, eng);
       }
     }
+    for (const f of alive) f.engN = 0;
+    for (const f of alive) {
+      if (f.target && (!f.target.alive || f.target.escaped)) f.target = null;
+      this.updateFig(f, dt);
+    }
+    this.separate(alive); this.separate(alive);
     for (const f of alive) { f.y = clamp(f.y, 20, BH - 15); f.x = clamp(f.x, -80, this.BW + 80); this.wallClamp(f); }
     this.updateTowers(dt, byTeam);
     this.updateSpecial(dt, byTeam);
@@ -473,40 +591,62 @@ const Battle = {
     this.hudT = (this.hudT || 0) - dt; if (this.hudT <= 0) { this.updateHud(); this.hudT = 0.25; }
   },
 
+  // Izgara ile ayrışma: askerler iç içe girmez, yayılır
+  separate(alive) {
+    const C = 16, grid = new Map();
+    for (const f of alive) { if (f.machine) continue; const k = ((f.x / C) | 0) * 1000 + ((f.y / C) | 0); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(f); }
+    const R = 15;
+    for (const a of alive) {
+      if (a.machine) continue;
+      const gx = (a.x / C) | 0, gy = (a.y / C) | 0;
+      for (let ix = -1; ix <= 1; ix++) for (let iy = -1; iy <= 1; iy++) {
+        const l = grid.get((gx + ix) * 1000 + gy + iy); if (!l) continue;
+        for (const b of l) {
+          if (b.id <= a.id) continue;
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const d = Math.hypot(dx, dy) || 0.01;
+          if (d < R) { const push = (R - d) * (a.team === b.team ? 0.35 : 0.5); a.x -= dx / d * push; b.x += dx / d * push; a.y -= dy / d * push; b.y += dy / d * push; }
+        }
+      }
+    }
+  },
+
   aiOrders(dt) {
-    const o = this.gOrd[1];
     if (this.siege && this.teamSide[1] === 'def') return;
     if (this.t < 2.5) return;
     const en = this.figs.filter(f => f.team === 0 && f.alive && !f.escaped && !f.machine);
     const me = this.figs.filter(f => f.team === 1 && f.alive && !f.escaped && !f.machine);
     if (!en.length || !me.length) return;
     const ex = en.reduce((s, f) => s + f.x, 0) / en.length, mx = me.reduce((s, f) => s + f.x, 0) / me.length;
-    const close = Math.abs(ex - mx) < 380 || this.siege;
+    const close = Math.abs(ex - mx) < 420 || this.siege;
     for (const g of GROUPS) {
-      if (g === 'siege') o[g] = 'defend';
-      else if (g === 'archer') o[g] = close ? 'defend' : 'advance';
-      else o[g] = close ? 'attack' : 'advance';
+      if (g === 'siege') this.setOrder(1, g, 'defend');
+      else if (g === 'archer') this.setOrder(1, g, 'defend');
+      else this.setOrder(1, g, close ? 'attack' : 'advance');
     }
     if (this.t > 4 && this.cryT[1] <= 0 && Math.random() < dt * 0.04) this.warCry(1);
   },
-  advanceCenter(t, g, dt) {
-    const c = this.gc[t][g], fd = this.fdir(t);
-    let nd = 1e9, ny = c.y;
-    for (const e of this.figs) { if (e.team === t || !e.alive || e.escaped) continue; const d = Math.hypot(e.x - c.x, e.y - c.y); if (d < nd) { nd = d; ny = e.y; } }
-    if (nd < 140) return;
-    const w = this.siege && this.teamSide[t] === 'att' ? this.walls.find(w => w.hp > 0 && !w.bridged) : null;
-    if (w && c.x > w.x - 40) return;
-    c.x = clamp(c.x + fd * 42 * dt, 30, this.BW - 30);
-    c.y += clamp(ny - c.y, -1, 1) * 10 * dt;
+  advanceBlock(b, dt) {
+    const fd = this.fdir(b.team);
+    let nd = 1e9, ny = b.y;
+    for (const e of this.figs) { if (e.team === b.team || !e.alive || e.escaped) continue; const d = Math.hypot(e.x - b.x, e.y - b.y); if (d < nd) { nd = d; ny = e.y; } }
+    if (nd < (b.g === 'archer' ? 520 : 140)) return;
+    const w = this.siege && this.teamSide[b.team] === 'att' ? this.walls.find(w => w.hp > 0 && !w.bridged) : null;
+    if (w && b.x > w.x - (b.g === 'archer' ? 380 : 40)) return;
+    b.x = clamp(b.x + fd * 42 * dt, 30, this.BW - 30);
+    b.y += clamp(ny - b.y, -1, 1) * 8 * dt;
   },
-  nearestEnemy(f, enemies) {
+  pickTarget(f, enemies, eng) {
+    if (f.machine || f.type === 'cleric') return null;
     let best = null, bd = 1e9;
     for (const e of enemies) {
       if (e.escaped) continue;
       if (e.onWall != null && f.range < 60 && this.walls[e.onWall] && this.walls[e.onWall].hp > 0) continue;
-      const d = Math.abs(e.x - f.x) + Math.abs(e.y - f.y);
+      // Yan yana olan düşmanı tercih et, aynı hedefe yığılma
+      const d = Math.abs(e.x - f.x) + Math.abs(e.y - f.y) * 1.8 + (eng.get(e.id) || 0) * (f.type === 'archer' ? 6 : 38);
       if (d < bd) { bd = d; best = e; }
     }
+    if (best) eng.set(best.id, (eng.get(best.id) || 0) + 1);
     return best;
   },
   blockingWall(f) {
@@ -519,7 +659,7 @@ const Battle = {
     if (f.onWall != null) {
       const w = this.walls[f.onWall];
       if (w && w.hp > 0) { f.x = clamp(f.x, w.x - 6, w.x + 10); return; }
-      f.onWall = null; this.damage(f, 25, null, false);
+      f.onWall = null; this.damage(f, 25, null, 'blunt');
       return;
     }
     const w = this.blockingWall(f);
@@ -533,6 +673,10 @@ const Battle = {
     for (const b of this.river.bridges) if (Math.abs(y - b) < 24) return false;
     return true;
   },
+  weaponOf(f) {
+    if (f.isCmd && f.outfit) return { balta: 'axe', gurz: 'blunt', mizrak: 'spear' }[f.outfit.weapon] || 'sword';
+    return { inf: 'sword', cav: 'sword', spear: 'spear', archer: 'blunt', elephant: 'blunt', cmd: 'sword' }[f.type] || 'sword';
+  },
 
   updateFig(f, dt) {
     if (f.stun > 0) { f.stun -= dt; return; }
@@ -543,7 +687,7 @@ const Battle = {
     if (this.siege && this.sideOf(f) === 'att' && this.walls.length) {
       const w0 = this.walls[0];
       if ((this.special === 'moat' || this.special === 'canal') && f.x > w0.x - 120 && f.x < w0.x - 14) sp *= 0.45;
-      if (this.special === 'cold' || this.special === 'heat') { sp *= 0.82; if (!f.machine) f.hp -= 0.5 * dt; }
+      if ((this.special === 'cold' || this.special === 'heat') && !f.machine) { sp *= 0.82; this.damage(f, 0.5 * dt, null, 'none'); if (!f.alive) return; }
     }
     if (this.inRiver(f.x, f.y)) { sp *= 0.4; if (Math.random() < dt * 3) this.parts.push({ x: f.x + rand(-5, 5), y: f.y, z: 0, vx: 0, vy: 0, vz: 0, life: 0.5, max: 0.5, kind: 'splash', r: 2 }); }
     if (f.machine) return this.updateMachine(f, dt);
@@ -558,23 +702,33 @@ const Battle = {
     const d = t ? Math.hypot(t.x - f.x, t.y - f.y) : 1e9;
     if (t) {
       if (ranged && d < 22) {
-        if (f.cdT <= 0) { f.cdT = 1.1; f.atkT = 0.25; f.dir = Math.sign(t.x - f.x) || f.dir; this.damage(t, 5 * boost, f, false); }
+        if (f.cdT <= 0) { f.cdT = 1.1; f.atkT = 0.25; f.dir = Math.sign(t.x - f.x) || f.dir; this.damage(t, 5 * boost, f, 'blunt'); }
         return;
       }
       const reach = ranged ? f.range : f.range + (t.machine ? 18 : 0);
       if (d <= reach) {
+        if (!ranged) t.engN = (t.engN || 0) + 1;
         f.dir = Math.sign(t.x - f.x) || f.dir;
         if (f.cdT <= 0) { f.cdT = f.cd * rand(0.85, 1.15); if (ranged) this.shootArrow(f, t, f.dmg * boost); else this.melee(f, t, boost); }
+        // Okçular durduğu yerden atar; sadece "oraya" emrinde yürümeye devam eder
         if (!(ranged && ord === 'move')) return;
       }
     }
+    // Hücum gecikmesi: kimi önde kimi arkada
+    if ((ord === 'attack' || ord === 'advance') && f.lagT > 0) { f.lagT -= dt; return; }
     let goal = [f.sx != null ? f.sx : f.x, f.sy != null ? f.sy : f.y];
-    if (ord === 'attack' && !ranged) { if (t) goal = [t.x, t.y]; }
-    else if (ord === 'attack' && ranged && t) goal = [t.x, t.y];
-    else if (ord === 'advance' && t && d < 150 && !ranged) goal = [t.x, t.y];
-    else if (ord === 'defend' && t && !ranged && Math.hypot(t.x - goal[0], t.y - goal[1]) < 170) goal = [t.x, t.y];
+    const approach = () => {
+      const s = Math.sign(t.x - f.x) || 1;
+      // Düşmanın etrafı doluysa ikinci safta bekle; herkes aynı noktaya yığılmasın
+      if ((t.engN || 0) >= 3 && d > f.range + 6) return [t.x - s * (f.range + 26 + Math.abs(f.off)), t.y + f.off * 2];
+      return [t.x - s * (f.range * 0.6), t.y + f.off];
+    };
+    if (ord === 'attack' && !ranged) { if (t) goal = approach(); }
+    else if (ord === 'attack' && ranged && t) goal = d > f.range ? [t.x, t.y] : [f.x, f.y];
+    else if (ord === 'advance' && t && d < 150 && !ranged) goal = approach();
+    else if (ord === 'defend' && t && !ranged && Math.hypot(t.x - goal[0], t.y - goal[1]) < 170) goal = approach();
     if (f.isPlayer && ord === 'wait' && t && d < f.range + 25) goal = [t.x, t.y];
-    if (this.siege && this.sideOf(f) === 'att' && ord === 'attack' && (!t || d > 400)) goal = [this.keepX, this.keepY + ((f.id % 9) - 4) * 14];
+    if (this.siege && this.sideOf(f) === 'att' && ord === 'attack' && !ranged && (!t || d > 400)) goal = [this.keepX, this.keepY + f.off * 4];
     if (this.sideOf(f) === 'att' && !ranged && (ord === 'attack' || ord === 'advance' || ord === 'move')) {
       const w = this.blockingWall(f);
       if (w && goal[0] > w.x && f.x >= w.x - 24) {
@@ -596,7 +750,7 @@ const Battle = {
   updateCleric(f, dt) {
     const mine = this.figs.filter(x => x.team === f.team && x.alive && !x.escaped && !x.machine && x !== f);
     if (!mine.length) return;
-    if (this.gOrd[f.team].inf === 'retreat' && this.retreatT >= 0) { this.walk(f, f.x + (this.sideOf(f) === 'att' ? -200 : 200), f.y, f.speed, dt); if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
+    if (this.retreatT >= 0 && f.team === 0) { this.walk(f, f.x + (this.sideOf(f) === 'att' ? -200 : 200), f.y, f.speed, dt); if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
     let cx = 0, cy = 0; for (const m of mine) { cx += m.x; cy += m.y; } cx /= mine.length; cy /= mine.length;
     const gx = cx - this.fdir(f.team) * 70, w = this.blockingWall(f);
     if (!(w && this.sideOf(f) === 'att' && gx > w.x)) this.walk(f, gx, cy, f.speed, dt);
@@ -641,21 +795,23 @@ const Battle = {
     let dmg = f.dmg * boost * rand(0.85, 1.15);
     if (f.type === 'spear' && (t.type === 'cav' || t.type === 'elephant')) dmg *= 2.5;
     if (f.type === 'cav') dmg *= 1.25;
-    if (f.type === 'elephant' || f.isCmd) for (const e of this.figs) if (e.alive && !e.escaped && e.team !== f.team && e !== t && Math.hypot(e.x - t.x, e.y - t.y) < (f.isCmd ? 18 : 30)) this.damage(e, dmg * 0.5, f, true);
+    const wk = this.weaponOf(f);
+    if (f.type === 'elephant' || f.isCmd) for (const e of this.figs) if (e.alive && !e.escaped && e.team !== f.team && e !== t && Math.hypot(e.x - t.x, e.y - t.y) < (f.isCmd ? 18 : 30)) this.damage(e, dmg * 0.5, f, wk);
     if (t.machine) dmg *= 1.5;
-    this.damage(t, dmg, f, f.type === 'inf' || f.type === 'cav' || f.type === 'elephant' || f.isCmd);
+    this.damage(t, dmg, f, wk);
     SFX.clash();
   },
   shootArrow(f, t, dmg) {
     f.atkT = 0.35;
-    this.launch(f.x + f.dir * 5, f.y, f.onWall != null ? 45 : 16, t.x + rand(-8, 8), t.y + rand(-8, 8), 'arrow', f.team, dmg, null, null);
+    const d = Math.hypot(t.x - f.x, t.y - f.y), spread = 5 + d * 0.025;
+    this.launch(f.x + f.dir * 5, f.y, f.onWall != null ? 45 : 16, t.x + rand(-spread, spread), t.y + rand(-spread, spread), 'arrow', f.team, dmg, null, null);
     SFX.arrow();
   },
   launch(x, y, z, tx, ty, kind, team, dmg, wall, T) {
-    T = T || clamp(Math.hypot(tx - x, ty - y) / 430, 0.3, 1.5);
+    T = T || clamp(Math.hypot(tx - x, ty - y) / 430, 0.3, 1.9);
     const tz = kind === 'arrow' ? 10 : 4;
     this.proj.push({ x, y, z, vx: (tx - x) / T, vy: (ty - y) / T, vz: (tz - z + 0.5 * GRAV * T * T) / T, t: 0, T, kind, team, dmg, wall });
-    if (this.proj.length > 420) this.proj.shift();
+    if (this.proj.length > 500) this.proj.shift();
   },
   updateProjectiles(dt) {
     for (const p of this.proj) {
@@ -675,20 +831,25 @@ const Battle = {
           let dmg = p.dmg;
           if (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0) dmg *= 0.5;
           if (hit.machine) dmg *= 0.35;
-          this.damage(hit, dmg, null, false); SFX.hit();
-          if (hit.alive && !hit.machine) hit.arrows = (hit.arrows || 0) + 1;
-        } else if (this.decals.length < 600) this.decals.push({ kind: 'arrow', x: p.x, y: p.y, a: Math.atan2(p.vy, p.vx) });
+          // Ok isabet ettiği yerde saplı kalır (başta ya da gövdede)
+          if (!hit.machine && hit.stuck.length < 6) {
+            const head = Math.random() < 0.28;
+            hit.stuck.push({ h: head, o: rand(-1, 1), tx: -(Math.sign(p.vx) || 1) * (hit.dir || 1), a: rand(0.15, 0.7) });
+            if (head) dmg *= 1.6;
+          }
+          this.damage(hit, dmg, null, 'arrow'); SFX.hit();
+        } else if (this.decals.length < 700) this.decals.push({ kind: 'arrow', x: p.x, y: p.y, a: Math.atan2(p.vy, p.vx) });
       } else {
         const R = p.kind === 'ball' ? 30 : p.kind === 'fire' ? 50 : 34;
         for (const f of this.figs) {
           if (!f.alive || f.team === p.team || f.escaped) continue;
           const d = Math.hypot(f.x - p.x, f.y - p.y);
-          if (d < R) this.damage(f, p.dmg * (1 - d / R * 0.5) * (f.machine ? 2 : 1), null, true, p.kind === 'fire');
+          if (d < R) this.damage(f, p.dmg * (1 - d / R * 0.5) * (f.machine ? 2 : 1), { x: p.x, y: p.y }, p.kind);
         }
         this.puff(p.x, p.y, p.kind === 'fire' ? '#ff9a2e' : '#b8a387', p.kind === 'fire' ? 16 : 10);
         if (p.kind === 'fire') for (let i = 0; i < 10; i++) this.parts.push({ x: p.x + rand(-28, 28), y: p.y + rand(-28, 28), z: 0, vx: 0, vy: 0, vz: rand(20, 60), life: rand(1, 2), max: 2, kind: 'flame', r: rand(3, 6) });
         SFX.boom();
-        if (this.decals.length < 600) this.decals.push({ kind: 'crater', x: p.x, y: p.y, r: p.kind === 'ball' ? 9 : 7 });
+        if (this.decals.length < 700) this.decals.push({ kind: 'crater', x: p.x, y: p.y, r: p.kind === 'ball' ? 9 : 7 });
       }
     }
     this.proj = this.proj.filter(p => !p.dead);
@@ -701,7 +862,7 @@ const Battle = {
       if (tw.wall >= 0 && this.walls[tw.wall].hp <= 0) { tw.alive = false; this.puff(tw.x, tw.y, '#aaa', 20); continue; }
       tw.cd -= dt;
       if (tw.cd > 0) continue;
-      const tgts = atk.filter(f => f.x < tw.x && Math.hypot(tw.x - f.x, tw.y - f.y) < 520 && !f.escaped);
+      const tgts = atk.filter(f => f.x < tw.x && Math.hypot(tw.x - f.x, tw.y - f.y) < 620 && !f.escaped);
       if (!tgts.length) continue;
       const t = pick(tgts);
       tw.cd = (cross ? 0.9 : 1.6) * rand(0.8, 1.2);
@@ -727,7 +888,7 @@ const Battle = {
     } else this.specialT = 5;
   },
 
-  /* ================== HASAR, ÖLÜM, KAN ================== */
+  /* ================== HASAR VE ÖLÜM (kansız) ================== */
   hitWall(w, dmg, x, y) {
     if (w.hp <= 0) return;
     w.hp -= dmg;
@@ -742,36 +903,49 @@ const Battle = {
       for (const tw of this.towers) if (this.walls[tw.wall] === w) tw.alive = false;
     }
   },
-  damage(f, dmg, src, heavy, fire) {
+  damage(f, dmg, src, wk) {
     if (!f.alive || f.escaped) return;
     if (f.dmgTaken) dmg *= f.dmgTaken;
     if (f.isCmd && !f.isPlayer) dmg *= 0.6;
     f.hp -= dmg;
-    if (!f.machine && this.gore) { const n = heavy ? 6 : 3; for (let i = 0; i < n; i++) this.blood(f.x, f.y, 14, src ? Math.sign(f.x - src.x) : rand(-1, 1)); }
-    if (f.hp <= 0) this.kill(f, src, heavy, fire);
+    if (f.hp <= 0) this.kill(f, src, wk);
   },
-  blood(x, y, z, dir, big) {
-    if (this.parts.length > 800) return;
-    this.parts.push({ x: x + rand(-3, 3), y: y + rand(-3, 3), z: z + rand(-4, 4), vx: dir * rand(20, 110) + rand(-30, 30), vy: rand(-40, 40), vz: rand(30, big ? 200 : 120), life: 1.5, max: 1.5, kind: 'blood', r: rand(1, big ? 2.6 : 1.9) });
-  },
-  kill(f, src, heavy, fire) {
+  kill(f, src, wk) {
     f.alive = false; f.hp = 0;
     if (f.team !== 0 && !f.machine) this.kills++;
     if (f.isPlayer) { this.say(f, 'Ahh... yaralandım!', 3); Voice.speak('Yaralandım!', { pitch: 0.6 }); }
     if (f.machine) { this.puff(f.x, f.y, '#8b6a4a', 26); SFX.crumble(); this.corpses.push({ part: 'wreck', x: f.x, y: f.y, z: 0, vz: 0, type: f.type, rot: rand(-0.3, 0.3) }); return; }
     const dir = src ? Math.sign(f.x - src.x) || 1 : (Math.random() < 0.5 ? 1 : -1);
-    const base = { color: f.color, hat: f.hat, type: f.type, cmd: f.isCmd ? f : null, robe: f.robe };
-    if (this.gore && heavy && f.type !== 'elephant' && f.type !== 'cav' && Math.random() < 0.55) {
-      // İkiye bölünme (madde 18)
-      this.corpses.push(Object.assign({ part: 'upper', x: f.x, y: f.y, z: 14, vx: dir * rand(50, 140), vy: rand(-40, 40), vz: rand(100, 220), rot: 0, vr: dir * rand(4, 10), dir: f.dir, bleed: 1.2 }, base));
-      this.corpses.push(Object.assign({ part: 'lower', x: f.x, y: f.y, z: 0, vx: dir * rand(10, 30), vy: 0, vz: rand(20, 50), rot: 0, vr: dir * rand(1, 3), dir: f.dir, bleed: 0.8 }, base));
-      for (let i = 0; i < 22; i++) this.blood(f.x, f.y, 14, dir, true);
-      this.decals.push({ kind: 'pool', x: f.x, y: f.y, r: rand(7, 12), grow: 0 });
-    } else {
-      this.corpses.push(Object.assign({ part: 'whole', x: f.x, y: f.y, z: 0, vx: dir * rand(10, 40), vy: 0, vz: rand(30, 70), rot: 0, vr: 0, target: dir * Math.PI / 2 * rand(0.85, 1.05), dir: f.dir, burnt: fire, bleed: this.gore ? 0.6 : 0 }, base));
-      if (this.gore) { for (let i = 0; i < 10; i++) this.blood(f.x, f.y, 12, dir); this.decals.push({ kind: 'pool', x: f.x + dir * 8, y: f.y, r: rand(4, 9), grow: 0 }); }
+    const base = { color: f.color, hat: f.hat, type: f.type, cmd: f.isCmd ? f : null, robe: f.robe, dir: f.dir, stuck: f.stuck };
+    const piece = (part, z, vx, vy, vz, vr) => this.corpses.push(Object.assign({ part, x: f.x, y: f.y, z, vx, vy, vz, rot: 0, vr }, base));
+    // Silaha göre parçalanma: kafa kopması, ikiye ya da üçe bölünme (kan yok)
+    let cut = 'whole';
+    const r = Math.random();
+    if (this.gore && f.type !== 'elephant') {
+      if (f.type === 'cav') cut = (wk === 'sword' || wk === 'axe') && r < 0.4 ? 'decap' : 'whole';
+      else if (wk === 'sword') cut = r < 0.33 ? 'decap' : r < 0.66 ? 'split2' : 'whole';
+      else if (wk === 'axe') cut = r < 0.45 ? 'decap' : r < 0.75 ? 'split2' : 'split3';
+      else if (wk === 'ball' || wk === 'rock') cut = r < 0.55 ? 'split3' : r < 0.8 ? 'split2' : 'decap';
+      else if (wk === 'blunt') cut = r < 0.2 ? 'decap' : 'whole';
     }
-    if (this.corpses.length > 320) this.corpses.shift();
+    if (cut === 'decap') {
+      piece('headless', 0, dir * rand(10, 35), 0, rand(20, 50), 0);
+      this.corpses[this.corpses.length - 1].target = dir * Math.PI / 2;
+      piece('head', 24, dir * rand(70, 170), rand(-50, 50), rand(150, 260), dir * rand(6, 14));
+    } else if (cut === 'split2') {
+      piece('upper', 14, dir * rand(50, 140), rand(-40, 40), rand(100, 220), dir * rand(4, 10));
+      piece('lower', 0, dir * rand(10, 30), 0, rand(20, 50), dir * rand(1, 3));
+    } else if (cut === 'split3') {
+      piece('head', 26, dir * rand(90, 200), rand(-60, 60), rand(180, 300), dir * rand(8, 16));
+      piece('torso', 14, dir * rand(60, 150), rand(-50, 50), rand(110, 220), dir * rand(4, 10));
+      piece('lower', 0, dir * rand(15, 45), rand(-10, 10), rand(30, 70), dir * rand(1, 4));
+    } else {
+      piece('whole', 0, dir * rand(10, 40), 0, rand(30, 70), 0);
+      this.corpses[this.corpses.length - 1].target = dir * Math.PI / 2 * rand(0.85, 1.05);
+      if (wk === 'fire') this.corpses[this.corpses.length - 1].burnt = true;
+    }
+    if (cut !== 'whole') { this.puff(f.x, f.y - 10, '#d8ccb0', 3); }
+    if (this.corpses.length > 420) this.corpses.splice(0, this.corpses.length - 420);
   },
   puff(x, y, col, n) {
     for (let i = 0; i < n; i++) this.parts.push({ x: x + rand(-10, 10), y: y + rand(-10, 10), z: rand(0, 15), vx: rand(-30, 30), vy: rand(-30, 30), vz: rand(10, 50), life: rand(0.6, 1.4), max: 1.4, kind: 'smoke', r: rand(5, 11), col });
@@ -781,21 +955,19 @@ const Battle = {
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
       if (p.kind === 'smoke' || p.kind === 'flame' || p.kind === 'splash') { p.z += p.vz * dt; p.vx *= 0.96; continue; }
       p.z += p.vz * dt; p.vz -= GRAV * dt;
-      if (p.z <= 0) {
-        p.z = 0; p.vx = 0; p.vy = 0; p.vz = 0;
-        if (p.kind === 'blood') { if (this.decals.length < 700 && Math.random() < 0.6) this.decals.push({ kind: 'drop', x: p.x, y: p.y, r: p.r * rand(0.8, 1.4) }); p.life = 0; }
-      }
+      if (p.z <= 0) { p.z = 0; p.vx = 0; p.vy = 0; p.vz = 0; }
     }
     this.parts = this.parts.filter(p => p.life > 0);
     for (const c of this.corpses) {
       if (c.z > 0 || c.vz > 0) {
         c.x += (c.vx || 0) * dt; c.y += (c.vy || 0) * dt; c.z += c.vz * dt; c.vz -= GRAV * dt; c.rot += (c.vr || 0) * dt;
-        if (c.bleed > 0 && Math.random() < 0.7) this.blood(c.x, c.y, c.z + 6, 0);
-        if (c.z <= 0) { c.z = 0; c.vz = 0; c.vx = 0; c.vy = 0; c.vr = 0; if (c.part === 'upper') c.rot = (c.dir > 0 ? 1 : -1) * Math.PI / 2 * 0.95; }
-      } else if (c.part === 'whole' && c.target != null && Math.abs(c.rot - c.target) > 0.05) c.rot += (c.target - c.rot) * Math.min(1, dt * 8);
-      if (c.bleed > 0) { c.bleed -= dt; if (this.gore && Math.random() < dt * 8) this.blood(c.x, c.y, 3, rand(-1, 1)); }
+        if (c.z <= 0) {
+          c.z = 0; c.vz = 0; c.vy = 0;
+          if (c.part === 'head') { c.vx *= 0.5; if (Math.abs(c.vx) > 8) { c.vz = Math.abs(c.vx) * 0.6; } else { c.vx = 0; c.vr = 0; } }
+          else { c.vx = 0; c.vr = 0; if (c.part === 'upper' || c.part === 'torso') c.rot = (c.dir > 0 ? 1 : -1) * Math.PI / 2 * 0.95; }
+        }
+      } else if (c.target != null && Math.abs(c.rot - c.target) > 0.05) c.rot += (c.target - c.rot) * Math.min(1, dt * 8);
     }
-    for (const d of this.decals) if (d.kind === 'pool' && d.grow < 1) d.grow = Math.min(1, d.grow + dt * 0.5);
     for (const b of this.bubbles) b.life -= dt;
     this.bubbles = this.bubbles.filter(b => b.life > 0 && b.f);
     for (const t of this.texts) { t.life -= dt; t.y -= dt * 14; }
@@ -831,28 +1003,25 @@ const Battle = {
     if (this.over) return;
     this.over = true;
     const cfg = this.cfg;
+    // Her figür bir askerdir: kalan sayı = hayatta kalan figür sayısı
     const remainOf = (team, side) => {
       const units = {}, siege = {};
       for (const k of UNIT_KEYS) {
-        const init = this.initial[team + ':' + k] || 0;
-        if (!init) { units[k] = 0; continue; }
         const alive = this.figs.filter(f => f.team === team && f.type === k && !f.ally && (f.alive || f.escaped)).length;
-        let r = alive / init;
-        if (retreated && team === 0) r = Math.min(1, r * 0.95);
-        units[k] = Math.round((side.units[k] || 0) * clamp(r, 0, 1));
+        units[k] = Math.min(side.units[k] || 0, alive);
       }
       for (const k of ['catapult', 'tower', 'cannon']) siege[k] = Math.max(0, (side.siege && side.siege[k] || 0) - this.figs.filter(f => f.team === team && f.type === k && !f.alive).length);
       return { units, siege };
     };
     const aliveAlly = this.figs.filter(f => f.team === 0 && f.ally && (f.alive || f.escaped)).length;
-    const initAlly = Object.keys(this.initial).filter(k => k.startsWith('0:') && k.split(':').length === 3).reduce((s, k) => s + this.initial[k], 0);
+    const initAlly = this.figs.filter(f => f.team === 0 && f.ally).length;
     const winner = playerWon ? cfg.playerSide : (cfg.playerSide === 'att' ? 'def' : 'att');
     this.result = {
       winner, attRemain: remainOf(this.teamOf('att'), cfg.att), defRemain: remainOf(this.teamOf('def'), cfg.def),
-      playerWounded: !!wounded, retreated: !!retreated, kills: Math.round(this.kills * this.R),
+      playerWounded: !!wounded, retreated: !!retreated, kills: this.kills,
       ballsUsed: this.ballsUsed, allyRatio: initAlly ? aliveAlly / initAlly : null
     };
-    const myLoss = this.figs.filter(f => f.team === 0 && !f.alive && !f.machine && !f.isCmd).length * this.R;
+    const myLoss = this.figs.filter(f => f.team === 0 && !f.alive && !f.machine && !f.isCmd).length;
     const res = this.result, onEnd = this.onEnd;
     setTimeout(() => {
       if (playerWon) { SFX.horn(); Voice.speak(Game.S.player.religion === 'islam' ? 'Zafer bizimdir! Elhamdülillah!' : 'Zafer bizimdir!', { pitch: 0.8 }); }
@@ -866,7 +1035,7 @@ const Battle = {
   /* ================== ARAYÜZ ================== */
   updateHud(first) {
     const count = (t, g) => this.figs.filter(f => f.team === t && f.alive && !f.escaped && (g === 'siege' ? f.machine : f.type === g)).length;
-    const cell = (t, g) => { const n = count(t, g); return n ? `<span><canvas width="40" height="40" data-hi="${t}:${g}"></canvas><b>${fmt(g === 'siege' ? n : n * this.R)}</b></span>` : ''; };
+    const cell = (t, g) => { const n = count(t, g); return n ? `<span><canvas width="40" height="40" data-hi="${t}:${g}"></canvas><b>${fmt(n)}</b></span>` : ''; };
     const side = t => `<i class="flag" style="--c:${this.teamColor(t)}">${t === 0 ? this.emblem() : '⚔'}</i><div class="cnts">${['inf', 'archer', 'spear', 'cav', 'siege'].map(g => cell(t, g)).join('')}</div>`;
     const el = document.getElementById('bh');
     const key = ['inf', 'archer', 'spear', 'cav', 'siege'].map(g => count(0, g) + ',' + count(1, g)).join('|');
@@ -875,10 +1044,15 @@ const Battle = {
       el.querySelector('.l').innerHTML = side(0);
       el.querySelector('.r').innerHTML = side(1);
       el.querySelectorAll('canvas[data-hi]').forEach(c => { const [t, g] = c.dataset.hi.split(':'); this.drawIcon(c, g, +t); });
-      document.querySelectorAll('#bgroups [data-cnt]').forEach(s => { const g = s.dataset.cnt, n = count(0, g); s.textContent = g === 'cmd' ? '' : fmt(g === 'siege' ? n : n * this.R); });
+      document.querySelectorAll('#bgroups [data-cnt]').forEach(s => {
+        const g = s.dataset.cnt;
+        if (g === 'cmd') { s.textContent = ''; return; }
+        if (this.phase === 'deploy') { const all = this.figs.filter(f => f.team === 0 && f.alive && grpOf(f) === g && !f.overflow).length; s.textContent = this.reserveOf(g).length + '/' + all; }
+        else s.textContent = fmt(count(0, g));
+      });
     }
     const left = Math.max(0, Math.ceil((this.siege ? 360 : 300) - this.t));
-    el.querySelector('.m').innerHTML = `<b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b><small>${esc(this.cfg.title)}</small>
+    el.querySelector('.m').innerHTML = (this.phase === 'deploy' ? `<b>Konuşlanma</b><small>Sahada ${this.deployedCount()}/${MAXF}</small>` : `<b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>`) + `<small>${esc(this.cfg.title)}</small>
       ${this.walls.length ? '<div class="walls">🧱 ' + this.walls.map(w => `<span class="wb"><i style="width:${Math.max(0, w.hp / w.maxhp * 100)}%"></i></span>`).join('') + '</div>' : ''}
       ${this.siege && this.capture > 0 ? `<div class="cap">🚩 Sancak alınıyor %${Math.round(this.capture / 5 * 100)}</div>` : ''}
       ${this.myBalls != null && this.figs.some(f => f.type === 'cannon' && f.team === 0) ? `<div class="sm">⚫ Gülle: ${this.myBalls}</div>` : ''}
@@ -886,7 +1060,8 @@ const Battle = {
     const cb = document.querySelector('#bcmds [data-c="cry"]');
     if (cb) { cb.classList.toggle('cool', this.cryCd > 0); cb.dataset.cd = this.cryCd > 0 ? Math.ceil(this.cryCd) : ''; }
     const r = document.getElementById('b-ratio');
-    if (r) r.textContent = this.R > 1 ? `Her figür ≈ ${this.R} asker` : '';
+    const ov = this.figs.filter(f => f.overflow && f.team === 0).length;
+    if (r) r.textContent = ov ? `${ov} asker sahaya sığmadı, yedekte` : '';
   },
   emblem() { return { islam: '☪', hristiyan: '✝', tengri: '☉', budizm: '☸', hindu: '✺', yahudi: '✡', pagan: 'ᛟ' }[Game.S.player.religion] || '★'; },
   drawIcon(cv, g, team) {
@@ -894,7 +1069,7 @@ const Battle = {
     x.clearRect(0, 0, cv.width, cv.height);
     x.save(); x.scale(s, s); x.translate(28, 50);
     const hat = team ? (CULTURE_HAT[(Game.S.nations[this.ownerOfTeam(1)] || {}).culture] || 'yok') : Game.S.player.headgear;
-    const f = { id: 1, type: g === 'siege' ? 'catapult' : g, machine: g === 'siege', team, dir: 1, ph: 0.7, atkT: 0, color: this.teamColor(team), hat, armorTier: 0, isCmd: g === 'cmd', outfit: g === 'cmd' ? Game.S.player.outfit : null };
+    const f = { id: 1, type: g === 'siege' ? 'catapult' : g, machine: g === 'siege', team, dir: 1, ph: 0.7, atkT: 0, color: this.teamColor(team), hat, armorTier: 0, isCmd: g === 'cmd', outfit: g === 'cmd' ? Game.S.player.outfit : null, stuck: [] };
     if (g === 'siege') { x.scale(0.9, 0.9); this.drawMachineShape(x, f); }
     else { const k = g === 'cav' ? 0.62 : 0.8; x.scale(k, k); this.drawBody(x, f); }
     x.restore();
@@ -1068,10 +1243,17 @@ const Battle = {
       x.beginPath(); x.arc(m.x, m.y, 14 + (1.2 - m.t) * 12, 0, 7); x.stroke();
       x.beginPath(); x.moveTo(m.x - 6, m.y - 6); x.lineTo(m.x + 6, m.y + 6); x.moveTo(m.x + 6, m.y - 6); x.lineTo(m.x - 6, m.y + 6); x.stroke();
     }
-    for (const g of this.sel) {
-      const ord = this.gOrd[0][g], cc = this.groupCenter(0, g);
+    if (this.phase === 'deploy') {
+      const z = this.deployZone();
+      x.fillStyle = 'rgba(192,40,30,0.07)'; x.fillRect(z.x0, 30, z.x1 - z.x0, BH - 60);
+      x.strokeStyle = 'rgba(160,30,20,0.6)'; x.lineWidth = 2; x.setLineDash([10, 8]); x.strokeRect(z.x0, 30, z.x1 - z.x0, BH - 60); x.setLineDash([]);
+      x.fillStyle = 'rgba(120,25,15,0.7)'; x.font = 'bold 22px Georgia, serif'; x.textAlign = 'center'; x.fillText('Konuşlanma Bölgesi', (z.x0 + z.x1) / 2, 60);
+    }
+    for (const b of this.blocks) {
+      if (b.team !== 0 || !this.sel.has(b.g)) continue;
+      const ord = this.gOrd[0][b.g], cc = this.blockCenter(b);
       if (!cc || (ord !== 'move' && ord !== 'advance')) continue;
-      const gc = this.gc[0][g];
+      const gc = b;
       if (Math.hypot(gc.x - cc[0], gc.y - cc[1]) < 30) continue;
       x.strokeStyle = 'rgba(43,32,24,0.55)'; x.lineWidth = 1.6; x.setLineDash([7, 6]);
       x.beginPath(); x.moveTo(cc[0], cc[1]); x.lineTo(gc.x, gc.y); x.stroke(); x.setLineDash([]);
@@ -1231,9 +1413,25 @@ const Battle = {
     x.fillStyle = 'rgba(43,32,24,0.5)'; x.fillRect(cx - w / 2, cy, w, 2.4);
     x.fillStyle = f.team === 0 ? '#5f8f3a' : '#b8382c'; x.fillRect(cx - w / 2, cy, w * pct, 2.4);
   },
+  // Saplanmış ok: (px,py) noktasından geldiği yöne doğru kuyruk
+  stuckArrow(x, px, py, s) {
+    const ang = s.a, dx = s.tx * Math.cos(ang), dy = -Math.sin(ang);
+    x.strokeStyle = INK; x.lineWidth = 1.3;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px + dx * 13, py + dy * 13); x.stroke();
+    const ex = px + dx * 13, ey = py + dy * 13;
+    x.lineWidth = 1;
+    x.beginPath(); x.moveTo(ex, ey); x.lineTo(ex + dx * 3 - dy * 3, ey + dy * 3 + dx * 3); x.moveTo(ex, ey); x.lineTo(ex + dx * 3 + dy * 3, ey + dy * 3 - dx * 3); x.stroke();
+  },
+  drawArrows(x, f, neckY, headY, which) {
+    if (!f.stuck || !f.stuck.length) return;
+    for (const s of f.stuck) {
+      if (s.h && which !== 'body') this.stuckArrow(x, 2 + s.o * 3, headY - 1 + s.o * 2, s);
+      if (!s.h && which !== 'head') this.stuckArrow(x, 0.6, neckY + 6 + (s.o + 1) * 5, s);
+    }
+  },
   drawBody(x, f) {
     const swing = f.atkT > 0 ? Math.sin((0.3 - f.atkT) / 0.3 * Math.PI) : 0;
-    const walk = Math.sin(f.ph);
+    const walk = Math.sin(f.ph || 0);
     x.save(); x.scale(f.dir || 1, 1);
     x.lineCap = 'round'; x.lineJoin = 'round';
     let hipY = -20;
@@ -1250,10 +1448,19 @@ const Battle = {
     else if (f.type !== 'cav') { x.beginPath(); x.moveTo(0, hipY); x.lineTo(walk * 7, 0); x.moveTo(0, hipY); x.lineTo(-walk * 7, 0); x.stroke(); }
     else { x.beginPath(); x.moveTo(0, hipY); x.lineTo(5, hipY + 10); x.stroke(); }
     const neckY = hipY - 18;
+    this.drawTorso(x, f, hipY, neckY, swing, walk);
+    const headY = neckY - 7;
+    this.drawHead(x, f, 2, headY);
+    this.drawArrows(x, f, neckY, headY);
+    x.restore();
+  },
+  drawTorso(x, f, hipY, neckY, swing, walk) {
+    const cmd = f.isCmd;
+    x.strokeStyle = INK; x.lineWidth = 2.6;
     x.beginPath(); x.moveTo(0, hipY); x.lineTo(1, neckY); x.stroke();
     x.strokeStyle = cmd && f.outfit ? f.outfit.body : f.color; x.lineWidth = 3.4;
     x.beginPath(); x.moveTo(0.3, hipY - 3); x.lineTo(0.9, neckY + 3); x.stroke();
-    const tier = cmd && f.outfit ? ({ yok: 0, deri: 1, kaftan: 1, zincir: 2, plaka: 3 }[f.outfit.armor] || 0) : f.armorTier;
+    const tier = cmd && f.outfit ? ({ yok: 0, deri: 1, kaftan: 1, zincir: 2, plaka: 3 }[f.outfit.armor] || 0) : (f.armorTier || 0);
     if (tier > 0) { x.fillStyle = tier === 1 ? '#8b5e3c' : tier === 2 ? '#a7adb4' : '#d6dde3'; rrect(x, -3, neckY + 2, 8, 11, 2.5); x.fill(); x.strokeStyle = INK; x.lineWidth = 1; x.stroke(); }
     x.strokeStyle = INK; x.lineWidth = 2.4;
     const armA = -0.6 + swing * 2.2;
@@ -1267,19 +1474,21 @@ const Battle = {
       if (sh === 'kalkan') { rrect(x, -12, neckY + 2, 8, 16, 3); x.fill(); x.stroke(); }
       else { x.beginPath(); x.arc(-7, neckY + 12, 6, 0, 7); x.fill(); x.stroke(); x.fillStyle = f.color; x.beginPath(); x.arc(-7, neckY + 12, 2.2, 0, 7); x.fill(); }
     }
-    const headY = neckY - 7;
-    x.fillStyle = '#f6ecd4'; x.strokeStyle = INK; x.lineWidth = 1.8;
-    x.beginPath(); x.arc(2, headY, 6.5, 0, 7); x.fill(); x.stroke();
-    x.fillStyle = INK; x.beginPath(); x.arc(4.6, headY - 0.5, 1, 0, 7); x.fill();
-    const beard = cmd && f.outfit ? f.outfit.beard : (f.id % 3 === 0 ? 'kisa' : 'yok');
-    if (beard === 'kisa') { x.fillStyle = INK; x.beginPath(); x.arc(2.5, headY + 3, 4, 0.1, Math.PI - 0.1); x.fill(); }
-    else if (beard === 'uzun') { x.fillStyle = INK; x.beginPath(); x.moveTo(-2, headY + 2); x.quadraticCurveTo(2, headY + 14, 7, headY + 2); x.fill(); }
-    else if (beard === 'biyik') { x.lineWidth = 1.6; x.beginPath(); x.moveTo(1, headY + 2.5); x.quadraticCurveTo(5, headY + 1.5, 9, headY + 4.5); x.stroke(); }
-    let hat = cmd && f.outfit ? f.outfit.helmet : f.type === 'cleric' ? 'cleric' : f.hat;
+  },
+  drawHead(x, f, hx, headY, dead) {
+    const cmd = f.isCmd || (f.cmd && true);
+    const outfit = f.outfit || (f.cmd && f.cmd.outfit);
+    x.fillStyle = f.burnt ? '#555' : '#f6ecd4'; x.strokeStyle = INK; x.lineWidth = 1.8;
+    x.beginPath(); x.arc(hx, headY, 6.5, 0, 7); x.fill(); x.stroke();
+    if (dead) { x.lineWidth = 1.1; x.beginPath(); x.moveTo(hx + 1, headY - 2); x.lineTo(hx + 4, headY + 1); x.moveTo(hx + 4, headY - 2); x.lineTo(hx + 1, headY + 1); x.stroke(); }
+    else { x.fillStyle = INK; x.beginPath(); x.arc(hx + 2.6, headY - 0.5, 1, 0, 7); x.fill(); }
+    const beard = cmd && outfit ? outfit.beard : ((f.id || 0) % 3 === 0 ? 'kisa' : 'yok');
+    if (beard === 'kisa') { x.fillStyle = INK; x.beginPath(); x.arc(hx + 0.5, headY + 3, 4, 0.1, Math.PI - 0.1); x.fill(); }
+    else if (beard === 'uzun') { x.fillStyle = INK; x.beginPath(); x.moveTo(hx - 4, headY + 2); x.quadraticCurveTo(hx, headY + 14, hx + 5, headY + 2); x.fill(); }
+    else if (beard === 'biyik') { x.lineWidth = 1.6; x.beginPath(); x.moveTo(hx - 1, headY + 2.5); x.quadraticCurveTo(hx + 3, headY + 1.5, hx + 7, headY + 4.5); x.stroke(); }
+    let hat = cmd && outfit ? outfit.helmet : f.type === 'cleric' ? 'cleric' : f.hat;
     hat = HAT_ALIAS[hat] || hat;
-    this.drawHelmet(x, hat, 2, headY, f.color, f);
-    if (f.arrows) { x.strokeStyle = INK; x.lineWidth = 1; for (let i = 0; i < Math.min(4, f.arrows); i++) { x.beginPath(); x.moveTo(-1 + i * 2, neckY + 6 + i * 3); x.lineTo(-8 + i * 2, neckY - 1 + i * 3); x.stroke(); } }
-    x.restore();
+    this.drawHelmet(x, hat, hx, headY, f.color, f.isCmd ? f : (f.cmd || f));
   },
   drawHelmet(x, hat, hx, hy, col, f) {
     if (hat === 'tac') {
@@ -1364,23 +1573,31 @@ const Battle = {
       x.restore(); return;
     }
     x.rotate(c.rot); x.scale(FS * (c.dir || 1), FS);
-    x.lineCap = 'round'; x.strokeStyle = INK; x.lineWidth = 2.4;
-    const col = c.burnt ? '#333' : c.color;
-    if (c.type === 'cav' || c.type === 'elephant') { x.fillStyle = c.type === 'cav' ? '#c8b28c' : '#bdb6a8'; x.lineWidth = 1.6; x.beginPath(); x.ellipse(0, -8, c.type === 'cav' ? 17 : 26, 7, 0, 0, 7); x.fill(); x.stroke(); x.lineWidth = 2.4; }
-    if (c.part === 'lower' || c.part === 'whole') {
-      x.beginPath(); x.moveTo(0, -20); x.lineTo(5, 0); x.moveTo(0, -20); x.lineTo(-5, 0); x.stroke();
-      if (c.part === 'lower') { x.fillStyle = '#a3141b'; x.beginPath(); x.ellipse(0, -21, 4, 2.4, 0, 0, 7); x.fill(); }
+    x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = INK; x.lineWidth = 2.4;
+    const p = c.part;
+    if ((c.type === 'cav' || c.type === 'elephant') && p !== 'head' && p !== 'upper' && p !== 'torso') {
+      x.fillStyle = c.type === 'cav' ? '#c8b28c' : '#bdb6a8'; x.lineWidth = 1.6;
+      x.beginPath(); x.ellipse(0, -8, c.type === 'cav' ? 17 : 26, 7, 0, 0, 7); x.fill(); x.stroke();
+      x.lineWidth = 2; for (const lx of [-10, -4, 8, 13]) { x.beginPath(); x.moveTo(lx, -3); x.lineTo(lx + 3, 6); x.stroke(); }
+      x.lineWidth = 2.4;
     }
-    if (c.part === 'upper' || c.part === 'whole') {
-      x.translate(0, c.part === 'upper' ? 18 : 0);
-      x.beginPath(); x.moveTo(0, -20); x.lineTo(1, -38); x.stroke();
-      x.strokeStyle = col; x.lineWidth = 3.2; x.beginPath(); x.moveTo(0.3, -23); x.lineTo(0.9, -35); x.stroke();
-      x.strokeStyle = INK; x.lineWidth = 2.4; x.beginPath(); x.moveTo(1, -35); x.lineTo(10, -28); x.moveTo(1, -35); x.lineTo(-6, -26); x.stroke();
-      x.fillStyle = c.burnt ? '#555' : '#f6ecd4'; x.lineWidth = 1.8; x.beginPath(); x.arc(2, -45, 6.5, 0, 7); x.fill(); x.stroke();
-      x.lineWidth = 1.1; x.beginPath(); x.moveTo(3, -47); x.lineTo(6, -44); x.moveTo(6, -47); x.lineTo(3, -44); x.stroke();
-      if (c.part === 'upper') { x.fillStyle = '#a3141b'; x.beginPath(); x.ellipse(0, -20, 4.5, 2.6, 0, 0, 7); x.fill(); }
-      const hat = c.cmd && c.cmd.outfit ? c.cmd.outfit.helmet : c.hat;
-      this.drawHelmet(x, HAT_ALIAS[hat] || hat, 2, -45, col, c.cmd);
+    if (p === 'head') {
+      this.drawHead(x, c, 0, 0, true);
+      this.drawArrows(x, c, 0, 0, 'head');
+      x.restore(); return;
+    }
+    if (p === 'whole' || p === 'headless' || p === 'lower') {
+      x.strokeStyle = INK; x.lineWidth = 2.6;
+      x.beginPath(); x.moveTo(0, -20); x.lineTo(5, 0); x.moveTo(0, -20); x.lineTo(-5, 0); x.stroke();
+      if (p === 'lower') { x.lineWidth = 2.6; x.beginPath(); x.moveTo(0, -20); x.lineTo(0, -24); x.stroke(); x.lineWidth = 1; x.beginPath(); x.moveTo(-3, -25); x.lineTo(-1, -23); x.lineTo(1, -26); x.lineTo(3, -24); x.stroke(); }
+    }
+    if (p === 'whole' || p === 'headless' || p === 'upper' || p === 'torso') {
+      if (p === 'upper' || p === 'torso') x.translate(0, 18);
+      this.drawTorso(x, c, -20, -38, 0, 0.3);
+      if (p === 'upper' || p === 'torso') { x.strokeStyle = INK; x.lineWidth = 1; x.beginPath(); x.moveTo(-3, -19); x.lineTo(-1, -21); x.lineTo(1, -18); x.lineTo(3, -20); x.stroke(); }
+      if (p === 'whole' || p === 'upper') this.drawHead(x, c, 2, -45, true);
+      else { x.strokeStyle = INK; x.lineWidth = 2.6; x.beginPath(); x.moveTo(1, -38); x.lineTo(1.4, -41); x.stroke(); x.lineWidth = 1; x.beginPath(); x.moveTo(-1.5, -42); x.lineTo(0.5, -40.5); x.lineTo(2.5, -42.5); x.lineTo(4, -41); x.stroke(); }
+      this.drawArrows(x, c, -38, -45, (p === 'headless' || p === 'torso') ? 'body' : undefined);
     }
     x.restore();
   }

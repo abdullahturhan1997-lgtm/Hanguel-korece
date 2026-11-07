@@ -7,6 +7,8 @@
 const SAVE_KEY = 'fetih_kayit_v1';
 const P = 'P';       // oyuncu
 const NEUTRAL = 'N'; // tarafsız köyler
+// Askerler savaşta birebir görünür; bu yüzden sayılar sınırlı tutulur
+const GARRISON_CAP = 300, ARMY_CAP = 250, VILLAGE_CAP = 200, CITY_CAP = 1500;
 
 const Game = {
   S: null,
@@ -18,7 +20,7 @@ const Game = {
   /* ================== KURULUM ================== */
   newGame(opt) {
     const S = {
-      ver: 1, day: 0, speed: 1, nextId: 1,
+      ver: 2, day: 0, speed: 1, nextId: 1,
       player: {
         name: opt.realm || 'Benim Beyliğim', ruler: opt.ruler || 'Bey', color: opt.color || '#e84a5f',
         religion: opt.religion || 'islam', culture: opt.culture || 'Türk',
@@ -42,19 +44,19 @@ const Game = {
     }
     for (const c of CITIES) {
       const [x, y] = Proj.p(c.lon, c.lat);
-      const pop = c.pop;
-      const g = Math.round(pop * 0.06);
+      const pop = Math.round(c.pop / 6);
+      const g = Math.round(pop * 0.1);
       S.setts.push({
         id: c.id, name: c.name, x, y, big: true, owner: c.nation, def: c.def, style: c.style,
         pop: { m: pop * 0.3, w: pop * 0.3, e: pop * 0.12, c: pop * 0.28, s: 0 },
         garrison: { inf: Math.round(g * 0.35), spear: Math.round(g * 0.25), archer: Math.round(g * 0.25), cav: Math.round(g * 0.15), catapult: 1, tower: 0, cannon: 0, balls: 0 },
-        capBase: pop * 1.25, grid: null, scale: 1, ruined: false, unrest: 0
+        capBase: Math.min(pop * 1.4, CITY_CAP), grid: null, scale: 1, ruined: false, unrest: 0
       });
     }
     for (const v of VILLAGES) {
       const [x, y] = Proj.p(v[2], v[3]);
-      const pop = randi(60, 170);
-      const g = randi(6, 18);
+      const pop = randi(40, 120);
+      const g = randi(4, 12);
       S.setts.push({
         id: v[0], name: v[1], x, y, big: false, owner: NEUTRAL, def: 'koy', style: 'village',
         pop: { m: pop * 0.3, w: pop * 0.3, e: pop * 0.12, c: pop * 0.28, s: 0 },
@@ -133,7 +135,7 @@ const Game = {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return false;
       const S = JSON.parse(raw);
-      if (!S || S.ver !== 1) return false;
+      if (!S || S.ver !== 2) return false;
       const p = S.player;
       p.headgears = (p.headgears || ['yok']).filter(h => HEADGEARS[h]);
       if (!p.headgears.length) p.headgears = ['yok'];
@@ -142,7 +144,7 @@ const Game = {
       return true;
     } catch (e) { return false; }
   },
-  hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } },
+  hasSave() { try { const r = localStorage.getItem(SAVE_KEY); return !!r && JSON.parse(r).ver === 2; } catch (e) { return false; } },
   wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } },
 
   /* ================== YARDIMCILAR ================== */
@@ -193,10 +195,10 @@ const Game = {
     return v;
   },
   capacity(s) {
-    if (!s.grid) return s.capBase;
+    if (!s.grid) return Math.min(s.capBase, s.big ? CITY_CAP : VILLAGE_CAP);
     let c = 0;
     for (const b of s.grid) if (b && BUILDINGS[b].cap) c += BUILDINGS[b].cap;
-    return c * (s.scale || 1);
+    return Math.min(c * (s.scale || 1), s.big ? CITY_CAP : VILLAGE_CAP);
   },
   relation(o) {
     if (o === P) return 'self';
@@ -287,17 +289,17 @@ const Game = {
       const relig = s.owner === P ? p.religion : (S.nations[s.owner] || {}).religion;
       const room = tot < cap ? Math.min(1, (cap - tot) / Math.max(5, cap * 0.08)) : 0;
       const growth = 1 + this.bonus(s, 'growth') + (relig === 'budizm' ? 0.1 : 0);
-      const births = Math.min(s.pop.m, s.pop.w) * 0.014 * growth * room;
-      const mature = s.pop.c * 0.011;
-      const age = (s.pop.m + s.pop.w) * 0.0012;
-      const deaths = s.pop.e * 0.011;
+      const births = Math.min(s.pop.m, s.pop.w) * 0.006 * growth * room;
+      const mature = s.pop.c * 0.006;
+      const age = (s.pop.m + s.pop.w) * 0.0008;
+      const deaths = s.pop.e * 0.008;
       s.pop.c += births - mature;
       s.pop.m += mature / 2 - age / 2;
       s.pop.w += mature / 2 - age / 2;
       s.pop.e += age - deaths;
       s.pop.s *= 0.9995;
       if (tot > cap * 1.15) { const k = 0.996; s.pop.m *= k; s.pop.w *= k; s.pop.c *= k; s.pop.e *= k; }
-      if (!s.grid) s.capBase *= 1.0004;
+      if (!s.grid) s.capBase = Math.min(s.capBase * 1.0002, s.big ? CITY_CAP : VILLAGE_CAP);
       if (s.unrest > 0) s.unrest = Math.max(0, s.unrest - 0.3);
       // Vergi
       const tax = this.taxOf(s);
@@ -441,8 +443,11 @@ const Game = {
   /* ================== ORDU YÖNETİMİ ================== */
   recruit(s, type, n, merc) {
     const disc = this.bonus(s, 'discount');
-    const cost = Math.ceil(UNITS[type].cost * (1 - Math.min(0.4, disc)) * n * (merc ? 2 : 1));
+    const room = GARRISON_CAP - this.count(s.garrison);
+    if (room <= 0) { toast(`⛺ ${s.name} garnizonu dolu (en fazla ${GARRISON_CAP} asker). Ordu çıkar ya da başka şehirde kuşan.`, 'bad'); return false; }
+    if (n > room) { n = room; }
     if (!merc && s.pop.m < n) { toast(`👨 ${s.name}'te yeterli erkek nüfus yok. Paralı asker tut!`, 'bad'); return false; }
+    const cost = Math.ceil(UNITS[type].cost * (1 - Math.min(0.4, disc)) * n * (merc ? 2 : 1));
     if (!this.spend(cost)) return false;
     if (!merc) s.pop.m -= n;
     s.garrison[type] += n;
@@ -483,7 +488,9 @@ const Game = {
   formArmy(s, units, siege, name) {
     const total = this.count(units);
     if (total <= 0) { toast('Orduya en az bir asker seç.', 'bad'); return null; }
-    for (const k of UNIT_KEYS) { units[k] = Math.min(units[k] || 0, s.garrison[k]); s.garrison[k] -= units[k]; }
+    let left = ARMY_CAP;
+    for (const k of UNIT_KEYS) { units[k] = Math.min(units[k] || 0, s.garrison[k], left); left -= units[k]; s.garrison[k] -= units[k]; }
+    if (total > ARMY_CAP) toast(`Bir ordu en fazla ${ARMY_CAP} asker olabilir; fazlası garnizonda kaldı.`);
     for (const k in siege) { siege[k] = Math.min(siege[k] || 0, s.garrison[k] || 0); s.garrison[k] -= siege[k]; }
     const a = {
       id: this.id(), owner: P, name: name || `${s.name} Ordusu`, x: s.x + rand(-6, 6), y: s.y + 10,
@@ -1266,7 +1273,7 @@ const Game = {
       // Asker toplama
       if (n.gold > 60) {
         const s = setts.sort((a, b) => this.count(a.garrison) / Math.max(1, a.pop.m) - this.count(b.garrison) / Math.max(1, b.pop.m))[0];
-        const target = s.pop.m * 0.18;
+        const target = Math.min(200, this.totalPop(s) * 0.1);
         if (this.count(s.garrison) < target) {
           const budget = n.gold * 0.5, k = pick(UNIT_KEYS), c = UNITS[k].cost;
           const num = Math.min(Math.floor(budget / c), Math.floor(s.pop.m * 0.05));

@@ -279,7 +279,8 @@ const MapView = {
     for (const s of S.setts) {
       const [sx, sy] = this.toScreen(s.x, s.y);
       if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
-      drawSettlement(x, s, sx, sy, k * (s.big ? 1.25 : 0.85));
+      if (s.owner === P && s.grid && !s.ruined) Town.drawSettlementTown(x, s, sx, sy, k * (s.big ? 1.25 : 1));
+      else drawSettlement(x, s, sx, sy, k * (s.big ? 1.25 : 0.85));
       if (s.big || zoomLabel > 1.15 || s.owner === P) this.label(x, s, sx, sy + (s.big ? 22 : 14) * k, k);
       if (sel && sel.type === 'sett' && sel.id === s.id) ring(x, sx, sy, 24 * k, this.t);
     }

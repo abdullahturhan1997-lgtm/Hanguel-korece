@@ -33,7 +33,7 @@ const CULTURES = ['Türk', 'Arap', 'Fars', 'Rum', 'Frank', 'İber', 'Slav', 'Mo�
 const UNITS = {
   inf:    { name: 'Piyade',   icon: '🗡️', cost: 14, hp: 100, dmg: 16, range: 22,  cd: 0.9, speed: 55,  desc: 'Kılıçlı dengeli asker' },
   spear:  { name: 'Mızraklı', icon: '🔱', cost: 12, hp: 95,  dmg: 13, range: 36,  cd: 1.0, speed: 50,  desc: 'Atlılara karşı 2.5 kat hasar' },
-  archer: { name: 'Okçu',     icon: '🏹', cost: 16, hp: 70,  dmg: 12, range: 380, cd: 1.8, speed: 50,  desc: 'Uzaktan ok yağdırır' },
+  archer: { name: 'Okçu',     icon: '🏹', cost: 16, hp: 70,  dmg: 12, range: 600, cd: 1.8, speed: 50,  desc: 'Durduğu yerden uzağa ok yağdırır' },
   cav:    { name: 'Atlı',     icon: '🐎', cost: 32, hp: 175, dmg: 22, range: 26,  cd: 1.1, speed: 115, desc: 'Hızlı ve güçlü hücum' }
 };
 const UNIT_KEYS = ['inf', 'spear', 'archer', 'cav'];
