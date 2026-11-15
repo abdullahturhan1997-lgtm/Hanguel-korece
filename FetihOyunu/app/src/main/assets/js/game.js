@@ -318,6 +318,8 @@ const Game = {
     const up = this.upkeep();
     p.gold -= up; p.stats.upkeep += up;
     if (p.gold < -50) this.desert();
+    // Surlar yavaş yavaş onarılır
+    for (const s of this.mySetts()) if (s.vwalls) for (const w of s.vwalls) if (w.hp < w.maxhp) w.hp = Math.min(w.maxhp, w.hp + w.maxhp * 0.04);
     if (p.wounded > 0) { p.wounded--; if (p.wounded === 0) toast('🩹 Komutan iyileşti, yeniden savaşa hazır!', 'good'); }
 
     this.aiTick();
@@ -528,6 +530,14 @@ const Game = {
 
   /* ================== SAVAŞ İSTEKLERİ ================== */
   wallsOf(s) {
+    if (s.owner === P && s.grid) {
+      // Oyuncunun köyü: elle yaptığı surlar ve kuleler
+      Village.ensure(s);
+      const by = { 1: 0, 2: 0, 3: 0 };
+      for (const w of s.vwalls) by[w.lvl] += Math.max(0, w.hp);
+      const walls = [by[1], by[2], by[3]].filter(v => v > 0).map(Math.round);
+      return { key: 'oyuncu', name: 'Kendi surların', desc: `${s.vwalls.length} sur parçası (çit/ahşap/taş), ${s.vtowers.length} kule. Askerler surlara ve kulelere dağılır.`, special: 'none', wood: !by[3], walls: walls.length ? walls : [0], towers: s.vtowers.length };
+    }
     const D = DEFENSES[s.def] || DEFENSES.koy;
     const mult = (1 + this.bonus(s, 'wall')) * (s.big ? 1 : 1);
     return {
@@ -586,7 +596,11 @@ const Game = {
     });
   },
   requestDefense(enemy, s) {
-    s.attack = { owner: enemy.owner, n: this.count(enemy.units), day: this.S.day };
+    // Saldırının geldiği yön (ordu köye vardığında konumu köyle aynıdır; o zaman düşman başkentine bak)
+    let dir = [enemy.x - s.x, enemy.y - s.y];
+    if (Math.hypot(dir[0], dir[1]) < 2) { const src = this.capitalOf(enemy.owner); dir = src ? [src.x - s.x, src.y - s.y] : [1, 0.3]; }
+    if (Math.hypot(dir[0], dir[1]) < 0.01) dir = [1, 0.3];
+    s.attack = { owner: enemy.owner, n: this.count(enemy.units), day: this.S.day, dir };
     if (s.owner === P) toast(`⚔️ ${s.name} saldırı altında! Köye girip bakabilirsin.`, 'bad');
     const nearby = this.S.armies.filter(b => b.owner === P && dist(b.x, b.y, s.x, s.y) < 60);
     const side = this.sideFromArmies(nearby);
@@ -596,7 +610,7 @@ const Game = {
     this.pending.push({
       kind: 'siege', title: `${s.name} Savunması`, playerSide: 'def',
       att: { owner: enemy.owner, units: Object.assign({}, enemy.units), siege: Object.assign(this.emptySiege(), enemy.siege), allies: [], armies: [enemy.id] },
-      def: side, defense: this.wallsOf(s), context: { type: 'defense', settId: s.id, enemyArmy: enemy.id }
+      def: side, defense: this.wallsOf(s), context: { type: 'defense', settId: s.id, enemyArmy: enemy.id, dir }
     });
   },
   requestField(pa, enemy, ambush, enemyAttacks) {
@@ -684,8 +698,14 @@ const Game = {
       const s = this.sett(ctx.settId);
       const killed = this.count(cfg.att.units) - this.count(res.attRemain.units);
       const lost = this.count(mine.units) - this.count(myRemain.units);
+      const dir = (s.attack && s.attack.dir) || ctx.dir;
       s.attack = null;
-      s.after = { day: S.day, seed: randi(1, 1e6), kills: Math.max(0, killed), losses: Math.max(0, lost), owner: cfg.att.owner, won };
+      s.after = { day: S.day, seed: randi(1, 1e6), kills: Math.max(0, killed), losses: Math.max(0, lost), owner: cfg.att.owner, won, dir };
+      // Surların gerçek hasarı savaştan sonra kalır
+      if (s.vwalls) {
+        if (res.segHp && res.segHp.length === s.vwalls.length) s.vwalls.forEach((w, i) => { w.hp = Math.max(0, res.segHp[i]); });
+        else s.vwalls.forEach(w => { w.hp = Math.max(0, w.hp - w.maxhp * rand(0.1, won ? 0.5 : 0.9)); });
+      }
       // Saldırıda halktan da kayıp olur
       if (!won) for (const k of ['m', 'w', 'e', 'c']) s.pop[k] *= 0.9; else s.pop.m = Math.max(0, s.pop.m - lost * 0.1);
       if (!won) {

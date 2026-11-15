@@ -30,7 +30,8 @@ canvas{display:block}
 #vbuild.show{display:flex}
 #vbuild button{width:76px;background:linear-gradient(#f3e4c0,#e3cc9c);border:2px solid #4a3622;border-radius:4px;display:flex;flex-direction:column;align-items:center;font-size:11px;color:#2b2018;padding:2px}
 #vbuild button.on{background:linear-gradient(#fff3c4,#f0cf7a);box-shadow:0 0 0 2px #c0281e inset}
-#vbuild canvas{width:54px;height:45px}
+#vbuild canvas{width:54px;height:45px}#vbuild .vi{font-size:26px;line-height:45px;height:45px}
+#vhint{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);background:#fbeedd;border:2px solid #4a3622;border-radius:6px;padding:4px 10px;font-size:12px;pointer-events:none;max-width:90vw;text-align:center}
 @media (max-width:700px){#vtl span:nth-child(n+8){display:none}.vbar button{width:52px;height:50px;font-size:10px}}
 
 /* Üst çubuk */
@@ -200,8 +201,8 @@ label{display:block;font-size:13px;font-weight:600;margin:7px 0}
 <canvas id="map"></canvas>
 <canvas id="battle"></canvas>
 <canvas id="village"></canvas>
-<div id="village-ui"><div id="vtl" class="vpar"></div><div id="vtr" class="vpar"></div><div id="vbanner"></div><div id="vbuild"></div>
-  <div class="vbar"><button onclick="Village.showPalette('tent')"><i>⛺</i>Çadır</button><button onclick="Village.showPalette('prod')"><i>⚒</i>Üretim</button><button onclick="Village.showPalette('farm')"><i>🌾</i>Tarım</button><button onclick="Village.showPalette('store')"><i>🪵</i>Depo</button><button onclick="Village.showPalette('def')"><i>🛡</i>Savunma</button><button onclick="UI.city(Village.sid,'army')"><i>👥</i>Asker</button></div></div>
+<div id="village-ui"><div id="vtl" class="vpar"></div><div id="vtr" class="vpar"></div><div id="vbanner"></div><div id="vhint" style="display:none"></div><div id="vbuild"></div>
+  <div class="vbar"><button onclick="Village.showPalette('tent')"><i>⛺</i>Çadır</button><button onclick="Village.showPalette('prod')"><i>⚒</i>Üretim</button><button onclick="Village.showPalette('farm')"><i>🌾</i>Tarım</button><button onclick="Village.showPalette('store')"><i>🪵</i>Depo</button><button onclick="Village.showPalette('def')"><i>🧱</i>Sur &amp; Kule</button><button onclick="UI.city(Village.sid,'army')"><i>👥</i>Asker</button></div></div>
 
 <div id="hud">
   <div class="top">

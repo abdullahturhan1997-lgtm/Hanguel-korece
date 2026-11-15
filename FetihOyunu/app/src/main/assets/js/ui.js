@@ -207,7 +207,7 @@ const UI = {
     const full = tot >= Game.capacity(s) * 0.98;
     let pal = `<div class="pal">`;
     for (const k in BUILDINGS) {
-      if (k === 'saray') continue;
+      if (k === 'saray' || k === 'sur' || k === 'kule') continue; // surlar ve kuleler köyde elle yapılır
       const B = BUILDINGS[k];
       const name = k === 'mabet' ? RELIGIONS[Game.S.player.religion].temple : B.name;
       pal += `<button class="${this.buildSel === k ? 'on' : ''}" onclick="UI.buildSel='${k}';UI.renderCity()"><span>${B.icon}</span><b>${name}</b><small>💰${B.cost}${sc > 1 && B.cap ? ` · ×${sc} mahalle` : ''}</small><em>${B.desc}</em></button>`;
@@ -333,7 +333,7 @@ const UI = {
     const D = Game.wallsOf(s);
     return `<div class="defcard"><h3>🏰 ${esc(D.name)}</h3><p>${esc(D.desc)}</p>
       <div class="info">🧱 Sur katmanları: ${D.walls.map(w => '<b>' + fmt(w) + '</b>').join(' → ')}<br>🗼 Ok kuleleri: <b>${D.towers}</b><br>✨ Özel savunma: <b>${this.specialName(D.special)}</b></div>
-      <p class="hint">Bu savunma sistemi artık sana aittir. Düşman bu şehre saldırırsa surlar, kuleler ve özel savunma senin için savaşır. Sur Parçası (+%15 sur) ve Gözcü Kulesi (+1 ok kulesi) inşa ederek güçlendir.</p></div>`;
+      <p class="hint">Bu savunma sistemi artık sana aittir. Düşman bu şehre saldırırsa surlar, kuleler ve özel savunma senin için savaşır. Surları ve kuleleri köyün içinde elle yap: 🏕️ Köye gir → 🧱 Sur &amp; Kule. Çit → Ahşap Sur → Taş Sur diye yükselt. Askerler önce kulelere ve ahşap/taş surlara dağılır, kalanlar sarayın önündeki içtima alanında bekler.</p></div>`;
   },
   specialName(k) {
     return { rocks: 'Kaya yuvarlama', greekfire: 'Rum ateşi', moat: 'Hendek', archers: 'Fazla okçu', sortie: 'Şövalye çıkışı', cold: 'Dondurucu kış', horsearch: 'Atlı okçular', crossbow: 'Arbalet kuleleri', elephants: 'Savaş filleri', samurai: 'Samuray piyadesi', heat: 'Çöl sıcağı', shieldwall: 'Kalkan duvarı', canal: 'Kanallar ve toplar', none: 'Yok' }[k] || 'Yok';

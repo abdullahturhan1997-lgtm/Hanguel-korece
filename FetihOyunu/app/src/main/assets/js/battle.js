@@ -54,14 +54,20 @@ const Battle = {
     this.kills = 0; this.ballsUsed = 0; this.capture = 0; this.retreatT = -1; this.cryT = [0, 0]; this.cryCd = 0; this.retarget = 0; this.slotT = 0;
     this.myBalls = null; this.marker = null; this._hk = null; this.R = 1;
     this.siege = cfg.kind === 'siege';
-    this.BW = this.siege ? 2400 : 2100;
+    // Köy modu: kendi köyün savunuluyorsa savaş köyün kendisinde geçer
+    const ctxx = cfg.context || {};
+    const vs = ctxx.type === 'defense' ? Game.sett(ctxx.settId) : null;
+    this.vmode = !!(vs && vs.owner === P);
+    this.vs = vs;
+    if (this.vmode) { this.siege = false; Village.ensure(vs); }
+    this.BW = this.siege || this.vmode ? 2400 : 2100;
     this.teamSide = cfg.playerSide === 'att' ? ['att', 'def'] : ['def', 'att'];
     this.attTeam = this.teamSide[0] === 'att' ? 0 : 1;
     this.defTeam = 1 - this.attTeam;
     const D = cfg.defense || { walls: [], towers: 0, special: 'none' };
     this.special = this.siege ? D.special : 'none';
     this.river = null;
-    if (!this.siege && Math.random() < 0.75) {
+    if (!this.siege && !this.vmode && Math.random() < 0.75) {
       const nb = Math.random() < 0.5 ? 2 : 3;
       this.river = { cx: this.BW / 2 + rand(-60, 60), ph: rand(0, 6), bridges: nb === 2 ? [BH * 0.3, BH * 0.72] : [BH * 0.18, BH * 0.5, BH * 0.82] };
     }
@@ -75,6 +81,15 @@ const Battle = {
         const wi = i % this.walls.length, k = Math.floor(i / this.walls.length);
         this.towers.push({ x: this.walls[wi].x, y: BH * (k + 1) / (per + 1) + (wi % 2) * 40, z: 70, cd: rand(0.5, 2), wall: wi, alive: true });
       }
+    }
+    this.segs = [];
+    if (this.vmode) {
+      this.segs = vs.vwalls.map(w => Object.assign({}, w, { bridged: false }));
+      this.vl = Village.prepare(vs, true);
+      this.keepX = this.vl.palace.x; this.keepY = this.vl.palace.y + 30;
+      this.towers = vs.vtowers.map(t => ({ x: t.x, y: t.y, z: 70, cd: rand(0.5, 2), wall: -1, alive: true }));
+      this.spawnP = Village.spawnPoint(ctxx.dir);
+      this.attDir = this.spawnP[0] > VW / 2 ? -1 : 1;
     }
     this.specialT = 2;
     this.gOrd = [{}, {}];
@@ -108,6 +123,7 @@ const Battle = {
       this.phase = 'deploy';
       const z = this.deployZone();
       this.makeBlock(0, 'cmd', clamp(this.defC[0].cmd.x, z.x0, z.x1), this.defC[0].cmd.y, this.figs.filter(f => f.team === 0 && f.isCmd));
+      if (this.vmode) this.autoDeploy(0); // askerler kendiliğinden surlara, kulelere ve içtimaya
       this.selectGroup('inf', false, true);
     }
     this.refreshSlots(true);
@@ -121,7 +137,7 @@ const Battle = {
     SFX.horn();
   },
   teamOf(side) { return this.teamSide[0] === side ? 0 : 1; },
-  fdir(team) { return this.teamSide[team] === 'att' ? 1 : -1; },
+  fdir(team) { if (this.vmode) return this.teamSide[team] === 'att' ? this.attDir : -this.attDir; return this.teamSide[team] === 'att' ? 1 : -1; },
   sideOf(f) { return this.teamSide[f.team]; },
   ownerOfTeam(t) { return this.teamSide[t] === 'att' ? this.cfg.att.owner : this.cfg.def.owner; },
   colorOf(owner) {
@@ -137,6 +153,7 @@ const Battle = {
   teamColor(t) { return t === 0 ? Game.S.player.color : this.enemyColor(); },
 
   deployZone() {
+    if (this.vmode) return { x0: 40, x1: this.BW - 40 };
     if (this.siege && this.teamSide[0] === 'def') return { x0: this.walls[0].x - 10, x1: this.BW - 60 };
     if (this.teamSide[0] === 'att') return { x0: 70, x1: this.siege ? this.walls[0].x - 420 : this.BW * 0.36 };
     return { x0: this.BW * 0.64, x1: this.BW - 70 };
@@ -146,6 +163,14 @@ const Battle = {
     const mid = BH / 2;
     const left = { spear: [640, mid], inf: [560, mid], archer: [450, mid], cav: [520, mid - 330], siege: [250, mid], cmd: [420, mid] };
     this.defC = [{}, {}];
+    if (this.vmode) {
+      const pd = this.vl.parade, [sx, sy] = this.spawnP, ad = this.attDir;
+      for (const t of [0, 1]) for (const g of GROUPS) {
+        if (this.teamSide[t] === 'def') { const o = { inf: [-150, 0], spear: [150, 0], archer: [-270, -10], cav: [300, 0], siege: [0, 90], cmd: [0, -20] }[g]; this.defC[t][g] = { x: pd.x + o[0], y: pd.y + o[1] }; }
+        else { const o = { spear: [60, 0], inf: [0, 0], archer: [-100, 0], cav: [-20, -230], siege: [-230, 0], cmd: [-150, 0] }[g]; this.defC[t][g] = { x: clamp(sx + o[0] * ad, 40, this.BW - 40), y: clamp(sy + o[1], 60, BH - 60) }; }
+      }
+      return;
+    }
     const ambush = this.cfg.ambush;
     for (const t of [0, 1]) {
       const att = this.teamSide[t] === 'att';
@@ -261,6 +286,12 @@ const Battle = {
     return b;
   },
   autoDeploy(team) {
+    // Köyde savunan: önce kulelere, sonra ahşap/taş surlara (okçular önce)
+    if (this.vmode && this.teamSide[team] === 'def') {
+      const rank = f => f.type === 'archer' ? 0 : f.type === 'spear' ? 1 : 2;
+      const cand = this.figs.filter(f => f.team === team && !f.overflow && !f.blk && !f.isCmd && !f.machine && f.type !== 'cleric' && f.type !== 'cav').sort((a, b) => rank(a) - rank(b));
+      Village.posts(this.vs, this.segs).forEach((p, i) => { const f = cand[i]; if (!f) return; f.onPost = p; f.blk = 'post'; f.escaped = false; f.reserve = false; f.x = f.sx = p.x; f.y = f.sy = p.y; });
+    }
     for (const g of GROUPS) {
       const figs = this.figs.filter(f => f.team === team && grpOf(f) === g && !f.overflow && !f.blk);
       if (!figs.length) continue;
@@ -576,12 +607,24 @@ const Battle = {
         for (const f of byTeam[t]) f.target = this.pickTarget(f, en, eng);
       }
     }
-    for (const f of alive) f.engN = 0;
+    for (const f of alive) { f.engN = 0; f.px = f.x; f.py = f.y; }
+    if (this.vmode) for (const f of alive) if (f.onPost && f.onPost.kind === 'wall' && !(this.segs[f.onPost.seg].hp > 0)) {
+      // Sur yıkıldı: üstündeki asker düşer
+      f.onPost = null; f.blk = null; f.sx = f.x; f.sy = f.y + 10; this.damage(f, 15, null, 'blunt');
+    }
     for (const f of alive) {
       if (f.target && (!f.target.alive || f.target.escaped)) f.target = null;
       this.updateFig(f, dt);
     }
     this.separate(alive); this.separate(alive);
+    if (this.vmode) for (const f of alive) {
+      if (f.onPost || (f.machine && f.type !== 'tower')) continue;
+      f.blockSeg = null;
+      for (const w of this.segs) {
+        if (w.hp <= 0 || w.bridged) continue;
+        if (segCross(f.px, f.py, f.x, f.y, w)) { f.x = f.px; f.y = f.py; f.blockSeg = w; break; }
+      }
+    }
     for (const f of alive) { f.y = clamp(f.y, 20, BH - 15); f.x = clamp(f.x, -80, this.BW + 80); this.wallClamp(f); }
     this.updateTowers(dt, byTeam);
     this.updateSpecial(dt, byTeam);
@@ -618,7 +661,7 @@ const Battle = {
     const me = this.figs.filter(f => f.team === 1 && f.alive && !f.escaped && !f.machine);
     if (!en.length || !me.length) return;
     const ex = en.reduce((s, f) => s + f.x, 0) / en.length, mx = me.reduce((s, f) => s + f.x, 0) / me.length;
-    const close = Math.abs(ex - mx) < 420 || this.siege;
+    const close = Math.abs(ex - mx) < 420 || this.siege || this.vmode;
     for (const g of GROUPS) {
       if (g === 'siege') this.setOrder(1, g, 'defend');
       else if (g === 'archer') this.setOrder(1, g, 'defend');
@@ -641,6 +684,7 @@ const Battle = {
     let best = null, bd = 1e9;
     for (const e of enemies) {
       if (e.escaped) continue;
+      if (e.onPost && f.range < 60) continue;
       if (e.onWall != null && f.range < 60 && this.walls[e.onWall] && this.walls[e.onWall].hp > 0) continue;
       // Yan yana olan düşmanı tercih et, aynı hedefe yığılma
       const d = Math.abs(e.x - f.x) + Math.abs(e.y - f.y) * 1.8 + (eng.get(e.id) || 0) * (f.type === 'archer' ? 6 : 38);
@@ -692,9 +736,18 @@ const Battle = {
     if (this.inRiver(f.x, f.y)) { sp *= 0.4; if (Math.random() < dt * 3) this.parts.push({ x: f.x + rand(-5, 5), y: f.y, z: 0, vx: 0, vy: 0, vz: 0, life: 0.5, max: 0.5, kind: 'splash', r: 2 }); }
     if (f.machine) return this.updateMachine(f, dt);
     if (f.type === 'cleric') return this.updateCleric(f, dt);
+    if (f.onPost) {
+      // Sur ve kule üstündeki asker yerinden ayrılmaz; menzile gireni vurur
+      const t = f.target;
+      if (t && f.cdT <= 0) {
+        const d = Math.hypot(t.x - f.x, t.y - f.y), reach = f.type === 'archer' ? f.range : f.range + 12;
+        if (d <= reach) { f.dir = Math.sign(t.x - f.x) || f.dir; f.cdT = f.cd * rand(0.85, 1.15); if (f.type === 'archer') this.shootArrow(f, t, f.dmg * boost); else this.melee(f, t, boost); }
+      }
+      return;
+    }
     const ord = this.gOrd[f.team][grpOf(f)];
     if (ord === 'retreat') {
-      this.walk(f, f.x + (this.sideOf(f) === 'att' ? -200 : 200), f.y, sp * 1.15, dt);
+      this.walk(f, f.x + (-this.fdir(f.team) * 200), f.y, sp * 1.15, dt);
       if (f.x < -30 || f.x > this.BW + 30) f.escaped = true;
       return;
     }
@@ -729,6 +782,12 @@ const Battle = {
     else if (ord === 'defend' && t && !ranged && Math.hypot(t.x - goal[0], t.y - goal[1]) < 170) goal = approach();
     if (f.isPlayer && ord === 'wait' && t && d < f.range + 25) goal = [t.x, t.y];
     if (this.siege && this.sideOf(f) === 'att' && ord === 'attack' && !ranged && (!t || d > 400)) goal = [this.keepX, this.keepY + f.off * 4];
+    if (this.vmode && f.blockSeg && f.blockSeg.hp > 0 && !ranged && this.sideOf(f) === 'att') {
+      const w = f.blockSeg;
+      f.dir = Math.sign((w.x1 + w.x2) / 2 - f.x) || f.dir;
+      if (f.cdT <= 0) { f.cdT = f.cd; f.atkT = 0.3; this.hitSeg(w, f.dmg * ({ 1: 0.5, 2: 0.25, 3: 0.12 }[w.lvl]) * boost, f.x, f.y); }
+      return;
+    }
     if (this.sideOf(f) === 'att' && !ranged && (ord === 'attack' || ord === 'advance' || ord === 'move')) {
       const w = this.blockingWall(f);
       if (w && goal[0] > w.x && f.x >= w.x - 24) {
@@ -750,7 +809,7 @@ const Battle = {
   updateCleric(f, dt) {
     const mine = this.figs.filter(x => x.team === f.team && x.alive && !x.escaped && !x.machine && x !== f);
     if (!mine.length) return;
-    if (this.retreatT >= 0 && f.team === 0) { this.walk(f, f.x + (this.sideOf(f) === 'att' ? -200 : 200), f.y, f.speed, dt); if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
+    if (this.retreatT >= 0 && f.team === 0) { this.walk(f, f.x + (-this.fdir(f.team) * 200), f.y, f.speed, dt); if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
     let cx = 0, cy = 0; for (const m of mine) { cx += m.x; cy += m.y; } cx /= mine.length; cy /= mine.length;
     const gx = cx - this.fdir(f.team) * 70, w = this.blockingWall(f);
     if (!(w && this.sideOf(f) === 'att' && gx > w.x)) this.walk(f, gx, cy, f.speed, dt);
@@ -759,6 +818,15 @@ const Battle = {
   },
   updateMachine(f, dt) {
     const ord = this.gOrd[f.team].siege;
+    if (f.type === 'tower' && this.vmode) {
+      if (this.sideOf(f) !== 'att' || f.docked) return;
+      let best = null, bd = 1e9;
+      for (const w of this.segs) if (w.hp > 0 && !w.bridged) { const d = distToSeg(f.x, f.y, w); if (d < bd) { bd = d; best = w; } }
+      if (!best) return;
+      if (bd > 30) { const mx = (best.x1 + best.x2) / 2, my = (best.y1 + best.y2) / 2, d = Math.hypot(mx - f.x, my - f.y); f.x += (mx - f.x) / d * f.speed * dt; f.y += (my - f.y) / d * f.speed * dt; f.ph += dt; }
+      else { best.bridged = true; f.docked = true; this.texts.push({ x: f.x, y: f.y - 60, text: 'Kule yanaştı! Surlara!', life: 2.5, col: '#fff3c4' }); }
+      return;
+    }
     if (f.type === 'tower') {
       const w = this.walls.find(w => w.hp > 0 && !w.bridged);
       if (!w || this.sideOf(f) !== 'att') return;
@@ -766,7 +834,7 @@ const Battle = {
       else { w.bridged = true; f.docked = true; this.texts.push({ x: w.x, y: f.y - 60, text: 'Kule yanaştı! Surlara!', life: 2.5, col: '#fff3c4' }); }
       return;
     }
-    if (ord === 'retreat') { f.x += (this.sideOf(f) === 'att' ? -1 : 1) * f.speed * dt; if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
+    if (ord === 'retreat') { f.x += -this.fdir(f.team) * f.speed * dt; if (f.x < -30 || f.x > this.BW + 30) f.escaped = true; return; }
     if (ord === 'move' && f.sx != null) { const d = Math.hypot(f.sx - f.x, f.sy - f.y); if (d > 4) { f.x += (f.sx - f.x) / d * f.speed * dt; f.y += (f.sy - f.y) / d * f.speed * dt; f.ph += dt; return; } }
     f.cdT -= dt;
     if (f.atkT > 0) f.atkT -= dt;
@@ -777,7 +845,10 @@ const Battle = {
     }
     const w = this.sideOf(f) === 'att' ? this.walls.find(w => w.hp > 0) : null;
     let tx, ty, wall = null;
-    if (w && Math.abs(w.x - f.x) < f.range) { tx = w.x - 6; ty = clamp(f.y + rand(-80, 80), 30, BH - 30); wall = w; }
+    let sw = null, sd = f.range;
+    if (this.vmode && this.sideOf(f) === 'att') for (const s of this.segs) if (s.hp > 0) { const d = distToSeg(f.x, f.y, s); if (d < sd) { sd = d; sw = s; } }
+    if (sw) { const t = rand(0.2, 0.8); tx = lerp(sw.x1, sw.x2, t); ty = lerp(sw.y1, sw.y2, t); wall = sw; }
+    else if (w && Math.abs(w.x - f.x) < f.range) { tx = w.x - 6; ty = clamp(f.y + rand(-80, 80), 30, BH - 30); wall = w; }
     else {
       const en = this.figs.filter(e => e.team !== f.team && e.alive && !e.escaped && Math.hypot(e.x - f.x, e.y - f.y) < f.range);
       if (!en.length) return;
@@ -804,7 +875,7 @@ const Battle = {
   shootArrow(f, t, dmg) {
     f.atkT = 0.35;
     const d = Math.hypot(t.x - f.x, t.y - f.y), spread = 5 + d * 0.025;
-    this.launch(f.x + f.dir * 5, f.y, f.onWall != null ? 45 : 16, t.x + rand(-spread, spread), t.y + rand(-spread, spread), 'arrow', f.team, dmg, null, null);
+    this.launch(f.x + f.dir * 5, f.y, f.onWall != null || f.onPost ? 45 : 16, t.x + rand(-spread, spread), t.y + rand(-spread, spread), 'arrow', f.team, dmg, null, null);
     SFX.arrow();
   },
   launch(x, y, z, tx, ty, kind, team, dmg, wall, T) {
@@ -819,6 +890,7 @@ const Battle = {
       if (p.kind === 'fire' && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, z: p.z, vx: rand(-20, 20), vy: 0, vz: rand(10, 40), life: 0.5, max: 0.5, kind: 'flame', r: rand(2, 4) });
       if (p.t < p.T) continue;
       p.dead = true;
+      if (p.wall && p.wall.hp > 0 && p.wall.x1 !== undefined) { this.hitSeg(p.wall, p.kind === 'ball' ? 260 : 120, p.x, p.y); SFX.crumble(); continue; }
       if (p.wall && p.wall.hp > 0) { this.hitWall(p.wall, p.kind === 'ball' ? 260 : 120, p.wall.x - 8, p.y); SFX.crumble(); continue; }
       if (p.kind === 'arrow') {
         let hit = null, hd = 12;
@@ -829,6 +901,7 @@ const Battle = {
         }
         if (hit) {
           let dmg = p.dmg;
+          if (hit.onPost) dmg *= 0.5;
           if (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0) dmg *= 0.5;
           if (hit.machine) dmg *= 0.35;
           // Ok isabet ettiği yerde saplı kalır (başta ya da gövdede)
@@ -862,7 +935,7 @@ const Battle = {
       if (tw.wall >= 0 && this.walls[tw.wall].hp <= 0) { tw.alive = false; this.puff(tw.x, tw.y, '#aaa', 20); continue; }
       tw.cd -= dt;
       if (tw.cd > 0) continue;
-      const tgts = atk.filter(f => f.x < tw.x && Math.hypot(tw.x - f.x, tw.y - f.y) < 620 && !f.escaped);
+      const tgts = atk.filter(f => (this.vmode || f.x < tw.x) && Math.hypot(tw.x - f.x, tw.y - f.y) < 620 && !f.escaped);
       if (!tgts.length) continue;
       const t = pick(tgts);
       tw.cd = (cross ? 0.9 : 1.6) * rand(0.8, 1.2);
@@ -901,6 +974,16 @@ const Battle = {
       for (let i = 0; i < 60; i++) this.parts.push({ x: w.x + rand(-20, 20), y: rand(20, BH - 20), z: rand(0, 40), vx: rand(-120, 120), vy: rand(-30, 30), vz: rand(50, 200), life: 2, max: 2, kind: 'debris', r: rand(3, 7), col: w.wood ? '#8b5e3c' : '#9e9482' });
       for (let y = 60; y < BH; y += 160) this.puff(w.x, y, '#cbbfa8', 8);
       for (const tw of this.towers) if (this.walls[tw.wall] === w) tw.alive = false;
+    }
+  },
+  hitSeg(w, dmg, x, y) {
+    if (w.hp <= 0) return;
+    w.hp -= dmg;
+    for (let i = 0; i < 3; i++) this.parts.push({ x: x + rand(-6, 6), y: y + rand(-6, 6), z: rand(5, 20), vx: rand(-60, 60), vy: rand(-30, 30), vz: rand(40, 120), life: 1, max: 1, kind: 'debris', r: rand(2, 4), col: w.lvl === 3 ? '#9e9482' : '#8b5e3c' });
+    if (w.hp <= 0) {
+      w.hp = 0; SFX.crumble(); SFX.boom();
+      this.texts.push({ x: (w.x1 + w.x2) / 2, y: (w.y1 + w.y2) / 2 - 40, text: WALL_LV[w.lvl].name + ' yıkıldı!', life: 2.5, col: '#ffdd57' });
+      this.puff((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, '#cbbfa8', 14);
     }
   },
   damage(f, dmg, src, wk) {
@@ -987,14 +1070,14 @@ const Battle = {
     const attAlive = this.attTeam === 0 ? mine : theirs, defAlive = this.defTeam === 0 ? mine : theirs;
     if (attAlive === 0) return this.finish(this.defTeam === 0);
     if (defAlive === 0) return this.finish(this.attTeam === 0);
-    if (this.siege) {
+    if (this.siege || this.vmode) {
       const attIn = byTeam[this.attTeam].some(f => !f.machine && Math.hypot(f.x - this.keepX, f.y - this.keepY) < 90);
       const defNear = byTeam[this.defTeam].some(f => !f.machine && f.type !== 'cleric' && Math.hypot(f.x - this.keepX, f.y - this.keepY) < 180 && f.onWall == null);
       if (attIn && !defNear) { this.capture += dt; if (this.capture >= 5) return this.finish(this.attTeam === 0); }
       else this.capture = Math.max(0, this.capture - dt * 0.5);
     }
-    if (this.t > (this.siege ? 360 : 300)) {
-      if (this.siege) return this.finish(this.defTeam === 0);
+    if (this.t > (this.siege || this.vmode ? 360 : 300)) {
+      if (this.siege || this.vmode) return this.finish(this.defTeam === 0);
       const pw = team => byTeam[team].reduce((s, f) => s + f.hp, 0);
       return this.finish(pw(0) > pw(1));
     }
@@ -1019,6 +1102,7 @@ const Battle = {
     this.result = {
       winner, attRemain: remainOf(this.teamOf('att'), cfg.att), defRemain: remainOf(this.teamOf('def'), cfg.def),
       playerWounded: !!wounded, retreated: !!retreated, kills: this.kills,
+      segHp: this.vmode ? this.segs.map(w => w.hp) : null,
       ballsUsed: this.ballsUsed, allyRatio: initAlly ? aliveAlly / initAlly : null
     };
     const myLoss = this.figs.filter(f => f.team === 0 && !f.alive && !f.machine && !f.isCmd).length;
@@ -1051,7 +1135,7 @@ const Battle = {
         else s.textContent = fmt(count(0, g));
       });
     }
-    const left = Math.max(0, Math.ceil((this.siege ? 360 : 300) - this.t));
+    const left = Math.max(0, Math.ceil((this.siege || this.vmode ? 360 : 300) - this.t));
     el.querySelector('.m').innerHTML = (this.phase === 'deploy' ? `<b>Konuşlanma</b><small>Sahada ${this.deployedCount()}/${MAXF}</small>` : `<b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>`) + `<small>${esc(this.cfg.title)}</small>
       ${this.walls.length ? '<div class="walls">🧱 ' + this.walls.map(w => `<span class="wb"><i style="width:${Math.max(0, w.hp / w.maxhp * 100)}%"></i></span>`).join('') + '</div>' : ''}
       ${this.siege && this.capture > 0 ? `<div class="cap">🚩 Sancak alınıyor %${Math.round(this.capture / 5 * 100)}</div>` : ''}
@@ -1077,6 +1161,14 @@ const Battle = {
 
   /* ================== ARAZİ (parşömen) ================== */
   buildTerrain() {
+    if (this.vmode) {
+      this.terr = Village.renderStatic(this.vs).canvas;
+      const m = document.getElementById('mm');
+      m.width = 200; m.height = Math.round(200 * BH / this.BW);
+      this.mmBase = document.createElement('canvas'); this.mmBase.width = m.width; this.mmBase.height = m.height;
+      this.mmBase.getContext('2d').drawImage(this.terr, 0, 0, m.width, m.height);
+      return;
+    }
     const W = this.BW, Hh = BH;
     const c = document.createElement('canvas'); c.width = W; c.height = Hh;
     const x = c.getContext('2d');
@@ -1249,6 +1341,12 @@ const Battle = {
       else if (d.kind === 'crater') { x.strokeStyle = 'rgba(43,32,24,0.6)'; x.lineWidth = 1; x.fillStyle = 'rgba(90,70,45,0.25)'; x.beginPath(); x.ellipse(d.x, d.y, d.r * 1.4, d.r * 0.8, 0, 0, 7); x.fill(); x.stroke(); }
     }
     if (this.siege) this.drawCastle(x);
+    if (this.vmode) {
+      const list = [];
+      Village.wallItems(x, this.segs, list);
+      for (const t of this.towers) list.push({ y: t.y, d: () => Village.drawTower(x, t.x, t.y, Village.towerStone(t, this.segs)) });
+      list.sort((a, b) => a.y - b.y).forEach(o => o.d());
+    }
     if (this.marker) {
       const m = this.marker; x.strokeStyle = `rgba(160,30,20,${m.t})`; x.lineWidth = 2;
       x.beginPath(); x.arc(m.x, m.y, 14 + (1.2 - m.t) * 12, 0, 7); x.stroke();
@@ -1319,6 +1417,7 @@ const Battle = {
     const x = m.getContext('2d'), sx = m.width / this.BW, sy = m.height / BH;
     x.drawImage(this.mmBase, 0, 0);
     for (const w of this.walls) { x.fillStyle = w.hp > 0 ? '#6b5a44' : 'rgba(107,90,68,0.3)'; x.fillRect(w.x * sx - 1.5, 0, 3, m.height); }
+    for (const w of this.segs || []) { x.strokeStyle = w.hp > 0 ? '#4a3622' : 'rgba(107,90,68,0.35)'; x.lineWidth = 2; x.beginPath(); x.moveTo(w.x1 * sx, w.y1 * sy); x.lineTo(w.x2 * sx, w.y2 * sy); x.stroke(); }
     const ec = this.enemyColor();
     for (const f of this.figs) {
       if (!f.alive || f.escaped) continue;
@@ -1400,6 +1499,7 @@ const Battle = {
     x.scale(FS, FS);
     if (f.machine) { this.drawMachineShape(x, f); x.restore(); if (f.hp < f.maxhp) this.hpBar(x, f, f.x, f.y - (f.type === 'tower' ? 72 : 22)); return; }
     if (f.onWall != null && this.walls[f.onWall] && this.walls[f.onWall].hp > 0) x.translate(0, -6);
+    if (f.onPost) x.translate(0, -(f.onPost.kind === 'tower' ? 52 : (this.segs[f.onPost.seg] || {}).lvl === 3 ? 34 : 14) / FS);
     if (bearer) this.drawFlag(x, f);
     this.drawBody(x, f);
     x.restore();
