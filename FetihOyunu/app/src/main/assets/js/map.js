@@ -449,37 +449,48 @@ function emojiIcon(x, e, sx, sy, s, color) {
   x.fillText(e, sx, sy + 1);
 }
 function drawArmyIcon(x, a, sx, sy, k, t) {
+  // Ordu büyüdükçe haritada da büyür: asker sayısına göre kalabalık bir bölük çizilir
   const col = a.lentFrom ? Game.ownerColor(a.lentFrom) : Game.ownerColor(a.owner);
   const amb = a.mode === 'ambush';
+  const n = Game.count(a.units);
+  const m = clamp(Math.ceil(n / 12), 1, 24);               // çizilecek mini asker sayısı
+  const g = 0.8 + Math.min(1, Math.sqrt(n) / 18) * 0.7;    // genel ölçek
+  const kk = k * g;
+  const cols = Math.ceil(Math.sqrt(m * 1.6)), rows = Math.ceil(m / cols);
+  const sp = 6.5 * kk;
   x.save();
   if (amb) x.globalAlpha = 0.7;
-  x.fillStyle = 'rgba(0,0,0,0.28)'; x.beginPath(); x.ellipse(sx, sy + 9 * k, 13 * k, 4 * k, 0, 0, 7); x.fill();
-  // Bayrak direği
-  const bob = a.tx != null ? Math.sin(t * 10) * 1.5 * k : 0;
-  x.strokeStyle = '#4b3a28'; x.lineWidth = 2 * k;
-  x.beginPath(); x.moveTo(sx + 6 * k, sy + 8 * k); x.lineTo(sx + 6 * k, sy - 22 * k + bob); x.stroke();
+  x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(sx, sy + 8 * kk, (cols * sp) / 2 + 8 * kk, (rows * sp * 0.6) / 2 + 4 * kk, 0, 0, 7); x.fill();
+  const moving = a.tx != null;
+  // Sancak
+  const fx = sx + (cols * sp) / 2 + 2 * kk, bob = moving ? Math.sin(t * 10) * 1.5 * kk : 0;
+  x.strokeStyle = '#4b3a28'; x.lineWidth = 1.8 * kk; x.lineCap = 'round';
+  x.beginPath(); x.moveTo(fx, sy + 6 * kk); x.lineTo(fx, sy - 26 * kk + bob); x.stroke();
+  const w = Math.sin(t * 5) * 2 * kk;
   x.fillStyle = col; x.beginPath();
-  const w = Math.sin(t * 5) * 2 * k;
-  x.moveTo(sx + 6 * k, sy - 22 * k + bob); x.quadraticCurveTo(sx + 14 * k, sy - 24 * k + w + bob, sx + 22 * k, sy - 19 * k + bob);
-  x.lineTo(sx + 6 * k, sy - 13 * k + bob); x.closePath(); x.fill(); x.strokeStyle = '#3b2a1c'; x.lineWidth = 1.2 * k; x.stroke();
-  // Çöp adam asker
-  x.strokeStyle = '#2b2018'; x.lineWidth = 2.2 * k; x.lineCap = 'round';
-  const step = a.tx != null ? Math.sin(t * 12) * 3 * k : 0;
-  x.beginPath();
-  x.moveTo(sx - 3 * k, sy - 6 * k); x.lineTo(sx - 3 * k - step, sy + 7 * k);
-  x.moveTo(sx - 3 * k, sy - 6 * k); x.lineTo(sx - 3 * k + step, sy + 7 * k);
-  x.moveTo(sx - 3 * k, sy - 6 * k); x.lineTo(sx - 3 * k, sy - 15 * k);
-  x.moveTo(sx - 3 * k, sy - 13 * k); x.lineTo(sx + 6 * k, sy - 10 * k);
-  x.stroke();
-  x.fillStyle = col; x.beginPath(); x.arc(sx - 3 * k, sy - 19 * k, 4.2 * k, 0, 7); x.fill(); x.stroke();
+  x.moveTo(fx, sy - 26 * kk + bob); x.quadraticCurveTo(fx + 8 * kk, sy - 28 * kk + w + bob, fx + 16 * kk, sy - 23 * kk + bob);
+  x.lineTo(fx, sy - 16 * kk + bob); x.closePath(); x.fill(); x.strokeStyle = '#3b2a1c'; x.lineWidth = 1 * kk; x.stroke();
+  // Mini çöp adamlar (arkadan öne)
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const i = r * cols + c; if (i >= m) break;
+    const px = sx + (c - (cols - 1) / 2) * sp + (r % 2) * sp * 0.4, py = sy + (r - (rows - 1) / 2) * sp * 0.6;
+    const step = moving ? Math.sin(t * 12 + i) * 2 * kk : 0;
+    x.strokeStyle = '#2b2018'; x.lineWidth = 1.4 * kk;
+    x.beginPath();
+    x.moveTo(px, py - 4 * kk); x.lineTo(px - step, py + 4 * kk);
+    x.moveTo(px, py - 4 * kk); x.lineTo(px + step, py + 4 * kk);
+    x.moveTo(px, py - 4 * kk); x.lineTo(px, py - 10 * kk);
+    x.moveTo(px, py - 9 * kk); x.lineTo(px + 4 * kk, py - 15 * kk);
+    x.stroke();
+    x.fillStyle = col; x.beginPath(); x.arc(px, py - 12.5 * kk, 2.6 * kk, 0, 7); x.fill(); x.lineWidth = 0.8 * kk; x.stroke();
+  }
   // Sayı
-  const n = Game.count(a.units);
-  x.font = `bold ${Math.round(10 * k)}px system-ui,sans-serif`;
+  x.font = `bold ${Math.round(9 * k)}px system-ui,sans-serif`;
   const txt = fmt(n) + (amb ? ' 🌿' : a.mode === 'raid' ? ' 🏴' : '');
-  const tw = x.measureText(txt).width + 8 * k;
-  rrect(x, sx - tw / 2, sy + 10 * k, tw, 13 * k, 6 * k);
-  x.fillStyle = col; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1.5 * k; x.stroke();
-  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, sx, sy + 17 * k);
+  const tw = x.measureText(txt).width + 7 * k, ty = sy + (rows * sp * 0.6) / 2 + 9 * kk;
+  rrect(x, sx - tw / 2, ty - 5.5 * k, tw, 11 * k, 5 * k);
+  x.fillStyle = col; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1.2 * k; x.stroke();
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, sx, ty + 0.5);
   x.restore();
 }
 

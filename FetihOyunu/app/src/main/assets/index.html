@@ -195,6 +195,44 @@ label{display:block;font-size:13px;font-weight:600;margin:7px 0}
   .form{grid-template-columns:1fr}
 }
 @media (max-height:420px){.bb{height:44px;min-width:48px;font-size:17px}.pill{font-size:12px;padding:3px 8px}#joy{width:110px;height:110px}#joy-knob{left:27px;top:27px}#b-atk{width:80px;height:80px}}
+
+/* ===== Kompakt göstergeler: ekranı daha az kaplasın ===== */
+.top{top:max(3px,env(safe-area-inset-top))!important;left:4px!important;right:4px!important;gap:3px!important}
+.pill{font-size:10.5px!important;padding:1px 6px!important;border-width:1.5px!important;box-shadow:0 2px 0 rgba(59,42,28,.2)!important}
+.pill small{font-size:8.5px!important}
+.spd{width:24px!important;height:20px!important;font-size:10px!important;border-width:1.5px!important;border-radius:6px!important;box-shadow:none!important}
+.speed{gap:2px!important}
+.bottom{bottom:max(3px,env(safe-area-inset-bottom))!important;gap:3px!important}
+.bb{min-width:36px!important;height:34px!important;font-size:13px!important;padding:1px 3px!important;border-width:1.5px!important;border-radius:8px!important;box-shadow:0 2px 0 rgba(59,42,28,.2)!important}
+.bb small{font-size:7.5px!important}
+.badge{font-size:8px!important;min-width:13px!important;height:13px!important;line-height:11px!important;top:-4px!important;right:-4px!important}
+#card{bottom:44px!important;font-size:12px}
+#rot{bottom:42px!important;font-size:10px!important}
+#toasts{top:26px!important}.toast{font-size:11px!important;padding:3px 8px!important}
+/* Köy */
+.vpar{font-size:10px!important;gap:5px!important;padding:1px 6px 1px 0!important;border-width:1.5px!important}
+#vtl span{font-size:10px!important}#vtl b{font-size:9px!important}
+#vtl .flag{width:20px!important;height:28px!important;font-size:12px!important;margin:-1px 1px -1px 0!important}
+#vtr{padding:1px 4px 1px 6px!important}#vtr .spd{width:20px!important;height:18px!important;font-size:9px!important}
+#vbanner{top:34px!important;font-size:10.5px!important;padding:2px 8px!important}#vbanner button{padding:1px 6px!important;font-size:10px}
+.vbar{padding:3px!important;gap:2px!important;bottom:max(3px,env(safe-area-inset-bottom))!important}
+.vbar button{width:44px!important;height:34px!important;font-size:8px!important;border-width:1.5px!important}.vbar i{font-size:13px!important}
+#vbuild{bottom:44px!important;padding:3px!important}#vbuild button{width:58px!important;font-size:9px!important}#vbuild canvas{width:38px!important;height:32px!important}#vbuild .vi{font-size:18px!important;line-height:32px!important;height:32px!important}
+#vhint{bottom:110px!important;font-size:10px!important}
+/* Savaş */
+#bh{right:96px!important;gap:3px!important;top:max(2px,env(safe-area-inset-top))!important}
+.bh-side{min-height:26px!important;padding:0 4px 0 0!important}
+#bh .bh-side,#bh .m{border-width:1.5px!important}
+.bh-side .flag{width:18px!important;height:28px!important;font-size:11px!important;margin:-1px 1px -1px -1px!important}
+.cnts span{min-width:22px!important}.cnts canvas{width:15px!important;height:15px!important}.cnts b{font-size:8.5px!important}
+#bh .m{flex:0 1 120px!important;padding:0 4px!important}#bh .m b{font-size:12px!important}#bh .m small,#bh .sm,.walls,.cap{font-size:8px!important}
+.wb,.hpb{width:26px!important;height:4px!important}
+#mm{width:88px!important;border-width:1.5px!important}
+#b-ratio{top:34px!important;font-size:9px!important}
+#bgroups,#bcmds{padding:2px!important;gap:2px!important;bottom:max(3px,env(safe-area-inset-bottom))!important}
+#bgroups button{width:34px!important;height:38px!important;border-width:1.5px!important}#bgroups canvas{width:22px!important;height:22px!important}#bgroups b{font-size:9px!important}#bgroups small{font-size:7px!important}#bgroups .all{font-size:15px!important;line-height:22px!important}
+#bcmds button{width:36px!important;height:38px!important;font-size:7px!important;border-width:1.5px!important}#bcmds button i{font-size:13px!important}
+#bdeploy{font-size:10px!important;padding:3px!important;max-width:280px!important}#bdeploy button{padding:2px 5px!important;font-size:10px!important}
 </style>
 </head>
 <body>

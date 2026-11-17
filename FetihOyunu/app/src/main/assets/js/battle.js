@@ -7,7 +7,7 @@
    ========================================================== */
 'use strict';
 
-const BH = 1100, FS = 0.56, GRAV = 620, MAXF = 320;
+const BH = 1100, FS = 0.56, GRAV = 620, MAXF = 100000; // sahada asker sınırı yok
 const INK = '#2b2018';
 const GROUPS = ['cmd', 'inf', 'archer', 'spear', 'cav', 'siege'];
 const GROUP_NAME = { cmd: 'Komutan', inf: 'Piyade', archer: 'Okçu', spear: 'Mızraklı', cav: 'Atlı', siege: 'Kuşatma' };
@@ -590,6 +590,7 @@ const Battle = {
     if (!this.active) return;
     dt = Math.min(dt, 0.05);
     if (this.marker) { this.marker.t -= dt; if (this.marker.t <= 0) this.marker = null; }
+    for (const f of this.figs) if (f.acro) { f.acro.t += dt; if (f.acro.t >= f.acro.d) f.acro = null; }
     if (this.over || this.phase === 'deploy') { this.updateFx(dt); this.hudT = (this.hudT || 0) - dt; if (this.hudT <= 0 && !this.over) { this.updateHud(); this.hudT = 0.3; } return; }
     this.t += dt;
     if (this.cryCd > 0) this.cryCd -= dt;
@@ -599,12 +600,14 @@ const Battle = {
     this.slotT -= dt; if (this.slotT <= 0) { this.slotT = 0.5; this.refreshSlots(); }
     const alive = this.figs.filter(f => f.alive && !f.escaped);
     const byTeam = [alive.filter(f => f.team === 0), alive.filter(f => f.team === 1)];
+    this.hitGrid = this.gridOf(alive, 32);
     this.retarget -= dt;
     if (this.retarget <= 0) {
       this.retarget = 0.3;
       for (const t of [0, 1]) {
         const eng = new Map(), en = byTeam[1 - t];
-        for (const f of byTeam[t]) f.target = this.pickTarget(f, en, eng);
+        const grid = this.gridOf(en, 80);
+        for (const f of byTeam[t]) f.target = this.pickTarget(f, en, eng, grid);
       }
     }
     for (const f of alive) { f.engN = 0; f.px = f.x; f.py = f.y; }
@@ -679,10 +682,24 @@ const Battle = {
     b.x = clamp(b.x + fd * 42 * dt, 30, this.BW - 30);
     b.y += clamp(ny - b.y, -1, 1) * 8 * dt;
   },
-  pickTarget(f, enemies, eng) {
+  gridOf(list, C) {
+    const g = new Map(); g.C = C;
+    for (const f of list) { if (f.escaped) continue; const k = ((f.x / C) | 0) * 1000 + ((f.y / C) | 0); let l = g.get(k); if (!l) g.set(k, l = []); l.push(f); }
+    return g;
+  },
+  pickTarget(f, enemies, eng, grid) {
     if (f.machine || f.type === 'cleric') return null;
     let best = null, bd = 1e9;
-    for (const e of enemies) {
+    // Kalabalık savaşlarda önce yakın hücrelere bak, bulunamazsa seyrek tarama yap
+    let cand = null;
+    if (grid) {
+      const C = grid.C, gx = (f.x / C) | 0, gy = (f.y / C) | 0;
+      const R = f.type === 'archer' ? 8 : 5;
+      cand = [];
+      for (let ix = -R; ix <= R; ix++) for (let iy = -R; iy <= R; iy++) { const l = grid.get((gx + ix) * 1000 + gy + iy); if (l) for (const e of l) cand.push(e); }
+      if (!cand.length) { const st = Math.max(1, Math.ceil(enemies.length / 150)); cand = []; for (let i = (f.id % st); i < enemies.length; i += st) cand.push(enemies[i]); }
+    }
+    for (const e of cand || enemies) {
       if (e.escaped) continue;
       if (e.onPost && f.range < 60) continue;
       if (e.onWall != null && f.range < 60 && this.walls[e.onWall] && this.walls[e.onWall].hp > 0) continue;
@@ -864,6 +881,13 @@ const Battle = {
   melee(f, t, boost) {
     f.atkT = 0.3;
     let dmg = f.dmg * boost * rand(0.85, 1.15);
+    // Akrobatik hareketler: zıplayarak vuruş, dönerek savuruş, öne atılış
+    if (!f.acro && f.type !== 'cav' && f.type !== 'elephant' && !f.onPost && !f.legHurt) {
+      const r = Math.random();
+      if (r < 0.22) { f.acro = { k: 'jump', t: 0, d: 0.45 }; dmg *= 1.2; }
+      else if (r < 0.34) { f.acro = { k: 'spin', t: 0, d: 0.4 }; }
+      else if (r < 0.44) { f.acro = { k: 'lunge', t: 0, d: 0.3 }; const d = Math.hypot(t.x - f.x, t.y - f.y) || 1; f.x += (t.x - f.x) / d * 8; f.y += (t.y - f.y) / d * 8; }
+    }
     if (f.type === 'spear' && (t.type === 'cav' || t.type === 'elephant')) dmg *= 2.5;
     if (f.type === 'cav') dmg *= 1.25;
     const wk = this.weaponOf(f);
@@ -894,7 +918,9 @@ const Battle = {
       if (p.wall && p.wall.hp > 0) { this.hitWall(p.wall, p.kind === 'ball' ? 260 : 120, p.wall.x - 8, p.y); SFX.crumble(); continue; }
       if (p.kind === 'arrow') {
         let hit = null, hd = 12;
-        for (const f of this.figs) {
+        const C = 32, gx = (p.x / C) | 0, gy = (p.y / C) | 0, near = [];
+        for (let ix = -1; ix <= 1; ix++) for (let iy = -1; iy <= 1; iy++) { const l = this.hitGrid.get((gx + ix) * 1000 + gy + iy); if (l) near.push(...l); }
+        for (const f of near) {
           if (!f.alive || f.team === p.team || f.escaped) continue;
           const d = Math.hypot(f.x - p.x, f.y - p.y);
           if (d < hd + (f.machine ? 16 : 0)) { hd = d; hit = f; }
@@ -904,12 +930,20 @@ const Battle = {
           if (hit.onPost) dmg *= 0.5;
           if (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0) dmg *= 0.5;
           if (hit.machine) dmg *= 0.35;
-          // Ok isabet ettiği yerde saplı kalır (başta ya da gövdede)
-          if (!hit.machine && hit.stuck.length < 6) {
-            const head = Math.random() < 0.28;
-            hit.stuck.push({ h: head, o: rand(-1, 1), tx: -(Math.sign(p.vx) || 1) * (hit.dir || 1), a: rand(0.15, 0.7) });
-            if (head) dmg *= 1.6;
-          }
+          if (hit.machine || hit.type === 'elephant') { this.damage(hit, dmg, null, 'arrow'); SFX.hit(); continue; }
+          // Okun geldiği yer: baş / gövde → ölüm; kol → zayıflar; bacak → topallar
+          const r = Math.random();
+          let part = r < 0.2 ? 'head' : r < 0.5 ? 'body' : r < 0.72 ? 'arm' : 'leg';
+          const covered = (hit.onPost || (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0));
+          if (covered && (part === 'body' || part === 'leg') && Math.random() < 0.6) { SFX.hit(); continue; } // sur siper oldu
+          const shield = !hit.isCmd && (hit.type === 'spear' || (hit.type === 'inf' && hit.id % 2));
+          if (shield && Math.random() < 0.25) { SFX.clash(); continue; } // kalkana saplandı
+          const deflect = Math.random() < (hit.armorTier || 0) * 0.15;
+          if (hit.stuck.length < 7 && !deflect) hit.stuck.push({ p: part, o: rand(-1, 1), tx: -(Math.sign(p.vx) || 1) * (hit.dir || 1), a: rand(0.15, 0.7) });
+          if (deflect) dmg *= 0.3;
+          else if (part === 'head' || part === 'body') dmg = hit.isCmd ? dmg * 3 : 1e6;
+          else if (part === 'arm') { if (!hit.armHurt) { hit.armHurt = true; hit.dmg *= 0.6; } dmg *= 0.5; }
+          else { if (!hit.legHurt) { hit.legHurt = true; hit.speed *= 0.5; } dmg *= 0.5; }
           this.damage(hit, dmg, null, 'arrow'); SFX.hit();
         } else if (this.decals.length < 700) this.decals.push({ kind: 'arrow', x: p.x, y: p.y, a: Math.atan2(p.vy, p.vx) });
       } else {
@@ -989,6 +1023,11 @@ const Battle = {
   damage(f, dmg, src, wk) {
     if (!f.alive || f.escaped) return;
     if (f.dmgTaken) dmg *= f.dmgTaken;
+    // Yakın dövüşte bazen takla atıp kaçar (hasarın yarısı)
+    if (src && src.alive !== undefined && !f.machine && !f.acro && !f.onPost && !f.legHurt && f.type !== 'cav' && f.type !== 'elephant' && wk !== 'arrow' && Math.random() < 0.08) {
+      f.acro = { k: 'roll', t: 0, d: 0.5 }; dmg *= 0.5;
+      const d = Math.hypot(f.x - src.x, f.y - src.y) || 1; f.x += (f.x - src.x) / d * 14; f.y += (f.y - src.y) / d * 14;
+    }
     if (f.isCmd && !f.isPlayer) dmg *= 0.6;
     f.hp -= dmg;
     if (f.hp <= 0) this.kill(f, src, wk);
@@ -1136,7 +1175,7 @@ const Battle = {
       });
     }
     const left = Math.max(0, Math.ceil((this.siege || this.vmode ? 360 : 300) - this.t));
-    el.querySelector('.m').innerHTML = (this.phase === 'deploy' ? `<b>Konuşlanma</b><small>Sahada ${this.deployedCount()}/${MAXF}</small>` : `<b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>`) + `<small>${esc(this.cfg.title)}</small>
+    el.querySelector('.m').innerHTML = (this.phase === 'deploy' ? `<b>Konuşlanma</b><small>Sahada ${this.deployedCount()} asker</small>` : `<b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>`) + `<small>${esc(this.cfg.title)}</small>
       ${this.walls.length ? '<div class="walls">🧱 ' + this.walls.map(w => `<span class="wb"><i style="width:${Math.max(0, w.hp / w.maxhp * 100)}%"></i></span>`).join('') + '</div>' : ''}
       ${this.siege && this.capture > 0 ? `<div class="cap">🚩 Sancak alınıyor %${Math.round(this.capture / 5 * 100)}</div>` : ''}
       ${this.myBalls != null && this.figs.some(f => f.type === 'cannon' && f.team === 0) ? `<div class="sm">⚫ Gülle: ${this.myBalls}</div>` : ''}
@@ -1501,6 +1540,13 @@ const Battle = {
     if (f.onWall != null && this.walls[f.onWall] && this.walls[f.onWall].hp > 0) x.translate(0, -6);
     if (f.onPost) x.translate(0, -(f.onPost.kind === 'tower' ? 52 : (this.segs[f.onPost.seg] || {}).lvl === 3 ? 34 : 14) / FS);
     if (bearer) this.drawFlag(x, f);
+    if (f.acro) {
+      const a = f.acro, p = a.t / a.d;
+      if (a.k === 'jump') { x.translate(0, -Math.sin(p * Math.PI) * 42); x.rotate((f.dir || 1) * Math.sin(p * Math.PI) * 0.25); }
+      else if (a.k === 'spin') x.scale(Math.cos(p * Math.PI * 2) || 0.05, 1);
+      else if (a.k === 'lunge') { x.translate(0, -20); x.rotate((f.dir || 1) * Math.sin(p * Math.PI) * 0.5); x.translate(0, 20); }
+      else if (a.k === 'roll') { x.translate(0, -18 - Math.sin(p * Math.PI) * 14); x.rotate(-(f.dir || 1) * p * Math.PI * 2); x.translate(0, 18); }
+    }
     this.drawBody(x, f);
     x.restore();
     if (f.hp < f.maxhp && f.hp > 0) this.hpBar(x, f, f.x, f.y - (f.type === 'cav' ? 46 : 34));
@@ -1536,8 +1582,12 @@ const Battle = {
   drawArrows(x, f, neckY, headY, which) {
     if (!f.stuck || !f.stuck.length) return;
     for (const s of f.stuck) {
-      if (s.h && which !== 'body') this.stuckArrow(x, 2 + s.o * 3, headY - 1 + s.o * 2, s);
-      if (!s.h && which !== 'head') this.stuckArrow(x, 0.6, neckY + 6 + (s.o + 1) * 5, s);
+      const part = s.p || (s.h ? 'head' : 'body');
+      if (part === 'head') { if (which !== 'body' && which !== 'torso') this.stuckArrow(x, 2 + s.o * 3, headY - 1 + s.o * 2, s); continue; }
+      if (which === 'head') continue;
+      if (part === 'body') this.stuckArrow(x, 0.6, neckY + 6 + (s.o + 1) * 5, s);
+      else if (part === 'arm') this.stuckArrow(x, 5 + s.o * 2, neckY + 8, s);
+      else if (which !== 'torso') this.stuckArrow(x, 2 + s.o * 3, -8 + s.o * 2, s);
     }
   },
   drawBody(x, f) {
@@ -1556,7 +1606,8 @@ const Battle = {
     }
     x.strokeStyle = INK; x.lineWidth = 2.6;
     if (f.type === 'cleric') { x.fillStyle = f.robe; x.beginPath(); x.moveTo(-2, hipY - 16); x.lineTo(-9, 0); x.lineTo(9, 0); x.lineTo(2, hipY - 16); x.closePath(); x.fill(); x.lineWidth = 1.5; x.stroke(); x.lineWidth = 2.6; }
-    else if (f.type !== 'cav') { x.beginPath(); x.moveTo(0, hipY); x.lineTo(walk * 7, 0); x.moveTo(0, hipY); x.lineTo(-walk * 7, 0); x.stroke(); }
+    else if (f.type !== 'cav' && f.legHurt) { const w2 = Math.abs(walk) * 4; x.beginPath(); x.moveTo(0, hipY); x.lineTo(w2, 0); x.moveTo(0, hipY); x.lineTo(-3, -6); x.lineTo(-4, 0); x.stroke(); }
+    else if (f.type !== 'cav') { const air = f.acro && f.acro.k === 'jump'; x.beginPath(); x.moveTo(0, hipY); x.lineTo(air ? 8 : walk * 7, air ? -6 : 0); x.moveTo(0, hipY); x.lineTo(air ? -7 : -walk * 7, air ? -4 : 0); x.stroke(); }
     else { x.beginPath(); x.moveTo(0, hipY); x.lineTo(5, hipY + 10); x.stroke(); }
     const neckY = hipY - 18;
     this.drawTorso(x, f, hipY, neckY, swing, walk);
@@ -1708,7 +1759,7 @@ const Battle = {
       if (p === 'upper' || p === 'torso') { x.strokeStyle = INK; x.lineWidth = 1; x.beginPath(); x.moveTo(-3, -19); x.lineTo(-1, -21); x.lineTo(1, -18); x.lineTo(3, -20); x.stroke(); }
       if (p === 'whole' || p === 'upper') this.drawHead(x, c, 2, -45, true);
       else { x.strokeStyle = INK; x.lineWidth = 2.6; x.beginPath(); x.moveTo(1, -38); x.lineTo(1.4, -41); x.stroke(); x.lineWidth = 1; x.beginPath(); x.moveTo(-1.5, -42); x.lineTo(0.5, -40.5); x.lineTo(2.5, -42.5); x.lineTo(4, -41); x.stroke(); }
-      this.drawArrows(x, c, -38, -45, (p === 'headless' || p === 'torso') ? 'body' : undefined);
+      this.drawArrows(x, c, -38, -45, p === 'torso' ? 'torso' : p === 'headless' ? 'body' : undefined);
     }
     x.restore();
   }
