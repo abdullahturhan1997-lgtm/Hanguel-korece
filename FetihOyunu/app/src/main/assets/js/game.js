@@ -8,7 +8,8 @@ const SAVE_KEY = 'fetih_kayit_v1';
 const P = 'P';       // oyuncu
 const NEUTRAL = 'N'; // tarafsız köyler
 // Askerler savaşta birebir görünür; bu yüzden sayılar sınırlı tutulur
-const GARRISON_CAP = 300, ARMY_CAP = 250, VILLAGE_CAP = 200, CITY_CAP = 1500;
+// Asker sınırı yok; sadece köy/şehir nüfus sınırları var
+const VILLAGE_CAP = 200, CITY_CAP = 1500;
 
 const Game = {
   S: null,
@@ -69,12 +70,13 @@ const Game = {
     start.owner = P;
     start.name = opt.cityName || start.name;
     start.pop = { m: 12, w: 12, e: 6, c: 10, s: 0 };
-    start.garrison = { inf: 0, spear: 0, archer: 0, cav: 0, catapult: 0, tower: 0, cannon: 0, balls: 0 };
+    start.garrison = Object.assign(this.emptyUnits(), { catapult: 0, tower: 0, cannon: 0, balls: 0 });
     start.grid = Game.makeGrid(40, 1);
     start.scale = 1;
     S.player.capital = start.id;
     this.S = S;
     this.buildRoads();
+    this.normalize();
     this.pending = [];
     this.log(`${S.player.name} kuruldu. 40 kişilik halkınla ${start.name}'te yola çıkıyorsun.`);
     this.mail(null, `Hoş geldin ${esc(S.player.ruler)}! Halkın 40 kişi. Ev yap, vergini topla, asker kuşan ve fethe başla. Haritada bir şehre dokunarak bilgi alabilirsin.`, 'info');
@@ -141,6 +143,7 @@ const Game = {
       if (!p.headgears.length) p.headgears = ['yok'];
       if (!HEADGEARS[p.headgear]) p.headgear = p.headgears[p.headgears.length - 1];
       this.S = S; this.pending = []; this.mapDirty = true;
+      this.normalize();
       return true;
     } catch (e) { return false; }
   },
@@ -185,7 +188,28 @@ const Game = {
   mySetts() { return this.S.setts.filter(s => s.owner === P && !s.ruined); },
   nationSetts(id) { return this.S.setts.filter(s => s.owner === id && !s.ruined); },
   count(units) { let n = 0; for (const k of UNIT_KEYS) n += units[k] || 0; return n; },
-  emptyUnits() { return { inf: 0, spear: 0, archer: 0, cav: 0 }; },
+  emptyUnits() { const o = {}; for (const k of UNIT_KEYS) o[k] = 0; return o; },
+  // Eski kayıtları ve garnizonları yeni birlik türlerine uyarla
+  normalize() {
+    const S = this.S, fix = o => { if (o) for (const k of UNIT_KEYS) if (!(o[k] >= 0)) o[k] = 0; };
+    for (const s of S.setts) fix(s.garrison);
+    for (const a of S.armies) fix(a.units);
+    for (const c of S.caravans) fix(c.guards);
+    fix(S.player.armor);
+    S.player.heroes = S.player.heroes || [];
+    S.player.heroHurt = S.player.heroHurt || {};
+    S.player.owned.robe = S.player.owned.robe || ['yok'];
+    S.player.outfit.robe = S.player.outfit.robe || 'yok';
+  },
+  hireHero(id) {
+    const p = this.S.player, H = HEROES.find(h => h.id === id);
+    if (!H || p.heroes.includes(id)) return false;
+    if (!this.spend(H.cost)) return false;
+    p.heroes.push(id);
+    toast(`⭐ ${H.name} (${H.title}) ordusuna katıldı! Savaşlarda kralın yanında olacak.`, 'good');
+    return true;
+  },
+  heroReady(id) { const d = this.S.player.heroHurt[id]; return !d || this.S.day >= d; },
   emptySiege() { return { catapult: 0, tower: 0, cannon: 0, balls: 0 }; },
   buildingCount(s, key) { return s.grid ? s.grid.filter(b => b === key).length : 0; },
   bonus(s, field) {
@@ -209,7 +233,7 @@ const Game = {
   },
   isHostile(o) { const r = this.relation(o); return r === 'war'; },
   unitPower(u, armor) {
-    const pw = { inf: 1, spear: 0.95, archer: 0.9, cav: 2.0 };
+    const pw = { inf: 1, spear: 0.95, archer: 1.1, cav: 2.0, pike: 1.05, xbow: 1.5, guard: 1.8, axe: 1.4 };
     let p = 0;
     for (const k of UNIT_KEYS) p += (u[k] || 0) * pw[k] * (armor ? ARMOR_TIERS[armor[k] || 0].mult : 1);
     return p;
@@ -445,14 +469,11 @@ const Game = {
   /* ================== ORDU YÖNETİMİ ================== */
   recruit(s, type, n, merc) {
     const disc = this.bonus(s, 'discount');
-    const room = GARRISON_CAP - this.count(s.garrison);
-    if (room <= 0) { toast(`⛺ ${s.name} garnizonu dolu (en fazla ${GARRISON_CAP} asker). Ordu çıkar ya da başka şehirde kuşan.`, 'bad'); return false; }
-    if (n > room) { n = room; }
     if (!merc && s.pop.m < n) { toast(`👨 ${s.name}'te yeterli erkek nüfus yok. Paralı asker tut!`, 'bad'); return false; }
     const cost = Math.ceil(UNITS[type].cost * (1 - Math.min(0.4, disc)) * n * (merc ? 2 : 1));
     if (!this.spend(cost)) return false;
     if (!merc) s.pop.m -= n;
-    s.garrison[type] += n;
+    s.garrison[type] = (s.garrison[type] || 0) + n;
     toast(`${UNITS[type].icon} ${n} ${UNITS[type].name} kuşandırıldı (${fmt(cost)} altın)`, 'good');
     return true;
   },
@@ -490,9 +511,7 @@ const Game = {
   formArmy(s, units, siege, name) {
     const total = this.count(units);
     if (total <= 0) { toast('Orduya en az bir asker seç.', 'bad'); return null; }
-    let left = ARMY_CAP;
-    for (const k of UNIT_KEYS) { units[k] = Math.min(units[k] || 0, s.garrison[k], left); left -= units[k]; s.garrison[k] -= units[k]; }
-    if (total > ARMY_CAP) toast(`Bir ordu en fazla ${ARMY_CAP} asker olabilir; fazlası garnizonda kaldı.`);
+    for (const k of UNIT_KEYS) { units[k] = Math.min(units[k] || 0, s.garrison[k] || 0); s.garrison[k] = (s.garrison[k] || 0) - units[k]; }
     for (const k in siege) { siege[k] = Math.min(siege[k] || 0, s.garrison[k] || 0); s.garrison[k] -= siege[k]; }
     const a = {
       id: this.id(), owner: P, name: name || `${s.name} Ordusu`, x: s.x + rand(-6, 6), y: s.y + 10,
@@ -554,7 +573,7 @@ const Game = {
       if (n && n.alive) {
         const tot = this.emptyUnits();
         for (const s of this.nationSetts(n.id)) for (const k of UNIT_KEYS) tot[k] += s.garrison[k];
-        const u = {}; for (const k of UNIT_KEYS) u[k] = Math.min(Math.round(tot[k] * 0.12), 25);
+        const u = {}; for (const k of UNIT_KEYS) u[k] = Math.min(Math.round((tot[k] || 0) * 0.12), 25);
         if (this.count(u) > 0) extra.push({ owner: n.id, units: u, label: `${n.name} (Hami)` });
       }
     }
@@ -563,7 +582,7 @@ const Game = {
       if (n.alive && n.overlord === P) {
         const tot = this.emptyUnits();
         for (const s of this.nationSetts(n.id)) for (const k of UNIT_KEYS) tot[k] += s.garrison[k];
-        const u = {}; for (const k of UNIT_KEYS) u[k] = Math.min(Math.round(tot[k] * 0.1), 20);
+        const u = {}; for (const k of UNIT_KEYS) u[k] = Math.min(Math.round((tot[k] || 0) * 0.1), 20);
         if (this.count(u) > 0) extra.push({ owner: n.id, units: u, label: `${n.name} (Vasal)` });
       }
     }
@@ -642,7 +661,7 @@ const Game = {
     for (const k of ['catapult', 'tower', 'cannon']) sRatio[k] = mine.siege && mine.siege[k] > 0 ? clamp((myRemain.siege[k] || 0) / mine.siege[k], 0, 1) : 1;
     for (const id of (mine.armies || [])) {
       const a = this.army(id); if (!a) continue;
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * ratio[k]);
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * ratio[k]);
       for (const k in sRatio) a.siege[k] = Math.round((a.siege[k] || 0) * sRatio[k]);
       a.siege.balls = Math.max(0, (a.siege.balls || 0) - (res.ballsUsed || 0));
     }
@@ -650,11 +669,11 @@ const Game = {
     for (const al of (mine.allies || [])) if (al.armyId) {
       const a = this.army(al.armyId); if (!a) continue;
       const r = res.allyRatio != null ? res.allyRatio : (won ? 0.8 : 0.4);
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * r);
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * r);
     }
     if (mine.useGarrison) {
       const s = this.sett(mine.settId);
-      for (const k of UNIT_KEYS) s.garrison[k] = Math.round(s.garrison[k] * ratio[k]);
+      for (const k of UNIT_KEYS) s.garrison[k] = Math.round((s.garrison[k] || 0) * ratio[k]);
     }
     // Rakibin kayıpları
     if (theirs.settId && cfg.kind === 'siege' && cfg.playerSide === 'att') {
@@ -663,7 +682,7 @@ const Game = {
     }
     for (const id of (theirs.armies || [])) {
       const a = this.army(id); if (!a) continue;
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(thRemain.units[k] * ((a.units[k] || 0) / Math.max(1, theirs.units[k])));
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((thRemain.units[k] || 0) * ((a.units[k] || 0) / Math.max(1, theirs.units[k])));
       for (const k of ['catapult', 'tower', 'cannon']) a.siege[k] = Math.round(thRemain.siege ? (thRemain.siege[k] || 0) : 0);
       if (this.count(a.units) <= 0) S.armies.splice(S.armies.indexOf(a), 1);
       else if (won) { a.tx = null; a.targetType = null; const home = this.nearestOwn(a.x, a.y, a.owner); if (home) { a.tx = home.x; a.ty = home.y; a.targetType = 'sett'; a.targetId = home.id; } }
@@ -726,7 +745,7 @@ const Game = {
     if (ctx.type === 'caravan') {
       const c = S.caravans.find(c => c.id === ctx.caravanId);
       if (c) {
-        if (won) { for (const k of UNIT_KEYS) c.guards[k] = Math.round(c.guards[k] * ratio[k]); toast('🐪 Kervan korundu, yola devam ediyor!', 'good'); }
+        if (won) { for (const k of UNIT_KEYS) c.guards[k] = Math.round((c.guards[k] || 0) * ratio[k]); toast('🐪 Kervan korundu, yola devam ediyor!', 'good'); }
         else { S.caravans.splice(S.caravans.indexOf(c), 1); toast('🐪 Kervan yağmalandı! Mallar kaybedildi.', 'bad'); this.log('Kervanımız yağmalandı.'); }
       }
     }
@@ -744,7 +763,7 @@ const Game = {
       }
       // Düello birlikleri garnizona döner
       const cap = this.sett(S.player.capital) || this.mySetts()[0];
-      if (cap && ctx.fromGarrison) for (const k of UNIT_KEYS) cap.garrison[k] = Math.round(cap.garrison[k] * ratio[k]);
+      if (cap && ctx.fromGarrison) for (const k of UNIT_KEYS) cap.garrison[k] = Math.round((cap.garrison[k] || 0) * ratio[k]);
     }
     if (ctx.type === 'field' && won && ctx.enemyArmy) {
       const loot = Math.round(kills * 3 + 20);
@@ -773,7 +792,7 @@ const Game = {
       for (const id in S.nations) S.nations[id].opinion = clamp(S.nations[id].opinion + opinionHit, 0, 100);
       if (oldN) oldN.opinion = clamp(oldN.opinion - 30, 0, 100);
     }
-    s.garrison = { inf: 0, spear: 0, archer: 0, cav: 0, catapult: 0, tower: 0, cannon: 0, balls: 0 };
+    s.garrison = Object.assign(this.emptyUnits(), { catapult: 0, tower: 0, cannon: 0, balls: 0 });
     const txt = { annex: 'halkını tebaya kattı', enslave: 'halkını köleleştirdi', massacre: 'halkını kılıçtan geçirdi', raze: 'şehri yerle bir etti' }[choice];
     if (choice === 'raze') {
       s.ruined = true; s.owner = null; s.pop = { m: 0, w: 0, e: 0, c: 0, s: 0 }; s.grid = null;
@@ -823,13 +842,13 @@ const Game = {
       const loot = Math.round(this.totalPop(s) * 0.25 + 30);
       this.earn(loot, 'loot', `${s.name} yağması`);
       for (const k in s.pop) s.pop[k] *= 0.95;
-      for (const k of UNIT_KEYS) s.garrison[k] = Math.round(s.garrison[k] * 0.85);
+      for (const k of UNIT_KEYS) s.garrison[k] = Math.round((s.garrison[k] || 0) * 0.85);
       const lossR = clamp(sally / Math.max(1, mine) * 0.3, 0, 0.5);
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * (1 - lossR));
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * (1 - lossR));
       toast(`🔥 ${s.name} yağmalandı! +${fmt(loot)} altın`, 'good');
       this.log(`${s.name} yağmalandı (+${fmt(loot)} altın).`);
     } else {
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * 0.6);
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * 0.6);
       toast(`🛡️ ${s.name} garnizonu yağmacıları püskürttü!`, 'bad');
     }
     if (S_nat(s.owner)) S_nat(s.owner).opinion = clamp(S_nat(s.owner).opinion - 15, 0, 100);
@@ -848,11 +867,11 @@ const Game = {
     if (mine * rand(0.8, 1.3) > g) {
       this.earn(c.goods, 'loot', `${this.ownerName(c.owner)} kervanı yağması`);
       const lossR = clamp(g / Math.max(1, mine) * 0.25, 0, 0.4);
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * (1 - lossR));
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * (1 - lossR));
       toast(`🐪 Kervan basıldı! +${fmt(c.goods)} altın`, 'good');
       this.log(`${this.ownerName(c.owner)} kervanı yolda kesildi (+${fmt(c.goods)}).`);
     } else {
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * 0.7);
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * 0.7);
       toast('🐪 Kervan muhafızları baskını püskürttü!', 'bad');
     }
     S.caravans.splice(S.caravans.indexOf(c), 1);
@@ -872,7 +891,7 @@ const Game = {
     const attP = this.unitPower(a.units) + this.siegePower(a.siege);
     if (attP * rand(0.8, 1.2) > defP) {
       const lossR = clamp(defP / attP * 0.6, 0.05, 0.9);
-      for (const k of UNIT_KEYS) a.units[k] = Math.round(a.units[k] * (1 - lossR));
+      for (const k of UNIT_KEYS) a.units[k] = Math.round((a.units[k] || 0) * (1 - lossR));
       const oldName = this.ownerName(s.owner);
       this.conquer(s.id, a.owner, Math.random() < 0.85 ? 'annex' : 'enslave');
       for (const k of UNIT_KEYS) s.garrison[k] = a.units[k];
@@ -880,7 +899,7 @@ const Game = {
       if (this.visible(s.x, s.y)) toast(`⚔️ ${this.ownerName(s.owner)}, ${oldName}'dan ${s.name}'i aldı.`);
     } else {
       const lossR = clamp(attP / Math.max(1, defP) * 0.4, 0.05, 0.6);
-      for (const k of UNIT_KEYS) s.garrison[k] = Math.round(s.garrison[k] * (1 - lossR));
+      for (const k of UNIT_KEYS) s.garrison[k] = Math.round((s.garrison[k] || 0) * (1 - lossR));
       S.armies.splice(S.armies.indexOf(a), 1);
     }
   },
@@ -1226,7 +1245,7 @@ const Game = {
     const src = this.capitalOf(id);
     const total = this.count(src.garrison) || 1;
     const share = clamp((myP * rand(0.8, 1.4)) / Math.max(1, this.unitPower(src.garrison)), 0.1, 0.8);
-    const eu = {}; for (const k of UNIT_KEYS) eu[k] = Math.round(src.garrison[k] * share);
+    const eu = {}; for (const k of UNIT_KEYS) eu[k] = Math.round((src.garrison[k] || 0) * share);
     const accept = this.unitPower(eu) > myP * 0.7 || Math.random() < 0.4;
     if (!accept || this.count(eu) < 1) { n.opinion = clamp(n.opinion - 2, 0, 100); toast(`${n.ruler} meydan davetini reddetti. Prestij kazandın!`, 'good'); S.player.prestige += 3; return false; }
     toast(`⚔️ ${n.ruler} meydan davetini kabul etti!`, 'good');
@@ -1243,7 +1262,7 @@ const Game = {
     // Rakip kayıpları sonuçta işlenir
     this.pending[this.pending.length - 1].onDone = (res) => {
       const r = this.count(res.defRemain.units) / Math.max(1, this.count(eu));
-      for (const k of UNIT_KEYS) src.garrison[k] = Math.max(0, src.garrison[k] - Math.round(eu[k] * (1 - r)));
+      for (const k of UNIT_KEYS) src.garrison[k] = Math.max(0, src.garrison[k] - Math.round((eu[k] || 0) * (1 - r)));
     };
   },
   giftGold(id, amount) {
@@ -1272,7 +1291,7 @@ const Game = {
         const units = {}; for (const k of UNIT_KEYS) units[k] = cap.garrison[k];
         if (this.count(units) < 1) { toast('Meydana çıkacak askerin yok!', 'bad'); S.player.prestige = Math.max(0, S.player.prestige - 5); return; }
         const src = this.capitalOf(n.id);
-        const eu = {}; for (const k of UNIT_KEYS) eu[k] = Math.round(src.garrison[k] * 0.3);
+        const eu = {}; for (const k of UNIT_KEYS) eu[k] = Math.round((src.garrison[k] || 0) * 0.3);
         this.queueDuel(n, units, eu, [], true, src);
       } else { S.player.prestige = Math.max(0, S.player.prestige - 5); n.opinion = clamp(n.opinion - 3, 0, 100); toast('Davet reddedildi. Prestij -5'); }
     } else if (a.type === 'vassalOffer') {
@@ -1301,7 +1320,7 @@ const Game = {
       // Asker toplama
       if (n.gold > 60) {
         const s = setts.sort((a, b) => this.count(a.garrison) / Math.max(1, a.pop.m) - this.count(b.garrison) / Math.max(1, b.pop.m))[0];
-        const target = Math.min(200, this.totalPop(s) * 0.1);
+        const target = this.totalPop(s) * 0.12;
         if (this.count(s.garrison) < target) {
           const budget = n.gold * 0.5, k = pick(UNIT_KEYS), c = UNITS[k].cost;
           const num = Math.min(Math.floor(budget / c), Math.floor(s.pop.m * 0.05));

@@ -33,10 +33,25 @@ const CULTURES = ['Türk', 'Arap', 'Fars', 'Rum', 'Frank', 'İber', 'Slav', 'Mo�
 const UNITS = {
   inf:    { name: 'Piyade',   icon: '🗡️', cost: 14, hp: 100, dmg: 16, range: 22,  cd: 0.9, speed: 55,  desc: 'Kılıçlı dengeli asker' },
   spear:  { name: 'Mızraklı', icon: '🔱', cost: 12, hp: 95,  dmg: 13, range: 36,  cd: 1.0, speed: 50,  desc: 'Atlılara karşı 2.5 kat hasar' },
-  archer: { name: 'Okçu',     icon: '🏹', cost: 16, hp: 70,  dmg: 12, range: 600, cd: 1.8, speed: 50,  desc: 'Durduğu yerden uzağa ok yağdırır' },
-  cav:    { name: 'Atlı',     icon: '🐎', cost: 32, hp: 175, dmg: 22, range: 26,  cd: 1.1, speed: 115, desc: 'Hızlı ve güçlü hücum' }
+  archer: { name: 'Okçu',     icon: '🏹', cost: 16, hp: 70,  dmg: 12, range: 2600, cd: 1.8, speed: 50,  desc: 'Havaya ok atar; sahanın bir ucundan öbür ucuna. Tek ok öldürür' },
+  cav:    { name: 'Atlı',     icon: '🐎', cost: 32, hp: 175, dmg: 22, range: 26,  cd: 1.1, speed: 115, desc: 'Hızlı ve güçlü hücum' },
+  pike:   { name: 'Kargılı',  icon: '🗡', cost: 15, hp: 100, dmg: 14, range: 52,  cd: 1.1, speed: 45,  desc: 'Uzun kargı: atlılara karşı 3 kat hasar, uzaktan dürter' },
+  xbow:   { name: 'Arbaletli', icon: '🎯', cost: 24, hp: 85, dmg: 30, range: 1500, cd: 3.2, speed: 45,  desc: 'Düz ve güçlü atış; tek ok öldürür, yavaş doldurur' },
+  guard:  { name: 'Kalkanlı Uzun Mızrak', icon: '🛡', cost: 32, hp: 170, dmg: 16, range: 48, cd: 1.0, speed: 44, desc: 'Özel birlik: büyük kalkan ve uzun mızrak; çok dayanıklı' },
+  axe:    { name: 'Baltalı',  icon: '🪓', cost: 22, hp: 120, dmg: 28, range: 24,  cd: 1.3, speed: 55,  desc: 'Ağır balta: kafa koparır, kalkan kırar' }
 };
-const UNIT_KEYS = ['inf', 'spear', 'archer', 'cav'];
+const UNIT_KEYS = ['inf', 'spear', 'archer', 'cav', 'pike', 'xbow', 'guard', 'axe'];
+const RANGED = { archer: 1, xbow: 1 };
+
+/* ---------- Özel karakterler (kahramanlar) ---------- */
+const HEROES = [
+  { id: 'alp', name: 'Alp Turgut', title: 'Akıncı Beyi', cost: 400, hp: 1200, dmg: 55, weapon: 'pala', helmet: 'sivri', armor: 'zincir', shield: 'yuvarlak', cape: '#1f3a5f', desc: 'Önde savaşan yiğit; çok dayanıklı.' },
+  { id: 'deli', name: 'Deli Ali', title: 'Deli', cost: 350, hp: 900, dmg: 70, weapon: 'balta', helmet: 'kalpak', armor: 'deri', shield: 'yok', cape: '#7b241c', desc: 'Korkusuz; baltası kafa koparır.' },
+  { id: 'pehlivan', name: 'Pehlivan Hasan', title: 'Pehlivan', cost: 450, hp: 1600, dmg: 65, weapon: 'gurz', helmet: 'bork', armor: 'kaftan', shield: 'yok', cape: 'none', desc: 'Dev gibi; gürzüyle yere serer.' },
+  { id: 'bala', name: 'Bala Hatun', title: 'Kılıç Kadın', cost: 380, hp: 950, dmg: 50, weapon: 'mizrak', helmet: 'sarik', armor: 'zincir', shield: 'kalkan', cape: '#8e44ad', desc: 'Uzun mızrakla hızlı ve çevik.' },
+  { id: 'okcu', name: 'Okçubaşı Kemal', title: 'Okçubaşı', cost: 420, hp: 700, dmg: 40, weapon: 'yay', helmet: 'yoruk', armor: 'deri', shield: 'yok', cape: '#145a32', desc: 'Bir seferde üç ok atar, uzaktan avlar.', ranged: true },
+  { id: 'kara', name: 'Kara Mustafa', title: 'Sancaktar', cost: 380, hp: 1100, dmg: 45, weapon: 'kilic', helmet: 'tolga', armor: 'plaka', shield: 'kalkan', cape: '#c0392b', desc: 'Yanındaki askerlere cesaret verir (hasar +).' }
+];
 
 const SIEGE = {
   catapult: { name: 'Mancınık',        icon: '🪨', cost: 120, desc: 'Surlara taş atar' },
@@ -235,7 +250,12 @@ const OUTFIT = {
     { id: 'tac', name: 'Hükümdar Tacı', cost: 250, hp: 20 },
     { id: 'kalpak', name: 'Kalpak', cost: 30 },
     { id: 'kabuto', name: 'Kabuto', cost: 110, hp: 60 },
-    { id: 'viking', name: 'Boynuzlu Miğfer', cost: 70, hp: 40 }
+    { id: 'viking', name: 'Boynuzlu Miğfer', cost: 70, hp: 40 },
+    { id: 'kavuk', name: 'Padişah Kavuğu', cost: 300, hp: 20 },
+    { id: 'kavukSorguc', name: 'Sorguçlu Kavuk', cost: 450, hp: 30 },
+    { id: 'tacMucevher', name: 'Mücevherli Taç', cost: 600, hp: 30 },
+    { id: 'tacSivri', name: 'Sivri Taç', cost: 350, hp: 25 },
+    { id: 'migferAltin', name: 'Altın Miğfer', cost: 500, hp: 90 }
   ],
   armor: [
     { id: 'yok', name: 'Zırhsız', cost: 0 },
@@ -243,6 +263,16 @@ const OUTFIT = {
     { id: 'zincir', name: 'Zincir Zırh', cost: 160, hp: 180 },
     { id: 'plaka', name: 'Plaka Zırh', cost: 380, hp: 320 },
     { id: 'kaftan', name: 'Kaftan', cost: 70, hp: 40 }
+  ],
+  // Kralın uzun kaftanı (zırhın üstüne giyilir)
+  robe: [
+    { id: 'yok', name: 'Kaftansız', cost: 0 },
+    { id: 'kirmizi', name: 'Kırmızı Kaftan', cost: 120, c1: '#a3241b', c2: '#e8b923' },
+    { id: 'yesil', name: 'Yeşil Kaftan', cost: 120, c1: '#1e6b42', c2: '#e8b923' },
+    { id: 'lacivert', name: 'Lacivert Kaftan', cost: 120, c1: '#1f3a5f', c2: '#e8dfca' },
+    { id: 'beyaz', name: 'Ak Kaftan', cost: 150, c1: '#f4efe2', c2: '#c9a227' },
+    { id: 'padisah', name: 'Kürklü Padişah Kaftanı', cost: 600, c1: '#6a1f5c', c2: '#f4efe2', fur: true },
+    { id: 'altin', name: 'Altın İşlemeli Kaftan', cost: 800, c1: '#c9a227', c2: '#7b241c' }
   ],
   weapon: [
     { id: 'kilic', name: 'Kılıç', cost: 0, dmg: 0 },

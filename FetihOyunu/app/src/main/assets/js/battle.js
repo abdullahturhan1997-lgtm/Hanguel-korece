@@ -7,9 +7,9 @@
    ========================================================== */
 'use strict';
 
-const BH = 1100, FS = 0.56, GRAV = 620, MAXF = 100000; // sahada asker sınırı yok
+let BH = 1100; const FS = 0.56, GRAV = 620, MAXF = 100000; // sahada asker sınırı yok
 const INK = '#2b2018';
-const GROUPS = ['cmd', 'inf', 'archer', 'spear', 'cav', 'siege'];
+const GROUPS = ['cmd', 'inf', 'archer', 'spear', 'cav', 'pike', 'xbow', 'guard', 'axe', 'siege'];
 const GROUP_NAME = { cmd: 'Komutan', inf: 'Piyade', archer: 'Okçu', spear: 'Mızraklı', cav: 'Atlı', siege: 'Kuşatma' };
 const ORDER_NAME = { advance: 'İleri!', attack: 'Saldırın!', defend: 'Mevzi tutun!', wait: 'Bekleyin!', retreat: 'Ricat!', move: 'Oraya!' };
 const FORMS = ['hat', 'kare', 'kama'];
@@ -60,7 +60,12 @@ const Battle = {
     this.vmode = !!(vs && vs.owner === P);
     this.vs = vs;
     if (this.vmode) { this.siege = false; Village.ensure(vs); }
-    this.BW = this.siege || this.vmode ? 2400 : 2100;
+    // Savaş alanı ordular büyüdükçe büyür
+    const sideN = s => Game.count(s.units) + (s.allies || []).reduce((n, a) => n + Game.count(a.units), 0);
+    const tot = sideN(cfg.att) + sideN(cfg.def);
+    this.fsc = this.vmode ? 1 : clamp(Math.sqrt(tot / 500), 1, 2.6);
+    BH = Math.round(1100 * this.fsc);
+    this.BW = Math.round((this.siege || this.vmode ? 2400 : 2100) * this.fsc);
     this.teamSide = cfg.playerSide === 'att' ? ['att', 'def'] : ['def', 'att'];
     this.attTeam = this.teamSide[0] === 'att' ? 0 : 1;
     this.defTeam = 1 - this.attTeam;
@@ -72,7 +77,7 @@ const Battle = {
       this.river = { cx: this.BW / 2 + rand(-60, 60), ph: rand(0, 6), bridges: nb === 2 ? [BH * 0.3, BH * 0.72] : [BH * 0.18, BH * 0.5, BH * 0.82] };
     }
     this.walls = [];
-    if (this.siege) D.walls.forEach((hp, i) => this.walls.push({ x: 1520 + i * 120, hp, maxhp: hp, bridged: false, wood: D.wood, crack: [] }));
+    if (this.siege) D.walls.forEach((hp, i) => this.walls.push({ x: this.BW - 880 + i * 120, hp, maxhp: hp, bridged: false, wood: D.wood, crack: [] }));
     this.keepX = this.BW - 230; this.keepY = BH / 2;
     this.towers = [];
     if (this.siege && this.walls.length) {
@@ -100,6 +105,18 @@ const Battle = {
     if (!S.player.wounded) this.player = this.spawnCommander(0, true);
     else { this.player = null; toast('🩹 Komutan yaralı: savaşı uzaktan yönetiyorsun.', 'bad'); }
     this.enemyCmd = S.nations[this.ownerOfTeam(1)] ? this.spawnCommander(1, false) : null;
+    // Özel karakterler (kahramanlar) kralın yanında savaşa girer
+    this.aura = null;
+    for (const id of S.player.heroes || []) {
+      if (!Game.heroReady(id)) continue;
+      const H = HEROES.find(h => h.id === id); if (!H) continue;
+      const h = this.spawnCommander(0, false);
+      Object.assign(h, { hero: H, color: S.player.color, hp: H.hp, maxhp: H.hp, dmg: H.dmg, range: H.weapon === 'mizrak' ? 46 : 30, heroRanged: !!H.ranged, speed: 125,
+        outfit: { helmet: H.helmet, armor: H.armor, weapon: H.weapon, shield: H.shield, beard: id === 'bala' ? 'yok' : 'kisa', cape: H.cape, body: '#222222', robe: 'yok' } });
+      if (H.ranged) { h.range = 2600; h.cd = 2; }
+      h.x += rand(-60, 60); h.y += rand(-60, 60);
+      if (id === 'kara') this.aura = h;
+    }
     // Düşman ve (pusuda) herkes hazır dizilir; oyuncu konuşlanmayı kendisi yapar
     this.autoDeploy(1);
     const ambushMe = cfg.ambush && cfg.playerSide === 'att';
@@ -161,13 +178,13 @@ const Battle = {
 
   initCenters() {
     const mid = BH / 2;
-    const left = { spear: [640, mid], inf: [560, mid], archer: [450, mid], cav: [520, mid - 330], siege: [250, mid], cmd: [420, mid] };
+    const left = { spear: [640, mid], inf: [560, mid], archer: [450, mid], cav: [520, mid - 330], siege: [250, mid], cmd: [420, mid], pike: [700, mid + 140], xbow: [470, mid + 220], guard: [700, mid - 140], axe: [600, mid + 280] };
     this.defC = [{}, {}];
     if (this.vmode) {
       const pd = this.vl.parade, [sx, sy] = this.spawnP, ad = this.attDir;
       for (const t of [0, 1]) for (const g of GROUPS) {
-        if (this.teamSide[t] === 'def') { const o = { inf: [-150, 0], spear: [150, 0], archer: [-270, -10], cav: [300, 0], siege: [0, 90], cmd: [0, -20] }[g]; this.defC[t][g] = { x: pd.x + o[0], y: pd.y + o[1] }; }
-        else { const o = { spear: [60, 0], inf: [0, 0], archer: [-100, 0], cav: [-20, -230], siege: [-230, 0], cmd: [-150, 0] }[g]; this.defC[t][g] = { x: clamp(sx + o[0] * ad, 40, this.BW - 40), y: clamp(sy + o[1], 60, BH - 60) }; }
+        if (this.teamSide[t] === 'def') { const o = { inf: [-150, 0], spear: [150, 0], archer: [-270, -10], cav: [300, 0], siege: [0, 90], cmd: [0, -20], pike: [-150, 45], xbow: [-300, 40], guard: [150, 45], axe: [270, 40] }[g]; this.defC[t][g] = { x: pd.x + o[0], y: pd.y + o[1] }; }
+        else { const o = { spear: [60, 0], inf: [0, 0], archer: [-100, 0], cav: [-20, -230], siege: [-230, 0], cmd: [-150, 0], pike: [80, 130], xbow: [-110, 170], guard: [70, -130], axe: [20, 220] }[g]; this.defC[t][g] = { x: clamp(sx + o[0] * ad, 40, this.BW - 40), y: clamp(sy + o[1], 60, BH - 60) }; }
       }
       return;
     }
@@ -179,11 +196,13 @@ const Battle = {
         if (!att) {
           if (this.siege) {
             const inner = this.walls[this.walls.length - 1].x;
-            const inside = { spear: [inner + 90, mid], inf: [inner + 150, mid], archer: [this.walls[0].x + 6, mid], cav: [this.keepX - 140, mid], siege: [this.keepX - 60, mid + 200], cmd: [inner + 210, mid] };
+            const inside = { spear: [inner + 90, mid], inf: [inner + 150, mid], archer: [this.walls[0].x + 6, mid], cav: [this.keepX - 140, mid], siege: [this.keepX - 60, mid + 200], cmd: [inner + 210, mid], pike: [inner + 80, mid + 140], xbow: [inner + 60, mid - 160], guard: [inner + 110, mid - 80], axe: [inner + 170, mid + 80] };
             [x, y] = inside[g];
             if (g === 'cav' && ['sortie', 'horsearch', 'elephants'].includes(this.special)) [x, y] = [this.walls[0].x - 160, mid];
           } else x = this.BW - x;
         }
+        // Büyük sahada ordular birbirinden çok uzakta doğmasın
+        if (!this.siege && this.BW > 2100) x += (att ? 1 : -1) * (this.BW - 2100) * 0.38;
         const ambushed = ambush && ((this.cfg.playerSide === 'att' && t === 1) || (this.cfg.playerSide === 'def' && t === 0));
         if (ambushed) x = this.BW / 2 + (att ? -120 : 120);
         if (ambush && this.cfg.playerSide === 'att' && t === 0) x += 300;
@@ -219,7 +238,7 @@ const Battle = {
     const sg = side.siege || {};
     for (const k of ['catapult', 'cannon', 'tower']) {
       const cnt = Math.min(4, sg[k] || 0);
-      for (let i = 0; i < cnt; i++) this.figs.push(this.makeMachine(team, k, isAtt, color, i));
+      for (let i = 0; i < cnt; i++) { const m = this.makeMachine(team, k, isAtt, color, i); m.hat = hatId; this.figs.push(m); }
       if (cnt) this.initial[team + ':' + k] = cnt;
     }
     if (team === 0 && isAtt) this.myBalls = sg.balls || 0;
@@ -288,7 +307,7 @@ const Battle = {
   autoDeploy(team) {
     // Köyde savunan: önce kulelere, sonra ahşap/taş surlara (okçular önce)
     if (this.vmode && this.teamSide[team] === 'def') {
-      const rank = f => f.type === 'archer' ? 0 : f.type === 'spear' ? 1 : 2;
+      const rank = f => RANGED[f.type] ? 0 : f.type === 'spear' || f.type === 'pike' || f.type === 'guard' ? 1 : 2;
       const cand = this.figs.filter(f => f.team === team && !f.overflow && !f.blk && !f.isCmd && !f.machine && f.type !== 'cleric' && f.type !== 'cav').sort((a, b) => rank(a) - rank(b));
       Village.posts(this.vs, this.segs).forEach((p, i) => { const f = cand[i]; if (!f) return; f.onPost = p; f.blk = 'post'; f.escaped = false; f.reserve = false; f.x = f.sx = p.x; f.y = f.sy = p.y; });
     }
@@ -446,7 +465,7 @@ const Battle = {
     window.addEventListener('keydown', e => {
       if (!this.active) return;
       const k = e.key.toLowerCase();
-      const gk = { '0': 'cmd', '1': 'inf', '2': 'archer', '3': 'spear', '4': 'cav', '5': 'siege' }[k];
+      const gk = k >= '0' && k <= '9' ? GROUPS[+k] : null;
       if (gk) this.selectGroup(gk, e.shiftKey);
       if (k === 'a') this.selectGroup('all');
       if (this.phase === 'deploy') { if (k === 'enter') this.deployAction('start'); return; }
@@ -667,7 +686,7 @@ const Battle = {
     const close = Math.abs(ex - mx) < 420 || this.siege || this.vmode;
     for (const g of GROUPS) {
       if (g === 'siege') this.setOrder(1, g, 'defend');
-      else if (g === 'archer') this.setOrder(1, g, 'defend');
+      else if (RANGED[g]) this.setOrder(1, g, 'defend');
       else this.setOrder(1, g, close ? 'attack' : 'advance');
     }
     if (this.t > 4 && this.cryT[1] <= 0 && Math.random() < dt * 0.04) this.warCry(1);
@@ -676,9 +695,9 @@ const Battle = {
     const fd = this.fdir(b.team);
     let nd = 1e9, ny = b.y;
     for (const e of this.figs) { if (e.team === b.team || !e.alive || e.escaped) continue; const d = Math.hypot(e.x - b.x, e.y - b.y); if (d < nd) { nd = d; ny = e.y; } }
-    if (nd < (b.g === 'archer' ? 520 : 140)) return;
+    if (nd < (RANGED[b.g] ? 900 : 140)) return;
     const w = this.siege && this.teamSide[b.team] === 'att' ? this.walls.find(w => w.hp > 0 && !w.bridged) : null;
-    if (w && b.x > w.x - (b.g === 'archer' ? 380 : 40)) return;
+    if (w && b.x > w.x - (RANGED[b.g] ? 380 : 40)) return;
     b.x = clamp(b.x + fd * 42 * dt, 30, this.BW - 30);
     b.y += clamp(ny - b.y, -1, 1) * 8 * dt;
   },
@@ -694,7 +713,7 @@ const Battle = {
     let cand = null;
     if (grid) {
       const C = grid.C, gx = (f.x / C) | 0, gy = (f.y / C) | 0;
-      const R = f.type === 'archer' ? 8 : 5;
+      const R = RANGED[f.type] || f.heroRanged ? 9 : 5;
       cand = [];
       for (let ix = -R; ix <= R; ix++) for (let iy = -R; iy <= R; iy++) { const l = grid.get((gx + ix) * 1000 + gy + iy); if (l) for (const e of l) cand.push(e); }
       if (!cand.length) { const st = Math.max(1, Math.ceil(enemies.length / 150)); cand = []; for (let i = (f.id % st); i < enemies.length; i += st) cand.push(enemies[i]); }
@@ -704,7 +723,8 @@ const Battle = {
       if (e.onPost && f.range < 60) continue;
       if (e.onWall != null && f.range < 60 && this.walls[e.onWall] && this.walls[e.onWall].hp > 0) continue;
       // Yan yana olan düşmanı tercih et, aynı hedefe yığılma
-      const d = Math.abs(e.x - f.x) + Math.abs(e.y - f.y) * 1.8 + (eng.get(e.id) || 0) * (f.type === 'archer' ? 6 : 38);
+      const d = Math.abs(e.x - f.x) + Math.abs(e.y - f.y) * 1.8 + (eng.get(e.id) || 0) * (RANGED[f.type] ? 6 : 38);
+      if (e.downed) continue;
       if (d < bd) { bd = d; best = e; }
     }
     if (best) eng.set(best.id, (eng.get(best.id) || 0) + 1);
@@ -735,8 +755,8 @@ const Battle = {
     return true;
   },
   weaponOf(f) {
-    if (f.isCmd && f.outfit) return { balta: 'axe', gurz: 'blunt', mizrak: 'spear' }[f.outfit.weapon] || 'sword';
-    return { inf: 'sword', cav: 'sword', spear: 'spear', archer: 'blunt', elephant: 'blunt', cmd: 'sword' }[f.type] || 'sword';
+    if (f.isCmd && f.outfit) return { balta: 'axe', gurz: 'blunt', mizrak: 'spear', yay: 'blunt' }[f.outfit.weapon] || 'sword';
+    return { inf: 'sword', cav: 'sword', spear: 'spear', archer: 'blunt', elephant: 'blunt', cmd: 'sword', pike: 'spear', guard: 'spear', xbow: 'blunt', axe: 'axe' }[f.type] || 'sword';
   },
 
   updateFig(f, dt) {
@@ -753,12 +773,13 @@ const Battle = {
     if (this.inRiver(f.x, f.y)) { sp *= 0.4; if (Math.random() < dt * 3) this.parts.push({ x: f.x + rand(-5, 5), y: f.y, z: 0, vx: 0, vy: 0, vz: 0, life: 0.5, max: 0.5, kind: 'splash', r: 2 }); }
     if (f.machine) return this.updateMachine(f, dt);
     if (f.type === 'cleric') return this.updateCleric(f, dt);
+    if (f.downed) { if (f.hp > f.maxhp * 0.6) { f.downed = false; this.say(f, 'Ayağa kalktım!', 1); } return; }
     if (f.onPost) {
       // Sur ve kule üstündeki asker yerinden ayrılmaz; menzile gireni vurur
       const t = f.target;
       if (t && f.cdT <= 0) {
-        const d = Math.hypot(t.x - f.x, t.y - f.y), reach = f.type === 'archer' ? f.range : f.range + 12;
-        if (d <= reach) { f.dir = Math.sign(t.x - f.x) || f.dir; f.cdT = f.cd * rand(0.85, 1.15); if (f.type === 'archer') this.shootArrow(f, t, f.dmg * boost); else this.melee(f, t, boost); }
+        const rg = RANGED[f.type] || f.heroRanged, d = Math.hypot(t.x - f.x, t.y - f.y), reach = rg ? f.range : f.range + 12;
+        if (d <= reach) { f.dir = Math.sign(t.x - f.x) || f.dir; f.cdT = f.cd * rand(0.85, 1.15); if (rg) this.shootArrow(f, t, f.dmg * boost); else this.melee(f, t, boost); }
       }
       return;
     }
@@ -768,21 +789,19 @@ const Battle = {
       if (f.x < -30 || f.x > this.BW + 30) f.escaped = true;
       return;
     }
-    const t = f.target, ranged = f.type === 'archer';
+    const t = f.target, ranged = !!(RANGED[f.type] || f.heroRanged);
     const d = t ? Math.hypot(t.x - f.x, t.y - f.y) : 1e9;
     if (t) {
       if (ranged && d < 22) {
         if (f.cdT <= 0) { f.cdT = 1.1; f.atkT = 0.25; f.dir = Math.sign(t.x - f.x) || f.dir; this.damage(t, 5 * boost, f, 'blunt'); }
         return;
       }
-      const reach = ranged ? f.range : f.range + (t.machine ? 18 : 0);
-      if (d <= reach) {
-        if (!ranged) t.engN = (t.engN || 0) + 1;
+      if (ranged && d <= f.range) {
         f.dir = Math.sign(t.x - f.x) || f.dir;
-        if (f.cdT <= 0) { f.cdT = f.cd * rand(0.85, 1.15); if (ranged) this.shootArrow(f, t, f.dmg * boost); else this.melee(f, t, boost); }
+        if (f.cdT <= 0) { f.cdT = f.cd * rand(0.85, 1.15); this.shootArrow(f, t, f.dmg * boost); }
         // Okçular durduğu yerden atar; sadece "oraya" emrinde yürümeye devam eder
-        if (!(ranged && ord === 'move')) return;
-      }
+        if (ord !== 'move') return;
+      } else if (!ranged && d <= f.range + 40 + (t.machine ? 18 : 0)) { this.duel(f, t, d, boost, sp, dt); return; }
     }
     // Hücum gecikmesi: kimi önde kimi arkada
     if ((ord === 'attack' || ord === 'advance') && f.lagT > 0) { f.lagT -= dt; return; }
@@ -814,6 +833,29 @@ const Battle = {
       }
     }
     this.walk(f, goal[0], goal[1], sp, dt);
+  },
+  /* Yakın dövüş: vur, savun, eğil, geri sıçra, yana kaç — herkes düz yürüyüp yığılmasın */
+  duel(f, t, d, boost, sp, dt) {
+    const reach = f.range + (t.machine ? 18 : 0);
+    t.engN = (t.engN || 0) + 1;
+    f.dir = Math.sign(t.x - f.x) || f.dir;
+    const heavy = f.type === 'cav' || f.type === 'elephant';
+    if (!f.st || (f.st.t -= dt) <= 0) {
+      const r = Math.random();
+      f.st = heavy ? { k: 'strike', t: rand(0.6, 1.2) }
+        : r < 0.48 ? { k: 'strike', t: rand(0.5, 1.1) } : r < 0.64 ? { k: 'guard', t: rand(0.4, 0.9) } : r < 0.75 ? { k: 'duck', t: rand(0.25, 0.5) }
+        : r < 0.89 ? { k: 'back', t: rand(0.25, 0.45) } : { k: 'side', t: rand(0.3, 0.6), s: Math.random() < 0.5 ? -1 : 1 };
+    }
+    const k = f.st.k, ux = (t.x - f.x) / (d || 1), uy = (t.y - f.y) / (d || 1);
+    if (k === 'strike') {
+      if (d > reach * 0.9) { f.x += ux * sp * dt; f.y += uy * sp * dt; f.ph += sp * dt * 0.12; }
+      else if (f.cdT <= 0) {
+        f.cdT = f.cd * rand(0.85, 1.15); this.melee(f, t, boost);
+        if (!heavy && Math.random() < 0.32) f.st = { k: 'back', t: rand(0.25, 0.4) }; // vur-kaç
+      }
+    } else if (k === 'back') { f.x -= ux * sp * 0.9 * dt; f.y -= uy * sp * 0.9 * dt; f.ph += sp * dt * 0.12; }
+    else if (k === 'side') { f.x += -uy * f.st.s * sp * 0.7 * dt; f.y += ux * f.st.s * sp * 0.7 * dt; f.ph += sp * dt * 0.1; }
+    else if (d > reach + 15) { f.x += ux * sp * 0.4 * dt; f.y += uy * sp * 0.4 * dt; f.ph += sp * dt * 0.05; }
   },
   walk(f, gx, gy, sp, dt) {
     const dx = gx - f.x, dy = gy - f.y, d = Math.hypot(dx, dy);
@@ -888,7 +930,9 @@ const Battle = {
       else if (r < 0.34) { f.acro = { k: 'spin', t: 0, d: 0.4 }; }
       else if (r < 0.44) { f.acro = { k: 'lunge', t: 0, d: 0.3 }; const d = Math.hypot(t.x - f.x, t.y - f.y) || 1; f.x += (t.x - f.x) / d * 8; f.y += (t.y - f.y) / d * 8; }
     }
-    if (f.type === 'spear' && (t.type === 'cav' || t.type === 'elephant')) dmg *= 2.5;
+    if ((f.type === 'spear' || f.type === 'guard') && (t.type === 'cav' || t.type === 'elephant')) dmg *= 2.5;
+    if (f.type === 'pike' && (t.type === 'cav' || t.type === 'elephant')) dmg *= 3;
+    if (f.team === 0 && this.aura && this.aura.alive && Math.hypot(this.aura.x - f.x, this.aura.y - f.y) < 160) dmg *= 1.2;
     if (f.type === 'cav') dmg *= 1.25;
     const wk = this.weaponOf(f);
     if (f.type === 'elephant' || f.isCmd) for (const e of this.figs) if (e.alive && !e.escaped && e.team !== f.team && e !== t && Math.hypot(e.x - t.x, e.y - t.y) < (f.isCmd ? 18 : 30)) this.damage(e, dmg * 0.5, f, wk);
@@ -898,15 +942,19 @@ const Battle = {
   },
   shootArrow(f, t, dmg) {
     f.atkT = 0.35;
-    const d = Math.hypot(t.x - f.x, t.y - f.y), spread = 5 + d * 0.025;
-    this.launch(f.x + f.dir * 5, f.y, f.onWall != null || f.onPost ? 45 : 16, t.x + rand(-spread, spread), t.y + rand(-spread, spread), 'arrow', f.team, dmg, null, null);
+    const d = Math.hypot(t.x - f.x, t.y - f.y);
+    const bolt = f.type === 'xbow', spread = bolt ? 4 + d * 0.012 : 5 + d * 0.022;
+    // Okçu havaya atar (yüksek kavis), arbalet daha düz ve hızlı atar
+    const T = bolt ? clamp(d / 1000, 0.2, 1.6) : clamp(d / 470, 0.4, 5);
+    const n = f.heroRanged ? 3 : 1;
+    for (let i = 0; i < n; i++) this.launch(f.x + f.dir * 5, f.y, f.onWall != null || f.onPost ? 45 : 16, t.x + rand(-spread, spread), t.y + rand(-spread, spread), bolt ? 'bolt' : 'arrow', f.team, dmg, null, T * rand(0.95, 1.05));
     SFX.arrow();
   },
   launch(x, y, z, tx, ty, kind, team, dmg, wall, T) {
     T = T || clamp(Math.hypot(tx - x, ty - y) / 430, 0.3, 1.9);
     const tz = kind === 'arrow' ? 10 : 4;
     this.proj.push({ x, y, z, vx: (tx - x) / T, vy: (ty - y) / T, vz: (tz - z + 0.5 * GRAV * T * T) / T, t: 0, T, kind, team, dmg, wall });
-    if (this.proj.length > 500) this.proj.shift();
+    if (this.proj.length > 4000) this.proj.shift();
   },
   updateProjectiles(dt) {
     for (const p of this.proj) {
@@ -916,7 +964,7 @@ const Battle = {
       p.dead = true;
       if (p.wall && p.wall.hp > 0 && p.wall.x1 !== undefined) { this.hitSeg(p.wall, p.kind === 'ball' ? 260 : 120, p.x, p.y); SFX.crumble(); continue; }
       if (p.wall && p.wall.hp > 0) { this.hitWall(p.wall, p.kind === 'ball' ? 260 : 120, p.wall.x - 8, p.y); SFX.crumble(); continue; }
-      if (p.kind === 'arrow') {
+      if (p.kind === 'arrow' || p.kind === 'bolt') {
         let hit = null, hd = 12;
         const C = 32, gx = (p.x / C) | 0, gy = (p.y / C) | 0, near = [];
         for (let ix = -1; ix <= 1; ix++) for (let iy = -1; iy <= 1; iy++) { const l = this.hitGrid.get((gx + ix) * 1000 + gy + iy); if (l) near.push(...l); }
@@ -931,19 +979,17 @@ const Battle = {
           if (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0) dmg *= 0.5;
           if (hit.machine) dmg *= 0.35;
           if (hit.machine || hit.type === 'elephant') { this.damage(hit, dmg, null, 'arrow'); SFX.hit(); continue; }
-          // Okun geldiği yer: baş / gövde → ölüm; kol → zayıflar; bacak → topallar
+          // İsabet eden tek ok öldürür. Sur, eğilmek, kalkan ve zırh bazen korur.
           const r = Math.random();
-          let part = r < 0.2 ? 'head' : r < 0.5 ? 'body' : r < 0.72 ? 'arm' : 'leg';
+          const part = r < 0.25 ? 'head' : r < 0.6 ? 'body' : r < 0.8 ? 'arm' : 'leg';
           const covered = (hit.onPost || (hit.onWall != null && this.walls[hit.onWall] && this.walls[hit.onWall].hp > 0));
-          if (covered && (part === 'body' || part === 'leg') && Math.random() < 0.6) { SFX.hit(); continue; } // sur siper oldu
-          const shield = !hit.isCmd && (hit.type === 'spear' || (hit.type === 'inf' && hit.id % 2));
-          if (shield && Math.random() < 0.25) { SFX.clash(); continue; } // kalkana saplandı
-          const deflect = Math.random() < (hit.armorTier || 0) * 0.15;
-          if (hit.stuck.length < 7 && !deflect) hit.stuck.push({ p: part, o: rand(-1, 1), tx: -(Math.sign(p.vx) || 1) * (hit.dir || 1), a: rand(0.15, 0.7) });
-          if (deflect) dmg *= 0.3;
-          else if (part === 'head' || part === 'body') dmg = hit.isCmd ? dmg * 3 : 1e6;
-          else if (part === 'arm') { if (!hit.armHurt) { hit.armHurt = true; hit.dmg *= 0.6; } dmg *= 0.5; }
-          else { if (!hit.legHurt) { hit.legHurt = true; hit.speed *= 0.5; } dmg *= 0.5; }
+          if (covered && part !== 'head' && Math.random() < 0.6) { SFX.hit(); continue; } // sur siper oldu
+          if (hit.st && hit.st.k === 'duck' && Math.random() < 0.5) continue;               // eğilip kurtuldu
+          const shield = !hit.isCmd && (hit.type === 'spear' || hit.type === 'guard' || (hit.type === 'inf' && hit.id % 2));
+          if (shield && Math.random() < (hit.type === 'guard' ? 0.5 : 0.22)) { SFX.clash(); continue; } // kalkana saplandı
+          if (Math.random() < (hit.armorTier || 0) * 0.08) { SFX.clash(); continue; }   // zırhtan sekti
+          if (hit.stuck.length < 7) hit.stuck.push({ p: part, o: rand(-1, 1), tx: -(Math.sign(p.vx) || 1) * (hit.dir || 1), a: rand(0.15, 0.7) });
+          dmg = hit.isCmd ? dmg * 4 : 1e6; // kral ve kahramanlar tek okla düşmez, ağır yaralanır
           this.damage(hit, dmg, null, 'arrow'); SFX.hit();
         } else if (this.decals.length < 700) this.decals.push({ kind: 'arrow', x: p.x, y: p.y, a: Math.atan2(p.vy, p.vx) });
       } else {
@@ -1023,6 +1069,9 @@ const Battle = {
   damage(f, dmg, src, wk) {
     if (!f.alive || f.escaped) return;
     if (f.dmgTaken) dmg *= f.dmgTaken;
+    const melee = src && src.alive !== undefined && wk !== 'arrow';
+    if (melee && f.st && f.st.k === 'guard') { dmg *= 0.25; SFX.clash(); }                 // savunmada: darbeyi karşıladı
+    if (melee && f.st && f.st.k === 'duck' && Math.random() < 0.45) return;                 // eğilip kurtuldu
     // Yakın dövüşte bazen takla atıp kaçar (hasarın yarısı)
     if (src && src.alive !== undefined && !f.machine && !f.acro && !f.onPost && !f.legHurt && f.type !== 'cav' && f.type !== 'elephant' && wk !== 'arrow' && Math.random() < 0.08) {
       f.acro = { k: 'roll', t: 0, d: 0.5 }; dmg *= 0.5;
@@ -1030,12 +1079,18 @@ const Battle = {
     }
     if (f.isCmd && !f.isPlayer) dmg *= 0.6;
     f.hp -= dmg;
-    if (f.hp <= 0) this.kill(f, src, wk);
+    if (f.hp <= 0) return this.kill(f, src, wk);
+    // Yaralananlar: ağır yaralı topallar, bazıları yere düşer
+    if (!f.machine && !f.isCmd && !f.wounded && f.hp < f.maxhp * 0.35 && f.type !== 'elephant') {
+      f.wounded = true; f.legHurt = true; f.speed *= 0.55;
+      if (Math.random() < 0.4) { f.downed = true; f.target = null; this.say(f, pick(['Ah!', 'Yaralandım!', 'Ahh...']), 1.2); }
+    }
   },
   kill(f, src, wk) {
     f.alive = false; f.hp = 0;
     if (f.team !== 0 && !f.machine) this.kills++;
     if (f.isPlayer) { this.say(f, 'Ahh... yaralandım!', 3); Voice.speak('Yaralandım!', { pitch: 0.6 }); }
+    if (f.hero) { Game.S.player.heroHurt[f.hero.id] = Game.S.day + 15; toast(`🩹 ${f.hero.name} ağır yaralandı; 15 gün savaşamaz.`, 'bad'); }
     if (f.machine) { this.puff(f.x, f.y, '#8b6a4a', 26); SFX.crumble(); this.corpses.push({ part: 'wreck', x: f.x, y: f.y, z: 0, vz: 0, type: f.type, rot: rand(-0.3, 0.3) }); return; }
     const dir = src ? Math.sign(f.x - src.x) || 1 : (Math.random() < 0.5 ? 1 : -1);
     const base = { color: f.color, hat: f.hat, type: f.type, cmd: f.isCmd ? f : null, robe: f.robe, dir: f.dir, stuck: f.stuck };
@@ -1098,7 +1153,7 @@ const Battle = {
 
   /* ================== BİTİŞ ================== */
   checkEnd(byTeam, dt) {
-    const fighting = team => byTeam[team].filter(f => !f.machine && f.type !== 'cleric' && !f.escaped).length;
+    const fighting = team => byTeam[team].filter(f => !f.machine && f.type !== 'cleric' && !f.escaped && !f.downed).length;
     const mine = fighting(0), theirs = fighting(1);
     if (this.player && !this.player.alive) return this.finish(false, true);
     if (this.retreatT >= 0) {
@@ -1159,9 +1214,9 @@ const Battle = {
   updateHud(first) {
     const count = (t, g) => this.figs.filter(f => f.team === t && f.alive && !f.escaped && (g === 'siege' ? f.machine : f.type === g)).length;
     const cell = (t, g) => { const n = count(t, g); return n ? `<span><canvas width="40" height="40" data-hi="${t}:${g}"></canvas><b>${fmt(n)}</b></span>` : ''; };
-    const side = t => `<i class="flag" style="--c:${this.teamColor(t)}">${t === 0 ? this.emblem() : '⚔'}</i><div class="cnts">${['inf', 'archer', 'spear', 'cav', 'siege'].map(g => cell(t, g)).join('')}</div>`;
+    const side = t => `<i class="flag" style="--c:${this.teamColor(t)}">${t === 0 ? this.emblem() : '⚔'}</i><div class="cnts">${UNIT_KEYS.concat('siege').map(g => cell(t, g)).join('')}</div>`;
     const el = document.getElementById('bh');
-    const key = ['inf', 'archer', 'spear', 'cav', 'siege'].map(g => count(0, g) + ',' + count(1, g)).join('|');
+    const key = UNIT_KEYS.concat('siege').map(g => count(0, g) + ',' + count(1, g)).join('|');
     if (first || key !== this._hk) {
       this._hk = key;
       el.querySelector('.l').innerHTML = side(0);
@@ -1209,8 +1264,9 @@ const Battle = {
       return;
     }
     const W = this.BW, Hh = BH;
-    const c = document.createElement('canvas'); c.width = W; c.height = Hh;
-    const x = c.getContext('2d');
+    const tr = Math.min(1, 2600 / W);
+    const c = document.createElement('canvas'); c.width = Math.round(W * tr); c.height = Math.round(Hh * tr);
+    const x = c.getContext('2d'); x.scale(tr, tr);
     const g = x.createRadialGradient(W / 2, Hh / 2, 100, W / 2, Hh / 2, W * 0.7);
     g.addColorStop(0, '#efdfb8'); g.addColorStop(1, '#d9c08d');
     x.fillStyle = g; x.fillRect(0, 0, W, Hh);
@@ -1224,7 +1280,7 @@ const Battle = {
       sk(1.1, 0.5);
       for (const off of [-9, 9]) { x.beginPath(); for (let px = 0; px <= W; px += 30) { const py = ry + Math.sin(px * 0.003 + ry) * 40 + off; px ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); }
     }
-    for (let i = 0; i < 9; i++) this.hill(x, rand(250, W - 250), rand(120, Hh - 120), rand(70, 150));
+    for (let i = 0; i < 9 * this.fsc * this.fsc; i++) this.hill(x, rand(250, W - 250), rand(120, Hh - 120), rand(70, 150));
     if (this.river) {
       const pts = []; for (let y = -20; y <= Hh + 20; y += 12) pts.push([this.riverX(y), y]);
       x.fillStyle = 'rgba(150,180,190,0.55)';
@@ -1238,15 +1294,15 @@ const Battle = {
     }
     const nearRiver = (px, py, m) => this.river && Math.abs(px - this.riverX(py)) < m;
     const inCastle = (px, m) => this.siege && px > this.walls[0].x - m;
-    for (let i = 0; i < 260; i++) {
+    for (let i = 0; i < 260 * this.fsc; i++) {
       const top = Math.random() < 0.5, px = rand(0, W), py = top ? rand(14, 110) : rand(Hh - 100, Hh - 6);
       if (nearRiver(px, py, 50) || inCastle(px, 60)) continue;
       this.pine(x, px, py, rand(10, 18));
     }
-    for (let i = 0; i < 40; i++) { const px = rand(150, W - 150), py = rand(150, Hh - 150); if (nearRiver(px, py, 70) || inCastle(px, 80)) continue; this.tree(x, px, py, rand(8, 12)); }
-    for (let i = 0; i < 30; i++) { const px = rand(100, W - 100), py = rand(80, Hh - 80); if (inCastle(px, 60)) continue; this.rock(x, px, py, rand(4, 9)); }
+    for (let i = 0; i < 40 * this.fsc * this.fsc; i++) { const px = rand(150, W - 150), py = rand(150, Hh - 150); if (nearRiver(px, py, 70) || inCastle(px, 80)) continue; this.tree(x, px, py, rand(8, 12)); }
+    for (let i = 0; i < 30 * this.fsc * this.fsc; i++) { const px = rand(100, W - 100), py = rand(80, Hh - 80); if (inCastle(px, 60)) continue; this.rock(x, px, py, rand(4, 9)); }
     sk(0.9, 0.45);
-    for (let i = 0; i < 500; i++) { const px = rand(0, W), py = rand(0, Hh); if (inCastle(px, 0)) continue; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 2, py - 5); x.moveTo(px, py); x.lineTo(px + 2, py - 6); x.stroke(); }
+    for (let i = 0; i < 500 * this.fsc * this.fsc; i++) { const px = rand(0, W), py = rand(0, Hh); if (inCastle(px, 0)) continue; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 2, py - 5); x.moveTo(px, py); x.lineTo(px + 2, py - 6); x.stroke(); }
     if (!this.siege) this.village(x, W / 2 + rand(-250, 250) + (this.river ? 160 : 0), Math.random() < 0.5 ? 150 : Hh - 170);
     if (Math.random() < 0.6) this.pond(x, rand(200, 380), Hh - rand(140, 200));
     this.camp(x, 0, this.teamColor(this.attTeam), true);
@@ -1369,7 +1425,7 @@ const Battle = {
     x.setTransform(1, 0, 0, 1, 0, 0);
     x.fillStyle = '#cdb78a'; x.fillRect(0, 0, W, H);
     x.setTransform(c.z, 0, 0, c.z, W / 2 - c.x * c.z, H / 2 - c.y * c.z);
-    x.drawImage(this.terr, 0, 0);
+    x.drawImage(this.terr, 0, 0, this.BW, BH);
     const vx0 = c.x - W / c.z / 2 - 60, vx1 = c.x + W / c.z / 2 + 60, vy0 = c.y - H / c.z / 2 - 80, vy1 = c.y + H / c.z / 2 + 80;
     const inView = (px, py) => px > vx0 && px < vx1 && py > vy0 && py < vy1;
     for (const d of this.decals) {
@@ -1536,10 +1592,19 @@ const Battle = {
     x.translate(f.x, f.y);
     if (!f.machine) { x.fillStyle = 'rgba(43,32,24,0.18)'; x.beginPath(); x.ellipse(0, 0, f.type === 'cav' ? 13 : f.type === 'elephant' ? 18 : 6, 2.4, 0, 0, 7); x.fill(); }
     x.scale(FS, FS);
-    if (f.machine) { this.drawMachineShape(x, f); x.restore(); if (f.hp < f.maxhp) this.hpBar(x, f, f.x, f.y - (f.type === 'tower' ? 72 : 22)); return; }
+    if (f.machine) {
+      const big = f.type === 'tower' ? 1.15 : 1.9;
+      if (f.type !== 'tower') this.drawCrew(x, f, 0);
+      x.save(); x.scale(big, big); this.drawMachineShape(x, f); x.restore();
+      if (f.type !== 'tower') this.drawCrew(x, f, 1);
+      x.restore(); if (f.hp < f.maxhp) this.hpBar(x, f, f.x, f.y - (f.type === 'tower' ? 82 : 40)); return;
+    }
     if (f.onWall != null && this.walls[f.onWall] && this.walls[f.onWall].hp > 0) x.translate(0, -6);
     if (f.onPost) x.translate(0, -(f.onPost.kind === 'tower' ? 52 : (this.segs[f.onPost.seg] || {}).lvl === 3 ? 34 : 14) / FS);
     if (bearer) this.drawFlag(x, f);
+    if (f.downed) { x.translate(0, -2); x.rotate(-(f.dir || 1) * 1.2); }
+    else if (f.st && f.st.k === 'duck') { x.translate(0, 10); x.scale(1, 0.72); }
+    else if (f.st && f.st.k === 'back') x.translate(0, -Math.abs(Math.sin(this.t * 18 + f.id)) * 8);
     if (f.acro) {
       const a = f.acro, p = a.t / a.d;
       if (a.k === 'jump') { x.translate(0, -Math.sin(p * Math.PI) * 42); x.rotate((f.dir || 1) * Math.sin(p * Math.PI) * 0.25); }
@@ -1550,9 +1615,20 @@ const Battle = {
     this.drawBody(x, f);
     x.restore();
     if (f.hp < f.maxhp && f.hp > 0) this.hpBar(x, f, f.x, f.y - (f.type === 'cav' ? 46 : 34));
+    if (f.hero && this.cam.z > 0.7 * this.dpr) { x.font = 'bold 8px Georgia, serif'; x.textAlign = 'center'; x.fillStyle = '#2b2018'; x.fillText(f.hero.name, f.x, f.y - 48); }
     if (f.isPlayer) { x.fillStyle = '#c0281e'; x.strokeStyle = INK; x.lineWidth = 1; x.beginPath(); x.moveTo(f.x - 4, f.y - 44); x.lineTo(f.x + 4, f.y - 44); x.lineTo(f.x, f.y - 38); x.closePath(); x.fill(); x.stroke(); }
     if (f.type === 'cleric' && f.healing) { x.fillStyle = 'rgba(60,140,60,0.8)'; x.font = 'bold 9px serif'; x.textAlign = 'center'; x.fillText('+', f.x + Math.sin(this.t * 5) * 5, f.y - 38 - (this.t * 12 % 8)); }
     if (f.stun > 0) { x.font = '9px sans-serif'; x.textAlign = 'center'; x.fillText('💫', f.x, f.y - 38); }
+  },
+  // Mancınık ve topu kullanan askerler (arka ve ön sıra)
+  drawCrew(x, f, front) {
+    const spots = f.type === 'cannon' ? [[-58, -6, 0], [-34, 14, 1], [22, 16, 1]] : [[-60, -8, 0], [52, -6, 0], [-14, 18, 1]];
+    spots.forEach(([cx, cy, fr], i) => {
+      if (fr !== front) return;
+      const busy = f.atkT > 0 || ((this.t * 1.3 + i) % 3) < 1;
+      const c = { id: f.id + i, type: 'inf', team: f.team, dir: f.dir, color: f.color, hat: f.hat || 'yok', armorTier: 0, stuck: [], ph: busy ? this.t * 6 + i : 0.4, atkT: busy ? 0.15 : 0 };
+      x.save(); x.translate(cx * (f.dir || 1), cy); this.drawBody(x, c); x.restore();
+    });
   },
   drawFlag(x, f) {
     const wv = Math.sin(this.t * 5 + f.id) * 3;
@@ -1610,6 +1686,14 @@ const Battle = {
     else if (f.type !== 'cav') { const air = f.acro && f.acro.k === 'jump'; x.beginPath(); x.moveTo(0, hipY); x.lineTo(air ? 8 : walk * 7, air ? -6 : 0); x.moveTo(0, hipY); x.lineTo(air ? -7 : -walk * 7, air ? -4 : 0); x.stroke(); }
     else { x.beginPath(); x.moveTo(0, hipY); x.lineTo(5, hipY + 10); x.stroke(); }
     const neckY = hipY - 18;
+    const robe = cmd && f.outfit && f.outfit.robe && f.outfit.robe !== 'yok' ? OUTFIT.robe.find(r => r.id === f.outfit.robe) : null;
+    if (robe) {
+      // Kral kaftanı: omuzdan dize uzun, kenarı işlemeli
+      x.fillStyle = robe.c1; x.strokeStyle = INK; x.lineWidth = 1.2;
+      x.beginPath(); x.moveTo(-3, neckY + 2); x.lineTo(-10, hipY + 14); x.lineTo(10, hipY + 14); x.lineTo(4, neckY + 2); x.closePath(); x.fill(); x.stroke();
+      x.strokeStyle = robe.c2; x.lineWidth = 1.6; x.beginPath(); x.moveTo(0.5, neckY + 3); x.lineTo(0.5, hipY + 13); x.moveTo(-10, hipY + 13); x.lineTo(10, hipY + 13); x.stroke();
+      if (robe.fur) { x.fillStyle = '#f4efe2'; x.strokeStyle = INK; x.lineWidth = 1; x.beginPath(); x.ellipse(0.5, neckY + 3, 6, 2.6, 0, 0, 7); x.fill(); x.stroke(); }
+    }
     this.drawTorso(x, f, hipY, neckY, swing, walk);
     const headY = neckY - 7;
     this.drawHead(x, f, 2, headY);
@@ -1625,13 +1709,15 @@ const Battle = {
     const tier = cmd && f.outfit ? ({ yok: 0, deri: 1, kaftan: 1, zincir: 2, plaka: 3 }[f.outfit.armor] || 0) : (f.armorTier || 0);
     if (tier > 0) { x.fillStyle = tier === 1 ? '#8b5e3c' : tier === 2 ? '#a7adb4' : '#d6dde3'; rrect(x, -3, neckY + 2, 8, 11, 2.5); x.fill(); x.strokeStyle = INK; x.lineWidth = 1; x.stroke(); }
     x.strokeStyle = INK; x.lineWidth = 2.4;
-    const armA = -0.6 + swing * 2.2;
+    const guard = f.st && f.st.k === 'guard' && !f.downed;
+    const armA = guard ? -1.9 : -0.6 + swing * 2.2;
     const hx = 1 + Math.cos(armA) * 13, hy = neckY + 3 + Math.sin(armA) * 13 + 6;
     x.beginPath(); x.moveTo(1, neckY + 3); x.lineTo(hx, hy); x.stroke();
     x.beginPath(); x.moveTo(1, neckY + 3); x.lineTo(-6, neckY + 13 - walk * 2); x.stroke();
     this.drawWeapon(x, f, hx, hy, armA, swing);
-    const sh = cmd && f.outfit ? f.outfit.shield : (f.type === 'spear' || (f.type === 'inf' && f.id % 2) ? 'yuvarlak' : 'yok');
-    if (sh !== 'yok' && f.type !== 'archer' && f.type !== 'cleric') {
+    const sh = cmd && f.outfit ? f.outfit.shield : f.type === 'guard' ? 'kalkan' : (f.type === 'spear' || (f.type === 'inf' && f.id % 2) ? 'yuvarlak' : 'yok');
+    if (sh !== 'yok' && !RANGED[f.type] && f.type !== 'cleric') {
+      if (guard) x.translate(5, -5);
       x.fillStyle = '#efe2c4'; x.strokeStyle = INK; x.lineWidth = 1.3;
       if (sh === 'kalkan') { rrect(x, -12, neckY + 2, 8, 16, 3); x.fill(); x.stroke(); }
       else { x.beginPath(); x.arc(-7, neckY + 12, 6, 0, 7); x.fill(); x.stroke(); x.fillStyle = f.color; x.beginPath(); x.arc(-7, neckY + 12, 2.2, 0, 7); x.fill(); }
@@ -1653,6 +1739,23 @@ const Battle = {
     this.drawHelmet(x, hat, hx, headY, f.color, f.isCmd ? f : (f.cmd || f));
   },
   drawHelmet(x, hat, hx, hy, col, f) {
+    if (hat === 'kavuk' || hat === 'kavukSorguc') {
+      // Padişah kavuğu: büyük beyaz kavuk, altın şerit; sorguçlusunda mücevher ve tüy
+      x.strokeStyle = INK; x.lineWidth = 1.2; x.fillStyle = '#f6f2e8';
+      x.beginPath(); x.ellipse(hx, hy - 10, 8.5, 11, 0, 0, 7); x.fill(); x.stroke();
+      x.strokeStyle = '#c9a227'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(hx - 7, hy - 4); x.lineTo(hx + 6, hy - 17); x.stroke();
+      x.strokeStyle = 'rgba(43,32,24,0.4)'; x.lineWidth = 0.7; for (let i = -6; i <= 6; i += 3) { x.beginPath(); x.moveTo(hx - 8, hy - 10 + i); x.quadraticCurveTo(hx, hy - 13 + i, hx + 8, hy - 9 + i); x.stroke(); }
+      if (hat === 'kavukSorguc') { x.fillStyle = '#c0281e'; x.strokeStyle = INK; x.lineWidth = 1; x.beginPath(); x.arc(hx, hy - 12, 2.2, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#1a1a1a'; x.beginPath(); x.ellipse(hx + 1, hy - 25, 1.8, 7, 0.25, 0, 7); x.fill(); }
+      return;
+    }
+    if (hat === 'tacMucevher' || hat === 'tacSivri' || hat === 'migferAltin') {
+      x.strokeStyle = INK; x.lineWidth = 1.2; x.fillStyle = '#e8b923';
+      if (hat === 'migferAltin') { x.beginPath(); x.moveTo(hx - 7, hy - 1); x.quadraticCurveTo(hx - 6.5, hy - 9, hx, hy - 17); x.quadraticCurveTo(hx + 6.5, hy - 9, hx + 7, hy - 1); x.closePath(); x.fill(); x.stroke(); x.fillStyle = 'rgba(255,255,255,0.45)'; x.fillRect(hx - 4, hy - 9, 1.6, 6); return; }
+      if (hat === 'tacSivri') { x.beginPath(); x.moveTo(hx - 6, hy - 4); x.lineTo(hx - 5, hy - 12); x.lineTo(hx - 2, hy - 9); x.lineTo(hx, hy - 19); x.lineTo(hx + 2, hy - 9); x.lineTo(hx + 5, hy - 12); x.lineTo(hx + 6, hy - 4); x.closePath(); x.fill(); x.stroke(); return; }
+      x.beginPath(); x.moveTo(hx - 7, hy - 4); x.lineTo(hx - 7, hy - 13); x.lineTo(hx - 3.5, hy - 9); x.lineTo(hx, hy - 15); x.lineTo(hx + 3.5, hy - 9); x.lineTo(hx + 7, hy - 13); x.lineTo(hx + 7, hy - 4); x.closePath(); x.fill(); x.stroke();
+      for (const [gx, c] of [[-4, '#c0281e'], [0, '#2a6fb0'], [4, '#2e9e6b']]) { x.fillStyle = c; x.beginPath(); x.arc(hx + gx, hy - 6.5, 1.3, 0, 7); x.fill(); }
+      return;
+    }
     if (hat === 'tac') {
       x.fillStyle = '#e8b923'; x.strokeStyle = INK; x.lineWidth = 1.2;
       x.beginPath(); x.moveTo(hx - 6, hy - 5); x.lineTo(hx - 6, hy - 12); x.lineTo(hx - 3, hy - 8); x.lineTo(hx, hy - 13); x.lineTo(hx + 3, hy - 8); x.lineTo(hx + 6, hy - 12); x.lineTo(hx + 6, hy - 5); x.closePath(); x.fill(); x.stroke();
@@ -1663,7 +1766,7 @@ const Battle = {
     if (!f || !f.isCmd) { x.fillStyle = col; x.beginPath(); x.arc(hx, hy - 2, 6.6, Math.PI * 1.05, -0.05); x.fill(); }
   },
   drawWeapon(x, f, hx, hy, armA, swing) {
-    let w = f.type === 'spear' ? 'mizrak' : f.type === 'archer' ? 'yay' : f.type === 'cleric' ? 'asa' : 'kilic';
+    let w = { spear: 'mizrak', archer: 'yay', cleric: 'asa', pike: 'karg', guard: 'uzunMizrak', axe: 'balta', xbow: 'arbalet' }[f.type] || 'kilic';
     if (f.isCmd && f.outfit) w = f.outfit.weapon;
     x.save(); x.translate(hx, hy);
     if (w === 'yay') {
@@ -1674,6 +1777,17 @@ const Battle = {
       x.rotate(armA * 0.4 - 0.9); x.strokeStyle = INK; x.lineWidth = 1.8;
       x.beginPath(); x.moveTo(-14, 0); x.lineTo(30, 0); x.stroke();
       x.fillStyle = INK; x.beginPath(); x.moveTo(30, -2.5); x.lineTo(37, 0); x.lineTo(30, 2.5); x.closePath(); x.fill();
+    } else if (w === 'karg' || w === 'uzunMizrak') {
+      const L = w === 'karg' ? 62 : 50;
+      x.rotate(armA * 0.35 - 0.75); x.strokeStyle = INK; x.lineWidth = 1.7;
+      x.beginPath(); x.moveTo(-16, 0); x.lineTo(L, 0); x.stroke();
+      x.fillStyle = INK; x.beginPath(); x.moveTo(L, -3); x.lineTo(L + 9, 0); x.lineTo(L, 3); x.closePath(); x.fill();
+      if (w === 'karg') { x.beginPath(); x.moveTo(L - 4, -5); x.lineTo(L - 1, 0); x.lineTo(L - 4, 5); x.stroke(); }
+    } else if (w === 'arbalet') {
+      x.rotate(-0.25); x.strokeStyle = '#5a3d22'; x.lineWidth = 2.4;
+      x.beginPath(); x.moveTo(-6, 0); x.lineTo(14, 0); x.stroke();
+      x.strokeStyle = INK; x.lineWidth = 1.8; x.beginPath(); x.moveTo(12, -8); x.quadraticCurveTo(16, 0, 12, 8); x.stroke();
+      x.lineWidth = 0.7; x.beginPath(); x.moveTo(12, -8); x.lineTo(swing > 0 ? 8 : 2, 0); x.lineTo(12, 8); x.stroke();
     } else if (w === 'asa') {
       x.strokeStyle = '#5a3d22'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 14); x.lineTo(0, -22); x.stroke();
     } else {

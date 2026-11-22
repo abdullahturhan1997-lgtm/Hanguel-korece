@@ -464,15 +464,16 @@ const UI = {
 
   /* ================== KARAKTER (madde 20, 33, 35, 37) ================== */
   character() {
-    this.open('👤 Komutan ve Halk', '', true);
+    this.open('👑 Kral, Kahramanlar ve Halk', '', true);
     this.live = null;
     this.renderChar();
   },
   renderChar() {
     const S = Game.S, p = S.player, o = p.outfit;
     let h = `<div class="char"><canvas id="char-cv" width="220" height="260"></canvas><div class="char-opts">`;
-    for (const cat of ['helmet', 'armor', 'weapon', 'shield', 'beard']) {
-      const title = { helmet: 'Başlık', armor: 'Zırh', weapon: 'Silah', shield: 'Kalkan', beard: 'Sakal' }[cat];
+    h += `<label>Kralın adı <input id="kname" value="${esc(p.ruler)}" maxlength="24" onchange="Game.S.player.ruler=this.value.trim()||Game.S.player.ruler;UI.refreshTop()"></label>`;
+    for (const cat of ['helmet', 'robe', 'armor', 'weapon', 'shield', 'beard']) {
+      const title = { helmet: 'Başlık / Taç / Kavuk', robe: 'Kaftan', armor: 'Zırh', weapon: 'Silah', shield: 'Kalkan', beard: 'Sakal' }[cat];
       h += `<h4>${title}</h4><div class="opts">` + OUTFIT[cat].map(it => {
         const owned = p.owned[cat].includes(it.id), on = o[cat] === it.id;
         const stat = it.hp ? ` +${it.hp}❤` : it.dmg ? ` +${it.dmg}⚔` : '';
@@ -489,6 +490,11 @@ const UI = {
       <h3>📣 Savaş nidası / tekbir</h3><div class="opts">${WAR_CRIES.map(c => `<button class="${!p.customCry && p.cry === c ? 'on' : ''}" onclick="UI.setCry('${c.replace(/'/g, "\\'")}')">${c}</button>`).join('')}</div>
       <label>Kendi nidan <input id="cc" value="${esc(p.customCry || '')}" placeholder="Örn: Ya Allah, Bismillah!" maxlength="40"></label>
       <div class="acts"><button onclick="UI.setCustomCry()">✔️ Kendi nidamı kullan</button><button onclick="Voice.speak(Game.S.player.customCry||Game.S.player.cry,{pitch:0.7})">🔊 Dinle</button></div>
+      <h3>⭐ Özel Karakterler (Kahramanlar)</h3><p class="hint">Kahramanlar savaşta kralın yanında savaşır. Ağır yaralanırsa 15 gün dinlenir.</p>
+      <div class="heroes">${HEROES.map(H => {
+        const own = p.heroes.includes(H.id), ready = Game.heroReady(H.id);
+        return `<div class="hero"><canvas class="hcv" data-h="${H.id}" width="90" height="110"></canvas><div><b>${esc(H.name)}</b> <small>${esc(H.title)}</small><br><small>❤${H.hp} ⚔${H.dmg}${H.ranged ? ' · 3 ok birden' : ''}</small><br><em>${esc(H.desc)}</em><br>${own ? (ready ? '<span class="ok">✓ Ordunda</span>' : `<span class="down">🩹 ${p.heroHurt[H.id] - Game.S.day} gün yaralı</span>`) : `<button class="mini" onclick="Game.hireHero('${H.id}');UI.renderChar();UI.refreshTop()">Kat 💰${H.cost}</button>`}</div></div>`;
+      }).join('')}</div>
       <h3>🎓 Askerlerin kültürel başlığı</h3>${this.headgearList()}`;
     const body = $('#modal .sheet-body'); const st = body.scrollTop;
     this.body(h); body.scrollTop = st;
@@ -508,6 +514,12 @@ const UI = {
     x.restore();
     const sol = { id: 2, x: 0, y: 0, dir: 1, ph: 2, atkT: 0, type: 'inf', color: Game.S.player.color, hat: Game.S.player.headgear, team: 0, armorTier: Game.S.player.armor.inf };
     x.save(); x.translate(185, 232); x.scale(1.6, 1.6); Battle.drawBody(x, sol); x.restore();
+    document.querySelectorAll('canvas.hcv').forEach(c => {
+      const H = HEROES.find(h => h.id === c.dataset.h), cx = c.getContext('2d');
+      cx.clearRect(0, 0, c.width, c.height); cx.save(); cx.translate(45, 100); cx.scale(1.4, 1.4);
+      Battle.drawBody(cx, { id: 5, type: 'cmd', isCmd: true, dir: 1, ph: 0.6, atkT: 0, color: Game.S.player.color, stuck: [], outfit: { helmet: H.helmet, armor: H.armor, weapon: H.weapon, shield: H.shield, beard: H.id === 'bala' ? 'yok' : 'kisa', cape: H.cape, body: '#222222', robe: 'yok' } });
+      cx.restore();
+    });
     this.paintHats();
   },
   wear(cat, id) {
