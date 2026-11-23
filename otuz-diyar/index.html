@@ -83,6 +83,28 @@ button:focus-visible { outline: 3px solid var(--gold2); outline-offset: 2px; }
 .result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(88%, 380px); padding: 16px; text-align: center; background: linear-gradient(180deg, var(--parch), var(--parch2)); border: 3px solid var(--gold); outline: 4px solid var(--lapis); border-radius: 4px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .result h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--lapis); }
 .result p { margin: 0; line-height: 1.35; }
+.panel { max-height: 48%; overflow-y: auto; }
+.tabs { display: flex; gap: 6px; }
+.tab { flex: 1; border: 2px solid var(--gold); border-radius: 10px 10px 4px 4px; padding: 5px 8px; background: #fff7dc; color: var(--ink); font-weight: 700; font-size: .9rem; }
+.tab[aria-pressed="true"] { background: var(--lapis); color: var(--gold2); }
+.recruit { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.unit { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 2px 6px; border: 2px solid var(--gold); border-radius: 8px; background: #fff7dc; color: var(--ink); min-width: 0; }
+.unit canvas { width: 46px; height: 46px; }
+.unit b { font-size: .8rem; white-space: nowrap; }
+.unit small { font-family: var(--body); font-size: .68rem; color: #6a4a22; text-align: center; line-height: 1.1; }
+.unit:disabled { opacity: .5; cursor: not-allowed; }
+.unit:not(:disabled):active { transform: translateY(1px); }
+.blds { display: flex; flex-direction: column; gap: 6px; }
+.bld { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 247, 220, .8); border: 1px solid var(--parch2); }
+.bld > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bld b { font-family: var(--display); font-size: .95rem; }
+.bld small { font-size: .78rem; color: #6a4a22; line-height: 1.2; }
+.bld .btn { flex: none; padding: 5px 10px; font-size: .82rem; }
+.prep { display: flex; flex-direction: column; gap: 5px; }
+.prow { display: flex; align-items: center; gap: 6px; }
+.prow span { flex: 1; font-family: var(--display); font-weight: 700; }
+.prow b { min-width: 62px; text-align: center; font-variant-numeric: tabular-nums; }
+.prow .btn { padding: 3px 10px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 
@@ -190,7 +212,8 @@ function drawFig(g, R, o) {
   if (o.dead) g.rotate(-dir * Math.min(1, o.dead) * 1.45);
   g.scale(dir * k, k);
   g.lineJoin = "round"; g.lineCap = "round"; g.strokeStyle = INK; g.lineWidth = 1.05;
-  const sw = o.walk ? Math.sin(o.ph) : 0, bob = o.walk ? -Math.abs(Math.cos(o.ph)) * 1.2 : 0, atk = o.atk || 0;
+  let sw = o.walk ? Math.sin(o.ph) : 0, bob = o.walk ? -Math.abs(Math.cos(o.ph)) * 1.2 : 0; const atk = o.atk || 0;
+  if (R.mount) { drawHorse(g, R, o, sw); g.translate(-1, -10 + bob * 1.5); sw = 0; bob = 0; }
   const skin = R.skin, hair = R.body === "hortlak" ? "#d8d8c8" : R.body === "vampir" ? "#1a1418" : "#2b1d12";
   const F = (c, path) => { g.fillStyle = c; g.beginPath(); path(); g.fill(); g.stroke(); };
   // kuyruk (şeytan)
@@ -200,7 +223,10 @@ function drawFig(g, R, o) {
   if (R.garb === "pelerin") { g.fillStyle = R.c2; g.beginPath(); g.moveTo(-5, -28 + bob); g.quadraticCurveTo(-11, -17, -12.5 - sw * 1.5, -4); g.lineTo(-10, -4); g.quadraticCurveTo(-8, -17, -3, -28 + bob); g.fill(); }
   // bacaklar / ayaklar
   const bare = R.garb === "pestamal" || R.body === "kurt";
-  if (R.garb === "duman") {
+  if (R.mount) {
+    g.strokeStyle = INK; g.lineWidth = 4; g.beginPath(); g.moveTo(1, -15); g.lineTo(4, -5); g.stroke(); g.strokeStyle = R.garb === "pestamal" ? skin : R.c2; g.lineWidth = 2.6; g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05;
+    F("#3a2418", () => g.ellipse(5.5, -4.5, 2.8, 1.5, 0, 0, 7));
+  } else if (R.garb === "duman") {
     g.globalAlpha *= .9; F(shade(skin, .15), () => { g.moveTo(-6, -15); g.quadraticCurveTo(-8, -6, 0 + sw * 2, -4); g.quadraticCurveTo(6, -2, 3, 1); g.quadraticCurveTo(-2, -1, -4, -6); g.quadraticCurveTo(4, -9, 6, -15); g.closePath(); }); g.globalAlpha = o.alpha ?? 1;
   } else {
     const legC = bare ? skin : R.c2, boot = bare ? shade(skin, -.25) : "#3a2418";
@@ -212,13 +238,13 @@ function drawFig(g, R, o) {
   }
   g.translate(0, bob);
   // giysi
-  const robe = () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.quadraticCurveTo(8, -18, 10.5 + sw * .8, -2.5); g.lineTo(-8.5 + sw * .8, -2.5); g.quadraticCurveTo(-7, -18, -5.5, -30); g.closePath(); };
+  const hem = R.mount ? -10 : -2.5, robe = () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.quadraticCurveTo(8, -18, 10.5 + sw * .8, hem); g.lineTo(-8.5 + sw * .8, hem); g.quadraticCurveTo(-7, -18, -5.5, -30); g.closePath(); };
   const tunic = () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.lineTo(7.8, -12.5); g.lineTo(-7, -12.5); g.closePath(); };
   const dots = (path, c, step) => { g.save(); g.beginPath(); path(); g.clip(); g.fillStyle = c; for (let yy = -32; yy < 0; yy += step) for (let xx = -12 + ((yy / step) & 1) * step / 2; xx < 14; xx += step) { g.beginPath(); g.arc(xx, yy, .62, 0, 7); g.fill(); } g.restore(); };
   if (R.garb === "kaftan" || R.garb === "pelerin" && false) {
     F(R.c1, robe); dots(robe, R.c2, 3.6);
     if (R.body === "hortlak") { g.fillStyle = "#b8b098"; for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(-8 + i * 4, -2.5); g.lineTo(-6 + i * 4, .5); g.lineTo(-4 + i * 4, -2.5); g.fill(); } }
-    g.strokeStyle = R.c3; g.lineWidth = 1.9; g.beginPath(); g.moveTo(6, -29.5); g.quadraticCurveTo(8, -18, 10 + sw * .8, -3); g.stroke(); g.beginPath(); g.moveTo(-8.2 + sw * .8, -3.2); g.lineTo(10.2 + sw * .8, -3.2); g.stroke();
+    g.strokeStyle = R.c3; g.lineWidth = 1.9; g.beginPath(); g.moveTo(6, -29.5); g.quadraticCurveTo(8, -18, 10 + sw * .8, hem - .5); g.stroke(); g.beginPath(); g.moveTo(-8.2 + sw * .8, hem - .7); g.lineTo(10.2 + sw * .8, hem - .7); g.stroke();
     g.strokeStyle = INK; g.lineWidth = 1.05; g.beginPath(); robe(); g.stroke();
   } else if (R.garb === "pestamal") {
     F(skin, () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.lineTo(6.5, -14); g.lineTo(-6, -14); g.closePath(); });
@@ -321,6 +347,32 @@ function drawHat(g, R, hx, hy, hr, sw) {
       else if (R.body === "dev" || R.body === "trol" || R.body === "hortlak") { g.fillStyle = R.body === "dev" ? "#5a3a22" : R.body === "trol" ? "#3a4a30" : "#d8d8c8"; g.beginPath(); g.arc(hx - .6, hy - .8, hr, Math.PI * .9, Math.PI * 1.85); g.lineTo(hx - .6, hy - .8); g.fill(); }
       break;
   }
+}
+/* ---------- asker türüne göre görünüm; atlı için at ---------- */
+const RF = {};
+function raceFor(R, t) {
+  const key = R.k + t; if (RF[key]) return RF[key];
+  const melee = ["yay", "mizrak", "mizrakkalkan"].includes(R.wpn) ? "kilic" : R.wpn;
+  const wpn = t === "o" ? "yay" : t === "m" ? (R.wpn === "mizrakkalkan" || R.wpn === "yaba" ? R.wpn : "mizrak") : t === "a" ? (R.wpn === "balta" || R.wpn === "gurz" ? R.wpn : "kilic") : melee;
+  return RF[key] = { ...R, wpn, mount: t === "a" };
+}
+const HORSE = ["#f4efe2", "#8a5a3a", "#5a3a2a", "#d8d0c8", "#2b2219", "#b87a4a"];
+function drawHorse(g, R, o, sw) {
+  const c = HORSE[R.i % HORSE.length], F = (col, p) => { g.fillStyle = col; g.beginPath(); p(); g.fill(); g.stroke(); };
+  const leg = (x, a, back) => { g.strokeStyle = INK; g.lineWidth = 3.6; g.beginPath(); g.moveTo(x, -11); g.lineTo(x + Math.sin(a) * 10, -.5); g.stroke(); g.strokeStyle = back ? shade(c, -.2) : c; g.lineWidth = 2.2; g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; };
+  leg(-10, -sw * .45, true); leg(9, sw * .45, true);
+  g.strokeStyle = INK; F(shade(c, -.25), () => { g.moveTo(-15, -18); g.quadraticCurveTo(-23, -14 + sw * 2, -20, -4); g.quadraticCurveTo(-18, -12, -14, -15); });
+  F(c, () => g.ellipse(0, -16, 15.5, 7, 0, 0, 7));
+  F(c, () => { g.moveTo(9, -20); g.quadraticCurveTo(13, -30, 17, -33); g.lineTo(21, -30); g.quadraticCurveTo(17, -24, 15, -14); g.closePath(); });
+  F(c, () => g.ellipse(21, -30.5, 6, 2.8, .55, 0, 7));
+  F(c, () => { g.moveTo(16.5, -34); g.lineTo(17.5, -38); g.lineTo(19, -33.5); g.closePath(); });
+  g.fillStyle = INK; g.beginPath(); g.arc(20, -32, .7, 0, 7); g.fill();
+  g.strokeStyle = shade(c, -.45); g.lineWidth = 2; g.beginPath(); g.moveTo(16, -34); g.quadraticCurveTo(11, -28, 9, -21); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05;
+  leg(-7, sw * .45, false); leg(12, -sw * .45, false);
+  // eyer örtüsü
+  F(R.c1, () => { g.moveTo(-8, -23); g.lineTo(6, -23); g.lineTo(7, -13); g.lineTo(-9, -13); g.closePath(); });
+  g.strokeStyle = R.c3; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-8.6, -14); g.lineTo(6.6, -14); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05;
+  g.fillStyle = R.c2; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(-5 + i * 3.4, -18, .8, 0, 7); g.fill(); }
 }
 /* ---------- kaleler (her ırkın kendi mimarisi) ---------- */
 const STONE = { merkez: "#efe3c4", kuzey: "#e4e2e8", bozkir: "#e6d3a4", dogu: "#ead9b4", col: "#ecd39a", savan: "#d8b07a", orman: "#c8c0a0", karanlik: "#6a5a60" };
@@ -454,8 +506,43 @@ function paintTerritory() {
   }
   g.putImageData(img, 0, 0);
 }
+/* ---------- asker türleri ve şehir yapıları ---------- */
+const SAVE_KEY = "otuz-diyar-v2";
+const TYPES = ["k", "m", "o", "a"];
+const UT = {
+  k: { ad: "Piyade", cok: "Piyadeler", hp: 1, atk: 1, cost: 1, spd: 1, adet: 10 },
+  m: { ad: "Mızraklı", cok: "Mızraklılar", hp: 1, atk: .9, cost: 1.1, spd: 1, adet: 10 },
+  o: { ad: "Okçu", cok: "Okçular", hp: .75, atk: .8, cost: 1.2, spd: 1, adet: 10 },
+  a: { ad: "Atlı", cok: "Atlılar", hp: 1.7, atk: 1.35, cost: 2.4, spd: 1.9, adet: 5 },
+};
+// taş-kâğıt-makas: atlı okçuyu ezer, mızraklı atlıyı durdurur, okçu piyadeyi yıpratır
+const VS = { a: { o: .7, m: -.45 }, m: { a: .8 }, o: { k: .15, a: -.3 }, k: { m: .25 } };
+const canRide = R => !["dev", "trol", "kurt", "cin"].includes(R.body);
+const BLD = [
+  { k: "carsi", ad: "Çarşı", desc: "Esnaf dükkânları vergi öder.", gelir: [1, 2, 3], cost: [120, 260, 520] },
+  { k: "kervan", ad: "Kervansaray", desc: "Tüccar kervanları uğrar.", gelir: [1.5, 3, 4.5], cost: [220, 460, 900] },
+  { k: "ciftlik", ad: "Tarlalar", desc: "Ekin ve sürü; kaledeki asker daha hızlı artar.", gelir: [.5, 1, 1.5], cost: [90, 200, 420] },
+  { k: "atolye", ad: "Zanaat Atölyesi", desc: "Demirci ve dokumacılar; asker %8 ucuzlar.", gelir: [.8, 1.6, 2.4], cost: [180, 380, 760] },
+  { k: "sur", ad: "Surlar", desc: "Kuşatmada kale savunması %15 artar.", gelir: [0, 0, 0], cost: [200, 420, 850] },
+  { k: "ahir", ad: "Ahır", desc: "Atlı asker yetiştirmeyi açar.", gelir: [0], cost: [240] },
+];
+const BLD_BY = Object.fromEntries(BLD.map(b => [b.k, b]));
+const mk = (k = 0, m = 0, o = 0, a = 0) => ({ k, m, o, a });
+const tot = u => u.k + u.m + u.o + u.a;
+const addU = (x, y) => TYPES.forEach(t => x[t] += y[t]);
+const scaleU = (u, f) => TYPES.forEach(t => u[t] *= f);
+const takeU = (u, f) => { const r = mk(); TYPES.forEach(t => { const v = Math.floor(u[t] * f + 1e-6); r[t] = v; u[t] -= v; }); return r; };
+const uPow = (o, t) => Math.pow(RACES[o].hp * UT[t].hp * RACES[o].atk * UT[t].atk, .75);
+function compPow(o, u, vs) {
+  const n = vs ? tot(vs) || 1 : 1;
+  return TYPES.reduce((s, t) => { let m = 1; if (vs) for (const [x, b] of Object.entries(VS[t])) m += b * vs[x] / n; return s + u[t] * uPow(o, t) * m; }, 0);
+}
+function unitCost(c, t) { return Math.round(RACES[c.owner].cost * UT[t].cost * UT[t].adet * (1 - .08 * (c.b.atolye || 0))); }
+function cityIncome(c) { return 1 + BLD.reduce((s, b) => s + (c.b[b.k] ? b.gelir[c.b[b.k] - 1] : 0), 0); }
+function startComp(R, N) { const o = N * R.arch * .8, a = canRide(R) ? N * .08 : 0, m = N * .15; return mk(Math.max(0, N - o - a - m), m, o, a); }
+function fixAll() { S.cities.forEach(c => c.gar = tot(c.u)); S.armies.forEach(a => a.n = Math.round(tot(a.u))); }
+
 /* ---------- oyun durumu ---------- */
-const SAVE_KEY = "otuz-diyar-v1";
 let S = null, mines0 = [];
 function genMines() {
   rnd = mulberry(SEED + 99); const out = [], tips = ["altin", "gumus", "demir"];
@@ -463,51 +550,52 @@ function genMines() {
     const x = 60 + rnd() * (WW - 120), y = 60 + rnd() * (WH - 120);
     if (![[0, 0], [28, 0], [-28, 0], [0, 28], [0, -28]].every(([a, b]) => isLand(x + a, y + b))) continue;
     if (RACES.some(R => Math.hypot(R._p.x - x, R._p.y - y) < 120) || out.some(m => Math.hypot(m.x - x, m.y - y) < 130)) continue;
-    const tip = tips[out.length % 3]; out.push({ x, y, tip, val: tip === "altin" ? 4 : tip === "gumus" ? 3 : 2 });
+    const tip = tips[out.length % 3]; out.push({ x, y, tip, val: tip === "altin" ? 2 : tip === "gumus" ? 1.5 : 1 });
   }
   return out;
 }
 const MINE_AD = { altin: "Altın Ocağı", gumus: "Gümüş Ocağı", demir: "Demir Ocağı" };
 function newGame(P) {
   S = {
-    v: 1, P, t: 0, speed: 1, nextId: 1, gold: RACES.map(() => 250), ai: RACES.map(() => 2 + Math.random() * 4),
-    cities: RACES.map((R, i) => ({ i, race: i, owner: i, x: R._p.x, y: R._p.y, gar: Math.round(200 / R.cost * (i === P ? 1.3 : 1)) })),
+    v: 2, P, t: 0, speed: 1, nextId: 1, gold: RACES.map(() => 250), ai: RACES.map(() => 2 + Math.random() * 4),
+    cities: RACES.map((R, i) => ({ i, race: i, owner: i, x: R._p.x, y: R._p.y, u: startComp(R, Math.round(200 / R.cost * (i === P ? 1.3 : 1))), b: {} })),
     mines: mines0.map(m => ({ ...m, owner: -1 })), armies: [], over: false,
   };
-  S.gold[P] = 400;
+  S.gold[P] = 400; fixAll();
 }
-const pw = o => RACES[o].pow;
 const owned = o => S.cities.filter(c => c.owner === o);
 const alive = o => S.cities.some(c => c.owner === o);
-function income(o) { return owned(o).length * 2 + S.mines.filter(m => m.owner === o).reduce((a, m) => a + m.val, 0); }
+function income(o) { return owned(o).reduce((s, c) => s + cityIncome(c), 0) + S.mines.filter(m => m.owner === o).reduce((a, m) => a + m.val, 0); }
 
 /* ---------- güncelleme ---------- */
 let battleOpen = null, fx = [];
 function update(dt) {
   if (S.over) return;
   S.t += dt;
-  for (let o = 0; o < RACES.length; o++) S.gold[o] += income(o) * dt * .5;
-  for (const c of S.cities) { const R = RACES[c.owner], cap = 520 / R.cost; if (c.gar < cap) c.gar = Math.min(cap, c.gar + dt * .16 * 6 / R.cost); }
-  // ordular
+  for (let o = 0; o < RACES.length; o++) S.gold[o] += income(o) * dt;
+  for (const c of S.cities) {
+    const R = RACES[c.owner], f = 1 + .35 * (c.b.ciftlik || 0), cap = 520 / R.cost * (1 + .25 * (c.b.ciftlik || 0));
+    if (tot(c.u) < cap) { const r = dt * .16 * 6 / R.cost * f; c.u.k += r * (1 - R.arch); c.u.o += r * R.arch; }
+  }
   for (const a of S.armies.slice()) {
     if (!S.armies.includes(a)) continue;
     if (a.st !== "yol") continue;
     if (a.tgt && a.tgt.k === "army") { const e = S.armies.find(b => b.id === a.tgt.id); if (!e) { a.st = "ordugah"; a.tgt = null; continue; } a.tx = e.x; a.ty = e.y; }
-    const sp = 24 * RACES[a.owner].spd, dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
+    const fast = a.u.a > 0 && a.u.a >= tot(a.u) * .99 ? 1.6 : 1;
+    const sp = 24 * RACES[a.owner].spd * fast, dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
     a.ph = (a.ph || 0) + dt * 7;
     if (d > 2) { const s = Math.min(d, sp * dt); a.x += dx / d * s; a.y += dy / d * s; a.face = dx < 0 ? -1 : 1; }
-    // karşılaşma
     const foe = S.armies.find(b => b !== a && b.owner !== a.owner && Math.hypot(b.x - a.x, b.y - a.y) < 24);
     if (foe) { startBattle({ att: a, defArmy: foe }); if (battleOpen) return; continue; }
     if (d <= 3) arrive(a);
     if (battleOpen) return;
   }
-  // yapay zekâ
   for (let o = 0; o < RACES.length; o++) {
     if (o === S.P || !alive(o)) continue;
     S.ai[o] -= dt; if (S.ai[o] > 0) continue; S.ai[o] = 7 + Math.random() * 6; think(o);
     if (battleOpen) return;
   }
+  fixAll();
   fx = fx.filter(f => (f.t += dt) < 2.4);
 }
 function arrive(a) {
@@ -515,75 +603,90 @@ function arrive(a) {
   if (!t) { a.st = "ordugah"; return; }
   if (t.k === "city") {
     const c = S.cities[t.i];
-    if (c.owner === a.owner) { c.gar += a.n; removeArmy(a); return; }
+    if (c.owner === a.owner) { addU(c.u, a.u); removeArmy(a); return; }
     startBattle({ att: a, defCity: c });
   } else if (t.k === "mine") {
     const m = S.mines[t.i], guard = S.armies.find(b => b.st === "nobet" && b.mine === t.i && b !== a);
     if (guard && guard.owner !== a.owner) { startBattle({ att: a, defArmy: guard }); return; }
-    if (guard) { guard.n += a.n; removeArmy(a); return; }
+    if (guard) { addU(guard.u, a.u); removeArmy(a); return; }
     if (m.owner !== a.owner && (m.owner === S.P || a.owner === S.P)) note(a.owner === S.P ? `${MINE_AD[m.tip]} senin oldu` : `${RACES[a.owner].ad} ${MINE_AD[m.tip].toLocaleLowerCase("tr")}nı aldı`);
     m.owner = a.owner; a.st = "nobet"; a.mine = t.i; a.x = m.x + 18; a.y = m.y + 6; a.tgt = null;
   } else { a.st = "ordugah"; a.tgt = null; }
 }
 function removeArmy(a) { const i = S.armies.indexOf(a); if (i >= 0) S.armies.splice(i, 1); if (sel && sel.k === "army" && sel.id === a.id) sel = null; }
-function sendArmy(o, city, n, tgt, tx, ty) {
-  n = Math.floor(n); if (n < 1) return null;
-  city.gar -= n;
-  const a = { id: S.nextId++, owner: o, n, x: city.x + 4, y: city.y + 14, tx, ty, tgt, st: "yol", ph: 0, face: tx < city.x ? -1 : 1 };
-  S.armies.push(a); return a;
+// u: gönderilecek birlikler (kaleden düşülür)
+function sendArmy(o, city, u, tgt, tx, ty) {
+  if (tot(u) < 1) return null;
+  TYPES.forEach(t => { u[t] = Math.min(Math.floor(u[t]), Math.floor(city.u[t])); city.u[t] -= u[t]; });
+  if (tot(u) < 1) return null;
+  const a = { id: S.nextId++, owner: o, u, n: tot(u), x: city.x + 4, y: city.y + 14, tx, ty, tgt, st: "yol", ph: 0, face: tx < city.x ? -1 : 1 };
+  S.armies.push(a); fixAll(); return a;
 }
+const part = (c, f) => { const u = mk(); TYPES.forEach(t => u[t] = Math.floor(c.u[t] * f)); return u; };
 function think(o) {
   const R = RACES[o], cs = owned(o);
-  if (S.gold[o] > R.cost * 25) { const c = cs.reduce((a, b) => a.gar < b.gar ? a : b), n = Math.floor(S.gold[o] * .35 / R.cost); c.gar += n; S.gold[o] -= n * R.cost; }
-  const src = cs.reduce((a, b) => a.gar * 1 > b.gar ? a : b), power = src.gar * pw(o);
+  // inşa: önce gelir getiren yapılar
+  const cap = cs[0];
+  if (cap && Math.random() < .5) {
+    const opts = ["ciftlik", "carsi", "kervan", "atolye", "sur", "ahir"].filter(k => { const B = BLD_BY[k], l = cap.b[k] || 0; return l < B.cost.length && (k !== "ahir" || canRide(R)); });
+    const k = opts[0]; if (k) { const cost = BLD_BY[k].cost[cap.b[k] || 0]; if (S.gold[o] > cost * 1.6) { S.gold[o] -= cost; cap.b[k] = (cap.b[k] || 0) + 1; } }
+  }
+  // asker: ırkın sevdiği karışım
+  if (S.gold[o] > R.cost * 30) {
+    const c = cs.reduce((a, b) => tot(a.u) < tot(b.u) ? a : b), budget = S.gold[o] * .35;
+    const mix = { o: R.arch, a: canRide(R) && c.b.ahir ? .15 : 0, m: .2 }; mix.k = Math.max(.1, 1 - mix.o - mix.a - mix.m);
+    TYPES.forEach(t => { const per = unitCost(c, t) / UT[t].adet, n = Math.floor(budget * mix[t] / per); c.u[t] += n; S.gold[o] -= n * per; });
+  }
+  const src = cs.reduce((a, b) => tot(a.u) > tot(b.u) ? a : b), power = compPow(o, src.u);
   if (power < 300) return;
   const busy = new Set(S.armies.filter(a => a.owner === o && a.tgt).map(a => a.tgt.k + a.tgt.i));
   const near = (p, r) => Math.hypot(p.x - src.x, p.y - src.y) < r;
-  // 1) sahipsiz maden
   const free = S.mines.map((m, i) => ({ m, i })).filter(({ m, i }) => m.owner < 0 && near(m, 520) && !busy.has("mine" + i)).sort((p, q) => dist(p.m, src) - dist(q.m, src))[0];
-  if (free && Math.random() < .7) { sendArmy(o, src, Math.max(4, src.gar * .3), { k: "mine", i: free.i }, free.m.x, free.m.y); return; }
-  // 2) zayıf komşu şehir
+  if (free && Math.random() < .7) { sendArmy(o, src, part(src, .3), { k: "mine", i: free.i }, free.m.x, free.m.y); return; }
   const grace = S.t < 240;
-  const tgts = S.cities.filter(c => c.owner !== o && near(c, 600) && !(grace && c.owner === S.P)).map(c => ({ c, def: c.gar * pw(c.owner) * 1.3 })).sort((p, q) => p.def - q.def);
-  if (tgts[0] && power * .7 > tgts[0].def * 2 && Math.random() < .35 && !busy.has("city" + tgts[0].c.i)) { const c = tgts[0].c; sendArmy(o, src, src.gar * .7, { k: "city", i: c.i }, c.x, c.y); return; }
-  // 3) düşman madeni
-  const em = S.mines.map((m, i) => ({ m, i })).filter(({ m, i }) => m.owner >= 0 && m.owner !== o && near(m, 520) && !(grace && m.owner === S.P)).map(x => { const gd = S.armies.find(b => b.st === "nobet" && b.mine === x.i); return { ...x, def: gd ? gd.n * pw(gd.owner) : 0 }; }).sort((p, q) => p.def - q.def)[0];
-  if (em && power * .5 > em.def * 1.3 && !busy.has("mine" + em.i)) { sendArmy(o, src, src.gar * .5, { k: "mine", i: em.i }, em.m.x, em.m.y); return; }
-  // 4) sınıra ordugâh kur
+  const tgts = S.cities.filter(c => c.owner !== o && near(c, 600) && !(grace && c.owner === S.P)).map(c => ({ c, def: compPow(c.owner, c.u) * (1.3 + .15 * (c.b.sur || 0)) })).sort((p, q) => p.def - q.def);
+  if (tgts[0] && power * .7 > tgts[0].def * 2 && Math.random() < .35 && !busy.has("city" + tgts[0].c.i)) { const c = tgts[0].c; sendArmy(o, src, part(src, .7), { k: "city", i: c.i }, c.x, c.y); return; }
+  const em = S.mines.map((m, i) => ({ m, i })).filter(({ m, i }) => m.owner >= 0 && m.owner !== o && near(m, 520) && !(grace && m.owner === S.P)).map(x => { const gd = S.armies.find(b => b.st === "nobet" && b.mine === x.i); return { ...x, def: gd ? compPow(gd.owner, gd.u) : 0 }; }).sort((p, q) => p.def - q.def)[0];
+  if (em && power * .5 > em.def * 1.3 && !busy.has("mine" + em.i)) { sendArmy(o, src, part(src, .5), { k: "mine", i: em.i }, em.m.x, em.m.y); return; }
   if (Math.random() < .18 && S.armies.filter(a => a.owner === o).length < 3) {
     const en = S.cities.filter(c => c.owner !== o).sort((p, q) => dist(p, src) - dist(q, src))[0];
-    if (en) { const tx = lerp(src.x, en.x, .45), ty = lerp(src.y, en.y, .45); if (isLand(tx, ty)) sendArmy(o, src, src.gar * .25, null, tx, ty); }
+    if (en) { const tx = lerp(src.x, en.x, .45), ty = lerp(src.y, en.y, .45); if (isLand(tx, ty)) sendArmy(o, src, part(src, .25), null, tx, ty); }
   }
 }
 /* ---------- muharebe kurulumu ve sonucu ---------- */
 function startBattle(b) {
-  const a = b.att, defOwner = b.defCity ? b.defCity.owner : b.defArmy.owner, defN = b.defCity ? Math.max(1, Math.round(b.defCity.gar)) : b.defArmy.n;
-  b.A = { owner: a.owner, n: a.n }; b.D = { owner: defOwner, n: defN, bonus: b.defCity ? 1.3 : 1 };
-  b.x = b.defCity ? b.defCity.x : b.defArmy.x; b.y = b.defCity ? b.defCity.y : b.defArmy.y;
+  const a = b.att, dc = b.defCity, defOwner = dc ? dc.owner : b.defArmy.owner, du = dc ? dc.u : b.defArmy.u;
+  if (tot(du) < 1) TYPES.forEach(t => du[t] = Math.max(du[t], 0)), du.k = Math.max(du.k, 1);
+  b.A = { owner: a.owner, u: { ...a.u }, n: Math.round(tot(a.u)) }; b.D = { owner: defOwner, u: { ...du }, n: Math.round(tot(du)), bonus: dc ? 1.3 + .15 * (dc.b.sur || 0) : 1 };
+  b.x = dc ? dc.x : b.defArmy.x; b.y = dc ? dc.y : b.defArmy.y;
   if (a.owner === S.P || defOwner === S.P) { battleOpen = b; openBattle(b); return; }
   const r = autoResolve(b.A, b.D); applyBattle(b, r[0], r[1]);
 }
+// sonuç: hayatta kalanların oranı [saldıran, savunan]
 function autoResolve(A, D) {
-  const pa = A.n * pw(A.owner) * (.85 + Math.random() * .3), pd = D.n * pw(D.owner) * D.bonus * (.85 + Math.random() * .3);
-  if (pa > pd) return [Math.max(1, Math.round(A.n * (1 - Math.pow(pd / pa, 1.25) * .85))), 0];
-  return [0, Math.max(1, Math.round(D.n * (1 - Math.pow(pa / pd, 1.25) * .85)))];
+  const pa = compPow(A.owner, A.u, D.u) * (.85 + Math.random() * .3), pd = compPow(D.owner, D.u, A.u) * D.bonus * (.85 + Math.random() * .3);
+  return pa > pd ? [1 - Math.pow(pd / pa, 1.25) * .85, 0] : [0, 1 - Math.pow(pa / pd, 1.25) * .85];
 }
-function applyBattle(b, aLeft, dLeft) {
+// aF, dF: sayı ya da tür başına oran nesnesi
+function surv(u, f) { const r = mk(); TYPES.forEach(t => r[t] = Math.round(u[t] * (typeof f === "number" ? f : f[t]))); if (tot(r) < 1 && (typeof f === "number" ? f > 0 : Object.values(f).some(v => v > 0))) { const best = TYPES.reduce((a, t) => u[t] > u[a] ? t : a, "k"); r[best] = 1; } return r; }
+function applyBattle(b, aF, dF) {
   const a = b.att; fx.push({ x: b.x, y: b.y, t: 0 });
-  if (aLeft <= 0) removeArmy(a); else a.n = aLeft;
+  const aU = surv(b.A.u, aF), dU = surv(b.D.u, dF);
+  if (tot(aU) < 1) removeArmy(a); else a.u = aU;
   if (b.defCity) {
     const c = b.defCity, R = RACES[c.race];
-    if (dLeft > 0) c.gar = dLeft;
+    if (tot(dU) >= 1) c.u = dU;
     else {
-      const prev = c.owner; c.owner = a.owner; c.gar = aLeft; removeArmy(a); paintTerritory();
+      const prev = c.owner; c.owner = a.owner; c.u = aU; removeArmy(a); paintTerritory();
+      c.b.sur = Math.max(0, (c.b.sur || 0) - 1);
       if (a.owner === S.P) note(`${R.sehir} fethedildi! ${RACES[prev].ad} yenildi.`);
       else if (prev === S.P) note(`${RACES[a.owner].ad} ${R.sehir} şehrini aldı!`);
       if (!alive(prev)) eliminate(prev);
     }
   } else if (b.defArmy) {
-    const d = b.defArmy; if (dLeft <= 0) { if (d.st === "nobet" && S.mines[d.mine]) {} removeArmy(d); } else d.n = dLeft;
+    const d = b.defArmy; if (tot(dU) < 1) removeArmy(d); else d.u = dU;
   }
-  checkEnd(); renderPanel();
+  fixAll(); checkEnd(); renderPanel();
 }
 function eliminate(o) {
   S.armies = S.armies.filter(a => a.owner !== o); S.mines.forEach(m => { if (m.owner === o) m.owner = -1; });
@@ -620,13 +723,14 @@ function drawMap(T) {
   S.armies.forEach(a => { if (a.owner !== S.P || a.st !== "yol") return; g.strokeStyle = "rgba(255,246,216,.9)"; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.tx, a.ty); g.stroke(); });
   g.setLineDash([]);
   // şehirler
-  S.cities.forEach(c => drawCastle(g, RACES[c.race], c.x, c.y, 1.15, RACES[c.owner].renk));
+  S.cities.forEach(c => { drawCityB(g, c); drawCastle(g, RACES[c.race], c.x, c.y, 1.15, RACES[c.owner].renk); });
   // ordular ve ordugâhlar
   S.armies.slice().sort((p, q) => p.y - q.y).forEach(a => {
     const R = RACES[a.owner];
     if (a.st !== "yol") drawTents(g, a.x - 14, a.y - 4, .9, R.renk);
     const n = Math.min(3, Math.max(1, Math.ceil(a.n / 15))), s = R.body === "dev" ? .32 : R.body === "trol" ? .38 : .62;
-    for (let k = n - 1; k >= 0; k--) drawFig(g, R, { x: a.x - k * 9 * (a.face || 1), y: a.y + k * 3, s, dir: a.face || 1, ph: (a.ph || 0) + k, walk: a.st === "yol" });
+    const tt = TYPES.reduce((m, t) => a.u[t] > a.u[m] ? t : m, "k"), RR = raceFor(R, tt);
+    for (let k = n - 1; k >= 0; k--) drawFig(g, RR, { x: a.x - k * 9 * (a.face || 1), y: a.y + k * 3, s, dir: a.face || 1, ph: (a.ph || 0) + k, walk: a.st === "yol" });
     flag(g, a.x + 6 * (a.face || 1), a.y - 4, R.renk, 34);
   });
   // savaş izleri
@@ -689,7 +793,7 @@ function onTap(wx, wy) {
   if (S.over) return;
   const h = hitTest(wx, wy);
   if (mode) { chooseTarget(h, wx, wy); return; }
-  sel = h; renderPanel();
+  sel = h; prep = null; renderPanel();
 }
 function chooseTarget(h, wx, wy) {
   let tgt = null, tx = wx, ty = wy;
@@ -698,9 +802,9 @@ function chooseTarget(h, wx, wy) {
   else if (h && h.k === "army") { const a = S.armies.find(b => b.id === h.id); if (a.owner === S.P) { toast("Kendi ordunu hedef seçemezsin"); return; } tgt = { k: "army", id: a.id, i: a.id }; tx = a.x; ty = a.y; }
   else if (!isLand(wx, wy)) { toast("Ordu denize yürüyemez. Karada bir yer seç."); return; }
   if (mode.city != null) {
-    const c = S.cities[mode.city], n = Math.min(Math.floor(c.gar), mode.n); if (n < 1) { toast("Kalede yeterli asker yok"); mode = null; renderPanel(); return; }
+    const c = S.cities[mode.city];
     if (tgt && tgt.k === "city" && tgt.i === c.i) { toast("Ordu zaten bu kalede"); return; }
-    const a = sendArmy(S.P, c, n, tgt, tx, ty); sel = { k: "army", id: a.id };
+    const a = sendArmy(S.P, c, { ...mode.u }, tgt, tx, ty); if (!a) { toast("Kalede yeterli asker yok"); mode = null; renderPanel(); return; } sel = { k: "army", id: a.id };
     toast(tgt ? (tgt.k === "city" ? (S.cities[tgt.i].owner === S.P ? "Ordu kaleye gidiyor" : `${RACES[S.cities[tgt.i].race].sehir} üzerine yürüyüş!`) : tgt.k === "mine" ? "Ordu madene gidiyor" : "Ordu düşmanın peşinde") : "Ordu ordugâh kurmaya gidiyor");
   } else {
     const a = S.armies.find(b => b.id === mode.army); if (a) { a.tgt = tgt; a.tx = tx; a.ty = ty; a.st = "yol"; a.mine = undefined; toast("Ordu yola çıktı"); }
@@ -709,38 +813,79 @@ function chooseTarget(h, wx, wy) {
 }
 
 /* ---------- panel ---------- */
+let cityTab = "ordu", prep = null, live = [];
+function prepPanel(p, c) {
+  const O = RACES[c.owner];
+  p.appendChild(el("p", null, "Sefere çıkacak birlikleri seç:"));
+  const rows = el("div", "prep");
+  TYPES.forEach(t => {
+    const have = Math.floor(c.u[t]); if (have < 1) return;
+    const row = el("div", "prow"), v = el("b", null, `${prep.u[t]} / ${have}`), step = Math.max(1, Math.round(have / 10));
+    const set = n => { prep.u[t] = clamp(n, 0, have); v.textContent = `${prep.u[t]} / ${have}`; };
+    row.append(el("span", null, UT[t].cok), btn("−", "ghost", () => set(prep.u[t] - step)), v, btn("+", "ghost", () => set(prep.u[t] + step)), btn("Hepsi", "ghost", () => set(have)));
+    rows.appendChild(row);
+  });
+  p.appendChild(rows);
+  const acts = el("div", "acts");
+  acts.append(btn("Hedef seç", "red", () => { if (tot(prep.u) < 1) return toast("En az bir asker seç"); mode = { city: c.i, u: { ...prep.u } }; prep = null; renderPanel(); }), btn("Vazgeç", "ghost", () => { prep = null; renderPanel(); }));
+  p.appendChild(acts);
+}
 function el(t, c, txt) { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
 function btn(txt, c, fn, dis) { const b = el("button", "btn " + (c || ""), txt); b.type = "button"; b.disabled = !!dis; b.addEventListener("click", fn); return b; }
 function title(o, txt) { const h = el("h3"); const d = el("span", "dot"); d.style.background = RACES[o].renk; h.append(d, el("span", null, txt)); return h; }
 function renderPanel() {
-  const p = $("panel"); if (S.over) return; p.replaceChildren();
+  const p = $("panel"); if (S.over) return; p.replaceChildren(); live = [];
   if (mode) {
     p.append(el("h3", null, "Hedef seç"), el("p", null, "Haritada bir düşman kalesine, maden ocağına ya da düşman ordusuna dokun. Boş araziye dokunursan ordu orada ordugâh kurar."));
     const acts = el("div", "acts"); acts.append(btn("Vazgeç", "ghost", () => { mode = null; renderPanel(); })); p.appendChild(acts); return;
   }
   if (!sel) {
     const me = RACES[S.P], cs = owned(S.P);
-    p.append(title(S.P, `${me.ad} · ${cs.length} kale`), el("p", null, `Kalene dokun, asker topla ve ordu çıkar. Maden ocakları hazineni büyütür. Gelir: saniyede ${Math.round(income(S.P) * .5 * 10) / 10} altın.`));
+    p.append(title(S.P, `${me.ad} · ${cs.length} kale`), el("p", null, `Kalene dokun, asker topla ve ordu çıkar. Maden ocakları hazineni büyütür. Gelir: saniyede ${income(S.P).toFixed(1)} altın.`));
     const acts = el("div", "acts"); acts.append(btn("Kaleme git", "", () => { const c = cs[0]; if (c) { cam.x = c.x; cam.y = c.y; cam.z = Math.max(cam.z, .6); clampCam(); sel = { k: "city", i: c.i }; renderPanel(); } })); p.appendChild(acts); return;
   }
   if (sel.k === "city") {
     const c = S.cities[sel.i], R = RACES[c.race], O = RACES[c.owner], mine = c.owner === S.P;
-    p.append(title(c.owner, `${R.sehir} kalesi`), el("p", null, `${R.ad} diyarı · sahibi ${O.ad} · ${Math.round(c.gar)} asker (${O.ad.toLocaleLowerCase("tr")})`));
-    const acts = el("div", "acts");
-    if (mine) {
-      const cost = O.cost * 10;
-      acts.append(btn(`+10 asker · ${cost} altın`, "green", () => { if (S.gold[S.P] < cost) return toast("Hazinede yeterli altın yok"); S.gold[S.P] -= cost; c.gar += 10; renderPanel(); }, S.gold[S.P] < cost));
-      [[.25, "Çeyreğini"], [.5, "Yarısını"], [.8, "Çoğunu"]].forEach(([f, l]) => { const n = Math.floor(c.gar * f); acts.append(btn(`${l} çıkar (${n})`, "red", () => { mode = { city: c.i, n }; renderPanel(); }, n < 1)); });
-    } else p.appendChild(el("p", "hint", "Saldırmak için kendi kalenden ordu çıkar ve bu kaleyi hedef seç. Kale savunması %30 güçlüdür."));
-    p.appendChild(acts);
+    const comp = TYPES.filter(t => c.u[t] >= 1).map(t => `${Math.floor(c.u[t])} ${UT[t].ad.toLocaleLowerCase("tr")}`).join(", ") || "boş";
+    const info = el("p", null, `${R.ad} diyarı · sahibi ${O.ad} · ${comp}`); p.append(title(c.owner, `${R.sehir} kalesi`), info);
+    live.push(() => { info.textContent = `${R.ad} diyarı · sahibi ${O.ad} · ${TYPES.filter(t => c.u[t] >= 1).map(t => `${Math.floor(c.u[t])} ${UT[t].ad.toLocaleLowerCase("tr")}`).join(", ") || "boş"}`; });
+    if (!mine) { p.appendChild(el("p", "hint", `Saldırmak için kendi kalenden ordu çıkar ve bu kaleyi hedef seç. Kale savunması %${30 + 15 * (c.b.sur || 0)} güçlüdür.`)); return; }
+    if (prep && prep.city === c.i) return prepPanel(p, c);
+    const tabs = el("div", "tabs"); [["ordu", "Ordu"], ["sehir", `Şehir · +${cityIncome(c).toFixed(1)}/sn`]].forEach(([k, l]) => { const b = btn(l, "tab", () => { cityTab = k; renderPanel(); }); b.setAttribute("aria-pressed", String(cityTab === k)); tabs.appendChild(b); });
+    p.appendChild(tabs);
+    if (cityTab === "ordu") {
+      const grid = el("div", "recruit");
+      TYPES.forEach(t => {
+        const cost = unitCost(c, t), lock = t === "a" && (!canRide(O) || !c.b.ahir), b = el("button", "unit"); b.type = "button";
+        const cvs = document.createElement("canvas"); cvs.width = 76; cvs.height = 76; drawFig(cvs.getContext("2d"), raceFor(O, t), { x: t === "a" ? 34 : 38, y: 70, s: (t === "a" ? 1.15 : 1.45) / BODY[O.body].sz ** .6, dir: 1 });
+        const sm = el("small", null, ""); b.append(cvs, el("b", null, `${UT[t].ad} +${UT[t].adet}`), sm);
+        const upd = () => { sm.textContent = lock ? (canRide(O) ? "Ahır gerekir" : "Bu ırk ata binmez") : `${cost} altın · elde ${Math.floor(c.u[t])}`; b.disabled = lock || S.gold[S.P] < cost; }; upd(); live.push(upd);
+        b.addEventListener("click", () => { if (S.gold[S.P] < cost) return toast("Hazinede yeterli altın yok"); S.gold[S.P] -= cost; c.u[t] += UT[t].adet; fixAll(); live.forEach(f => f()); renderTop(); });
+        grid.appendChild(b);
+      });
+      p.appendChild(grid);
+      const acts = el("div", "acts"); acts.append(btn("Sefere ordu hazırla", "red", () => { prep = { city: c.i, u: part(c, .5) }; renderPanel(); }, c.gar < 1)); p.appendChild(acts);
+    } else {
+      const list = el("div", "blds");
+      BLD.forEach(B => {
+        if (B.k === "ahir" && !canRide(O)) return;
+        const l = c.b[B.k] || 0, max = l >= B.cost.length, cost = max ? 0 : B.cost[l], row = el("div", "bld");
+        const info = el("div"); info.append(el("b", null, `${B.ad}${B.cost.length > 1 ? ` · seviye ${l}/${B.cost.length}` : l ? " ✓" : ""}`), el("small", null, B.desc + (B.gelir[0] ? ` Gelir: +${(l ? B.gelir[l - 1] : 0)}/sn${max ? "" : ` → +${B.gelir[l]}/sn`}` : "")));
+        const bb = btn(max ? "Tamam" : `${l ? "Geliştir" : "Kur"} · ${cost}`, max ? "ghost" : "green", () => { if (S.gold[S.P] < cost) return toast("Hazinede yeterli altın yok"); S.gold[S.P] -= cost; c.b[B.k] = l + 1; toast(`${B.ad} ${l ? "geliştirildi" : "kuruldu"}`); renderPanel(); renderTop(); }, max || S.gold[S.P] < cost);
+        if (!max) live.push(() => { bb.disabled = S.gold[S.P] < cost; });
+        row.append(info, bb);
+        list.appendChild(row);
+      });
+      p.appendChild(list);
+    }
   } else if (sel.k === "mine") {
     const m = S.mines[sel.i], gd = S.armies.find(b => b.st === "nobet" && b.mine === sel.i);
-    p.append(el("h3", null, `${MINE_AD[m.tip]} · saniyede +${m.val / 2} altın`), el("p", null, m.owner < 0 ? "Sahipsiz. Bir ordu gönderen alır." : `Sahibi: ${RACES[m.owner].ad}${gd ? ` · nöbette ${gd.n} asker` : " · nöbetçi yok"}`));
+    p.append(el("h3", null, `${MINE_AD[m.tip]} · saniyede +${m.val} altın`), el("p", null, m.owner < 0 ? "Sahipsiz. Bir ordu gönderen alır." : `Sahibi: ${RACES[m.owner].ad}${gd ? ` · nöbette ${gd.n} asker` : " · nöbetçi yok"}`));
     p.appendChild(el("p", "hint", "Kendi kalenden ordu çıkarıp bu madeni hedef seç."));
   } else {
     const a = S.armies.find(b => b.id === sel.id); if (!a) { sel = null; return renderPanel(); }
     const R = RACES[a.owner], durum = a.st === "yol" ? "yolda" : a.st === "nobet" ? "maden nöbetinde" : "ordugâhta";
-    p.append(title(a.owner, `${R.ad} ordusu · ${a.n} asker`), el("p", null, `Durum: ${durum}.`));
+    p.append(title(a.owner, `${R.ad} ordusu · ${a.n} asker`), el("p", null, `${TYPES.filter(t => a.u[t] >= 1).map(t => `${Math.round(a.u[t])} ${UT[t].ad.toLocaleLowerCase("tr")}`).join(", ")} · ${durum}.`));
     if (a.owner === S.P) {
       const acts = el("div", "acts");
       acts.append(btn("Yeni hedef seç", "red", () => { mode = { army: a.id }; renderPanel(); }));
@@ -767,13 +912,25 @@ $("speedBtn").addEventListener("click", () => { S.speed = S.speed === 1 ? 2 : S.
 
 /* ---------- kayıt ---------- */
 function saveGame() { if (!S || S.over) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
-function loadGame() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); return s && s.v === 1 && s.cities && s.cities.length === 30 ? s : null; } catch (e) { return null; } }
+function loadGame() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); return s && s.v === 2 && s.cities && s.cities.length === 30 ? s : null; } catch (e) { return null; } }
 
 function panelKey() {
-  if (!sel) return "none" + owned(S.P).length;
-  if (sel.k === "city") { const c = S.cities[sel.i]; return `c${sel.i}|${c.owner}|${Math.floor(c.gar / 4)}|${S.gold[S.P] >= RACES[c.owner].cost * 10}`; }
+  if (!sel) return "none" + owned(S.P).length + "|" + Math.floor(income(S.P) * 2);
+  if (sel.k === "city") { const c = S.cities[sel.i]; return prep ? "prep" + sel.i : `c${sel.i}|${c.owner}|${cityTab}|${c.owner === S.P ? "" : Math.floor(c.gar / 5)}`; }
   if (sel.k === "mine") { const m = S.mines[sel.i]; return `m${sel.i}|${m.owner}|${(S.armies.find(b => b.st === "nobet" && b.mine === sel.i) || {}).n}`; }
   const a = S.armies.find(b => b.id === sel.id); return a ? `a${a.id}|${a.n}|${a.st}` : "gone";
+}
+
+// şehrin yapıları kalenin çevresinde görünür
+function drawCityB(g, c) {
+  const b = c.b; g.save(); g.translate(c.x, c.y); g.strokeStyle = INK; g.lineWidth = 1;
+  if (b.ciftlik) for (let i = 0; i < b.ciftlik + 1; i++) { g.save(); g.translate(-62 + i * 20, -34 + (i % 2) * 6); g.fillStyle = ["#d8c060", "#8ab050", "#c8a050"][i % 3]; g.beginPath(); g.moveTo(-9, 0); g.lineTo(9, -3); g.lineTo(11, 7); g.lineTo(-7, 10); g.closePath(); g.fill(); g.stroke(); g.strokeStyle = "rgba(60,40,10,.35)"; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(-8 + k * 4.5, 1 - k * .7); g.lineTo(-6 + k * 4.5, 9 - k * .7); g.stroke(); } g.restore(); }
+  if (b.carsi) for (let i = 0; i < b.carsi + 1; i++) { const x = -56 + i * 13, y = 8; g.fillStyle = "#e8d8b0"; g.fillRect(x - 5, y - 7, 10, 7); g.strokeRect(x - 5, y - 7, 10, 7); g.fillStyle = ["#c8402e", "#2c4f9e", "#2f7d4f"][i % 3]; g.beginPath(); g.moveTo(x - 7, y - 7); g.lineTo(x, y - 12); g.lineTo(x + 7, y - 7); g.closePath(); g.fill(); g.stroke(); }
+  if (b.kervan) { const x = 46, y = 6, w = 16 + b.kervan * 4; g.fillStyle = "#e8d4a0"; g.fillRect(x - w / 2, y - 12, w, 12); g.strokeRect(x - w / 2, y - 12, w, 12); g.fillStyle = "#3a2418"; g.beginPath(); g.moveTo(x - 3, y); g.lineTo(x - 3, y - 6); g.quadraticCurveTo(x, y - 9, x + 3, y - 6); g.lineTo(x + 3, y); g.fill(); g.fillStyle = "#c8a050"; for (let k = 0; k < b.kervan; k++) { g.beginPath(); g.ellipse(x + w / 2 + 6 + k * 9, y - 3, 4, 2.4, 0, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(x + w / 2 + 9 + k * 9, y - 6, 1.6, 0, 7); g.fill(); } }
+  if (b.atolye) { const x = 50, y = -26; g.fillStyle = "#c8a080"; g.fillRect(x - 8, y - 8, 16, 8); g.strokeRect(x - 8, y - 8, 16, 8); g.fillStyle = "#6a4a3a"; g.fillRect(x + 3, y - 14, 3, 6); g.fillStyle = "rgba(220,220,220,.7)"; for (let k = 0; k < b.atolye; k++) { g.beginPath(); g.arc(x + 5 + k * 3, y - 18 - k * 5, 3 + k, 0, 7); g.fill(); } }
+  if (b.ahir) { const x = -46, y = -6; g.fillStyle = "#a0703a"; g.fillRect(x - 9, y - 8, 18, 8); g.strokeRect(x - 9, y - 8, 18, 8); g.fillStyle = "#8a5a2a"; g.beginPath(); g.moveTo(x - 11, y - 8); g.lineTo(x, y - 14); g.lineTo(x + 11, y - 8); g.closePath(); g.fill(); g.stroke(); }
+  if (b.sur) { g.strokeStyle = "#8a7a60"; g.lineWidth = 2 + b.sur * 1.4; g.beginPath(); g.ellipse(0, -14, 44 + b.sur * 4, 26, 0, Math.PI * .08, Math.PI * .92); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1; g.stroke(); }
+  g.restore();
 }
 /* ---------- meydan muharebesi ---------- */
 const AW = 1800, AH = 600, ROWS = 5;
@@ -785,17 +942,21 @@ function openBattle(b) {
   const pLeft = b.A.owner === S.P, L = pLeft ? b.A : b.D, Rt = pLeft ? b.D : b.A;
   B = { b, pLeft, sides: [L, Rt], units: [], arrows: [], t: 0, speed: 1, camX: AW / 2, pan: 0, done: false, siege: !!b.defCity, bg: b.defCity ? RACES[b.defCity.race] : RACES[b.D.owner] };
   [L, Rt].forEach((sd, side) => {
-    const R = RACES[sd.owner], big = R.body === "dev" || R.body === "trol";
-    const m = clamp(Math.round(big ? sd.n : sd.n), Math.min(sd.n, 3), big ? 12 : 40), rep = sd.n / m;
-    const rows = m < 8 ? 2 : m < 16 ? 3 : m < 26 ? 4 : ROWS, cols = Math.ceil(m / rows), gap = big ? 70 : 34;
-    const nArch = Math.round(m * R.arch); let k = 0;
-    const bonus = sd === b.D ? sd.bonus : 1;
-    for (let c = 0; c < cols; c++) for (let r = 0; r < rows && k < m; r++, k++) {
-      const arch = k >= m - nArch, row = ROWS - rows + r, dir = side ? -1 : 1;
-      const x = side ? AW / 2 + 230 + c * gap : AW / 2 - 230 - c * gap;
-      B.units.push({ side, R, x: x + (Math.random() - .5) * 8, r: row, tr: row, hp: R.hp * rep * bonus, mhp: R.hp * rep * bonus, atk: R.atk * rep, rep, arch, dir, cd: Math.random(), ph: Math.random() * 6, atkT: 0, drawT: 0, dead: 0, big });
+    const R = RACES[sd.owner], big = R.body === "dev" || R.body === "trol", n = Math.max(1, tot(sd.u));
+    const m = clamp(Math.round(n), Math.min(Math.round(n), 3), big ? 12 : 40);
+    const ct = mk(); TYPES.forEach(t => ct[t] = sd.u[t] >= 1 ? Math.max(1, Math.round(m * sd.u[t] / n)) : 0);
+    const order = ["m", "k", "a", "o"], list = []; order.forEach(t => { for (let i = 0; i < ct[t]; i++) list.push(t); });
+    const rows = list.length < 8 ? 2 : list.length < 16 ? 3 : list.length < 26 ? 4 : ROWS, bonus = sd === b.D ? sd.bonus : 1;
+    let x0 = side ? AW / 2 + 230 : AW / 2 - 230;
+    for (let c = 0; c * rows < list.length; c++) {
+      const colT = list.slice(c * rows, c * rows + rows), wide = colT.some(t => t === "a") ? 46 : 0, gap = big ? 70 : 34 + wide * .3;
+      colT.forEach((t, r) => {
+        const row = ROWS - rows + r, dir = side ? -1 : 1, rep = sd.u[t] / ct[t], U = UT[t];
+        B.units.push({ side, t, R: raceFor(R, t), x: x0 + (Math.random() - .5) * 8, r: row, hp: R.hp * U.hp * rep * bonus, mhp: R.hp * U.hp * rep * bonus, atk: R.atk * U.atk * rep, rep, arch: t === "o", spd: R.spd * U.spd, dir, cd: Math.random(), ph: Math.random() * 6, atkT: 0, drawT: 0, dead: 0, big, horse: t === "a" });
+      });
+      x0 += (side ? 1 : -1) * gap;
     }
-    sd.m = m; sd.rep = rep;
+    sd.ct = ct;
   });
   const side = (o, n) => { const d = el("span", "dot"); d.style.cssText = `width:12px;height:12px;border-radius:3px;border:1px solid #2b1d12;background:${RACES[o].renk};flex:none`; const e = el("em"); e.textContent = n; return [d, el("span", null, RACES[o].ad), e]; };
   $("bL").replaceChildren(...side(L.owner, L.n)); $("bR").replaceChildren(...side(Rt.owner, Rt.n));
@@ -812,19 +973,19 @@ function stepBattle(dt) {
     u.cd -= dt; u.atkT = Math.max(0, u.atkT - dt * 3); u.drawT = Math.max(0, u.drawT - dt * 1.6);
     const foes = U.filter(v => v.side !== u.side && v.hp > 0); if (!foes.length) continue;
     if (!u.tg || u.tg.hp <= 0 || Math.random() < dt * .8) u.tg = foes.reduce((a, v) => { const c = Math.abs(v.x - u.x) + Math.abs(v.r - u.r) * 70; return c < a[0] ? [c, v] : a; }, [1e9, null])[1];
-    const t = u.tg, dx = t.x - u.x, adx = Math.abs(dx), reach = (u.big ? 46 : 30) + (t.big ? 18 : 0) + (u.R.wpn.startsWith("mizrak") || u.R.wpn === "yaba" ? 10 : 0);
+    const t = u.tg, dx = t.x - u.x, adx = Math.abs(dx), reach = (u.big ? 46 : 30) + (t.big ? 18 : 0) + (u.t === "m" ? 12 : 0) + (u.horse ? 10 : 0) + (t.horse ? 8 : 0);
     if (u.arch && adx > 60) {
-      if (adx < 720) { if (u.cd <= 0) { u.cd = 1.7 + Math.random() * .7; u.drawT = 1; const T = .7 + adx / 1100; B.arrows.push({ x: u.x + u.dir * 10, y: rowY(u.r) - 26 * rowS(u.r), tx: t.x, ty: rowY(t.r) - 20, t: 0, T, tg: t, dmg: u.atk * .8, side: u.side }); } u.walk = false; continue; }
+      if (adx < 720) { if (u.cd <= 0) { u.cd = 1.7 + Math.random() * .7; u.drawT = 1; const T = .7 + adx / 1100; B.arrows.push({ x: u.x + u.dir * 10, y: rowY(u.r) - 26 * rowS(u.r), tx: t.x, ty: rowY(t.r) - 20, t: 0, T, tg: t, dmg: u.atk * .8 * (1 + (VS.o[t.t] || 0)), side: u.side }); } u.walk = false; continue; }
     }
     // satır değiştirme
     if (Math.abs(t.r - u.r) > .05 && adx < 160) u.r += Math.sign(t.r - u.r) * Math.min(Math.abs(t.r - u.r), dt * 1.4);
     if (adx > reach || Math.abs(t.r - u.r) > .45) {
-      const sp = 46 * u.R.spd * (u.big ? .8 : 1), nx = u.x + Math.sign(dx) * sp * dt;
-      const block = U.some(v => v !== u && v.side === u.side && v.hp > 0 && Math.abs(v.r - u.r) < .5 && Math.sign(v.x - u.x) === Math.sign(dx) && Math.abs(v.x - nx) < (u.big || v.big ? 40 : 21));
-      if (!block) { u.x = nx; u.walk = true; u.ph += dt * 9 * u.R.spd; } else u.walk = false;
+      const sp = 46 * u.spd * (u.big ? .8 : 1), nx = u.x + Math.sign(dx) * sp * dt;
+      const block = U.some(v => v !== u && v.side === u.side && v.hp > 0 && Math.abs(v.r - u.r) < .5 && Math.sign(v.x - u.x) === Math.sign(dx) && Math.abs(v.x - nx) < (u.big || v.big ? 40 : u.horse || v.horse ? 32 : 21));
+      if (!block) { u.x = nx; u.walk = true; u.ph += dt * 9 * Math.min(1.6, u.spd); } else u.walk = false;
     } else {
       u.walk = false;
-      if (u.cd <= 0) { u.cd = 1 + Math.random() * .5; u.atkT = 1; t.hp -= u.atk * (.75 + Math.random() * .5); }
+      if (u.cd <= 0) { u.cd = 1 + Math.random() * .5; u.atkT = 1; t.hp -= u.atk * (1 + (VS[u.t][t.t] || 0)) * (.75 + Math.random() * .5); }
     }
   }
   B.arrows = B.arrows.filter(a => { a.t += dt; if (a.t < a.T) return true; if (a.tg.hp > 0) a.tg.hp -= a.dmg * (.7 + Math.random() * .6); return false; });
@@ -836,12 +997,13 @@ function finishBattle(live) {
   B.done = true;
   const U = B.units, hpLeft = s => U.filter(u => u.side === s && u.hp > 0).reduce((a, u) => a + u.hp, 0);
   let win = live[0] && live[1] ? (hpLeft(0) >= hpLeft(1) ? 0 : 1) : live[0] ? 0 : 1;
-  const left = [0, 1].map(s => s !== win ? 0 : Math.max(1, Math.round(U.filter(u => u.side === s && u.hp > 0).reduce((a, u) => a + u.rep * Math.max(.35, u.hp / u.mhp), 0))));
+  const left = [0, 1].map(s => { const f = mk(); if (s !== win) return f; TYPES.forEach(t => { const us = U.filter(u => u.side === s && u.t === t); f[t] = us.length ? us.filter(u => u.hp > 0).reduce((a, u) => a + Math.max(.35, u.hp / u.mhp), 0) / us.length : 0; }); return f; });
+  const cnt = s => Math.round(tot(surv(B.sides[s].u, left[s])));
   B.left = left; B.win = win;
   const meWin = win === 0, me = B.sides[0], foe = B.sides[1], res = $("bRes"); res.replaceChildren();
   res.append(el("h2", null, meWin ? "Zafer!" : "Yenilgi"),
-    el("p", null, `${RACES[me.owner].ad}: ${me.n} askerden ${left[0]} kaldı.`),
-    el("p", null, `${RACES[foe.owner].ad}: ${foe.n} askerden ${left[1]} kaldı.`),
+    el("p", null, `${RACES[me.owner].ad}: ${me.n} askerden ${cnt(0)} kaldı.`),
+    el("p", null, `${RACES[foe.owner].ad}: ${foe.n} askerden ${cnt(1)} kaldı.`),
     el("p", "hint", meWin ? (B.siege && !B.pLeft ? "Kaleni korudun." : B.siege ? `${RACES[B.b.defCity.race].sehir} artık senin.` : "Meydan senin.") : (B.siege && !B.pLeft ? "Kale düştü." : "Ordun dağıldı.")),
     btn("Haritaya dön", "red", closeBattle));
   res.hidden = false; $("bSkip").disabled = true;
@@ -933,13 +1095,13 @@ function frame(now) {
   if (B) { for (let i = 0; i < B.speed; i++) stepBattle(dt); drawArena(); return; }
   if (!S.over) for (let i = 0; i < S.speed; i++) { update(dt); if (battleOpen) break; }
   drawMap(now / 1000);
-  if ((panelT -= dt) <= 0) { panelT = .5; renderTop(); const k = panelKey(); if (!mode && !S.over && k !== lastKey) { lastKey = k; renderPanel(); } }
+  if ((panelT -= dt) <= 0) { panelT = .5; renderTop(); const k = panelKey(); if (!mode && !S.over && k !== lastKey) { lastKey = k; renderPanel(); } else live.forEach(f => f()); }
   if ((saveT += dt) > 6) { saveT = 0; saveGame(); }
 }
 window.addEventListener("resize", () => { if (S) resizeMap(); if (B) resizeArena(); });
 new ResizeObserver(() => { if (S) resizeMap(); }).observe(cv);
 genWorld(); mines0 = genMines(); showStart(); requestAnimationFrame(frame);
-window.OtuzDiyar = { state: () => S, battle: () => B, newGame: i => { newGame(i); begin(S); } };
+window.OtuzDiyar = { state: () => S, battle: () => B, newGame: i => { newGame(i); begin(S); }, select: (k, i) => { sel = { k, i }; prep = null; renderPanel(); }, target: i => { const c = S.cities[i]; chooseTarget({ k: "city", i }, c.x, c.y); } };
 </script>
 
 </body>
