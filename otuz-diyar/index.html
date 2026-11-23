@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Otuz Diyar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Alegreya:ital,wght@0,500;0,700;1,500&display=swap">
+<style>
+/* Minyatür kitap sayfası: lacivert-altın tezhipli çerçeve, yaldızlı zemin, düz boyalı figürler */
+:root {
+  --lapis: #1d3a86; --lapis2: #13285e; --gold: #c9a227; --gold2: #ecd486; --parch: #f1e2b6; --parch2: #e2cc8e;
+  --ink: #2b1d12; --verm: #b8342a; --mal: #2f6b47; --rose: #c46a7d;
+  --display: "Alegreya SC", "Palatino Linotype", Georgia, serif; --body: "Alegreya", "Palatino Linotype", Georgia, serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--lapis2); color: var(--ink); font-family: var(--body); font-size: 15px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+button { font-family: var(--display); cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--gold2); outline-offset: 2px; }
+.app { position: relative; height: 100%; display: flex; flex-direction: column; }
+/* tezhip şeridi */
+.band { flex: none; height: 9px; background:
+  radial-gradient(circle at 50% 50%, var(--gold2) 0 2px, transparent 2.5px) 0 0 / 18px 9px,
+  linear-gradient(90deg, var(--verm) 0 6%, var(--lapis) 6% 94%, var(--verm) 94%); border-block: 1px solid var(--gold); }
+.top { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(180deg, var(--parch), var(--parch2)); border-bottom: 2px solid var(--gold); }
+.crest { flex: none; width: 34px; height: 40px; }
+.who { min-width: 0; flex: 1; line-height: 1.05; }
+.who b { display: block; font-family: var(--display); font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who small { color: #6a4a22; font-size: .8rem; }
+.stat { flex: none; display: flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: #fff7dc; border: 1.5px solid var(--gold); font-family: var(--display); font-weight: 700; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.stat i { font-style: normal; color: #8a6a1a; font-size: .75rem; }
+.speed { flex: none; width: 36px; height: 30px; border-radius: 8px; border: 1.5px solid var(--gold); background: var(--lapis); color: var(--gold2); font-weight: 800; font-size: .85rem; }
+.mapwrap { position: relative; flex: 1; min-height: 0; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; background: #2a5aa8; }
+.legend { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); top: 8px; padding: 4px 10px; border-radius: 10px; background: rgba(241, 226, 182, .92); border: 1.5px solid var(--gold); font-size: .8rem; pointer-events: none; }
+/* alt panel */
+.panel { flex: none; padding: 10px max(14px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); background: linear-gradient(180deg, var(--parch), var(--parch2)); border-top: 2px solid var(--gold); min-height: 92px; display: flex; flex-direction: column; gap: 8px; }
+.panel h3 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.panel h3 .dot { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--ink); flex: none; }
+.panel p { margin: 0; font-size: .92rem; line-height: 1.3; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 2px solid var(--gold); border-radius: 10px; padding: 7px 12px; background: var(--lapis); color: #fff6d8; font-weight: 700; font-size: .92rem; box-shadow: 0 2px 0 var(--lapis2); }
+.btn.red { background: var(--verm); box-shadow: 0 2px 0 #7a1e18; }
+.btn.green { background: var(--mal); box-shadow: 0 2px 0 #1d4630; }
+.btn.ghost { background: #fff7dc; color: var(--ink); box-shadow: 0 2px 0 var(--parch2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.hint { color: #6a4a22; font-style: italic; font-size: .85rem; }
+.toast { position: absolute; left: 50%; top: 54px; transform: translateX(-50%); max-width: 86%; padding: 6px 14px; border-radius: 10px; background: rgba(29, 58, 134, .95); color: #fff6d8; border: 1.5px solid var(--gold); font-size: .9rem; text-align: center; pointer-events: none; z-index: 20; }
+/* açılış: ırk seçimi */
+.start { position: fixed; inset: 0; z-index: 50; overflow-y: auto; background: var(--lapis2); }
+.start .page { max-width: 980px; margin: 0 auto; padding-block: 14px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { background: linear-gradient(180deg, var(--parch), var(--parch2)); border: 3px solid var(--gold); outline: 6px solid var(--lapis); outline-offset: 0; border-radius: 4px; padding: 16px; box-shadow: 0 0 0 9px var(--gold) ; }
+.start h1 { margin: 0; text-align: center; font-family: var(--display); font-weight: 800; font-size: clamp(2.1rem, 9vw, 3.4rem); color: var(--lapis); letter-spacing: .04em; text-wrap: balance; }
+.start .sub { margin: 4px auto 12px; max-width: 60ch; text-align: center; font-size: 1rem; line-height: 1.4; }
+.ribbon { display: block; width: fit-content; margin: 0 auto 10px; padding: 4px 22px; background: var(--lapis); color: var(--gold2); font-family: var(--display); font-weight: 700; clip-path: polygon(0 50%, 12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%); }
+.zone { margin: 14px 0 6px; font-family: var(--display); font-weight: 700; color: var(--verm); font-size: .95rem; letter-spacing: .06em; }
+.races { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.race { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 8px; border-radius: 6px; border: 2px solid transparent; background: rgba(255, 250, 230, .65); color: var(--ink); }
+.race canvas { width: 70px; height: 84px; }
+.race b { font-size: .88rem; font-weight: 800; }
+.race small { font-family: var(--body); font-size: .72rem; color: #6a4a22; }
+.race:hover, .race[aria-pressed="true"] { border-color: var(--gold); background: #fff7dc; }
+.startbar { position: sticky; bottom: 0; margin-top: 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 10px; background: linear-gradient(180deg, rgba(226, 204, 142, 0), var(--parch2) 40%); }
+/* meydan muharebesi */
+.battle { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: var(--lapis2); }
+.battle .head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(180deg, var(--parch), var(--parch2)); border-bottom: 2px solid var(--gold); }
+.side { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--display); font-weight: 800; }
+.side span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side em { font-style: normal; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; background: #fff7dc; border: 1.5px solid var(--gold); }
+.vs { flex: none; font-family: var(--display); color: var(--verm); font-weight: 800; }
+.battle .title { flex: none; text-align: center; padding: 6px; background: var(--lapis); color: var(--gold2); font-family: var(--display); font-weight: 700; letter-spacing: .05em; border-bottom: 2px solid var(--gold); }
+.arenawrap { position: relative; flex: 1; min-height: 0; border: 6px solid var(--gold); border-image: repeating-linear-gradient(45deg, var(--gold) 0 6px, var(--lapis) 6px 12px) 6; }
+#arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.battle .foot { flex: none; display: flex; justify-content: center; gap: 10px; padding: 10px max(12px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(180deg, var(--parch), var(--parch2)); border-top: 2px solid var(--gold); }
+.result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(88%, 380px); padding: 16px; text-align: center; background: linear-gradient(180deg, var(--parch), var(--parch2)); border: 3px solid var(--gold); outline: 4px solid var(--lapis); border-radius: 4px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.result h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.8rem; color: var(--lapis); }
+.result p { margin: 0; line-height: 1.35; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app" id="app">
+  <div class="band" aria-hidden="true"></div>
+  <header class="top">
+    <canvas class="crest" id="crest" width="68" height="80" aria-hidden="true"></canvas>
+    <div class="who"><b id="myName">Otuz Diyar</b><small id="myDay">Gün 1</small></div>
+    <span class="stat" title="Hazine"><i>altın</i><span id="myGold">0</span></span>
+    <span class="stat" title="Şehirler"><i>şehir</i><span id="myCities">1</span></span>
+    <button class="speed" id="speedBtn" type="button" aria-label="Oyun hızı">1×</button>
+  </header>
+  <div class="mapwrap">
+    <canvas id="map" aria-label="Ada haritası"></canvas>
+    <div class="legend" id="legend">Diyarlar: 30</div>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+  <section class="panel" id="panel" aria-live="polite"></section>
+  <div class="band" aria-hidden="true"></div>
+</div>
+
+<div class="start" id="start">
+  <div class="page">
+    <div class="sheet">
+      <span class="ribbon">Bir minyatür strateji oyunu</span>
+      <h1>Otuz Diyar</h1>
+      <p class="sub">Denizin ortasındaki büyük adada otuz ırk yaşıyor. Her birinin bir kalesi var. Kalenden ordular çıkar, maden ocaklarını tut, ordugâh kur ve komşu diyarları meydan muharebesinde yen.</p>
+      <div id="raceList"></div>
+      <div class="startbar"><button class="btn green" id="contBtn" type="button" hidden>Kayıtlı oyuna devam et</button><button class="btn red" id="goBtn" type="button" disabled>Bir ırk seç</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="battle" id="battle" hidden>
+  <div class="band" aria-hidden="true"></div>
+  <div class="head">
+    <div class="side" id="bL"></div><span class="vs">ile</span><div class="side" id="bR" style="justify-content:flex-end"></div>
+  </div>
+  <div class="title" id="bTitle">Meydan Muharebesi</div>
+  <div class="arenawrap"><canvas id="arena" aria-label="Meydan muharebesi"></canvas><div class="result" id="bRes" hidden></div></div>
+  <div class="foot"><button class="btn ghost" id="bSpeed" type="button">Hız 1×</button><button class="btn" id="bSkip" type="button">Sonucu göster</button></div>
+</div>
+
+<script>
+"use strict";
+/* ---------- yardımcılar ---------- */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let rnd = Math.random;
+function hash2(x, y, s) { let h = (x * 374761393 + y * 668265263 + s * 982451653) | 0; h = Math.imul(h ^ h >>> 13, 1274126177); return ((h ^ h >>> 16) >>> 0) / 4294967296; }
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
+  return lerp(lerp(a, b, u), lerp(c, d, u), v);
+}
+function fbm(x, y, s) { let t = 0, a = .5, f = 1; for (let i = 0; i < 5; i++) { t += a * vnoise(x * f, y * f, s + i * 17); f *= 2.03; a *= .5; } return t; }
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255; const f = v => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k).toString(16).padStart(2, "0"); return "#" + f(r) + f(g) + f(b); }
+const INK = "#2b1d12";
+
+/* ---------- 30 ırk ---------- */
+// pos: adadaki yeri (-1..1); hp/atk/spd: asker gücü; arch: okçu oranı; cost: bir askerin altını
+const ZONES = { merkez: "Orta Diyarlar", kuzey: "Karlı Kuzey", bozkir: "Bozkır", dogu: "Doğu Diyarları", col: "Çöl ve Güney", savan: "Savan", orman: "Kadim Ormanlar", karanlik: "Karanlık Topraklar" };
+const RACES = [
+  ["osmanli", "Osmanlılar", "Dersaadet", "merkez", [.05, -.05], "insan", "bork", "kaftan", "kilic", "#c8402e", "#f1d27a", "#2f7d4f", "#e6b48a", 1, "kubbe", 10, 3, 1, .25, 6, "#c8402e"],
+  ["selcuk", "Selçuklular", "Konya", "merkez", [.3, -.05], "insan", "sarik", "kaftan", "kilic", "#2c4f9e", "#f1d27a", "#c8402e", "#e2ad84", 1, "kubbe", 10, 3, 1, .3, 6, "#2c56b0"],
+  ["gokturk", "Göktürkler", "Ötüken", "bozkir", [.25, -.35], "insan", "kalpak", "tunik", "yay", "#3f6b8a", "#8a5a2b", "#d9a441", "#dca47c", 1, "cadir", 9, 3, 1.2, .6, 6, "#3fa0b0"],
+  ["mogol", "Moğollar", "Karakurum", "bozkir", [.55, -.35], "insan", "mogol", "tunik", "yay", "#8a2f2f", "#d9a441", "#2b2219", "#d9a070", 1, "cadir", 9, 3, 1.25, .65, 6, "#9a7a2a"],
+  ["arap", "Araplar", "Bağdat", "col", [.25, .5], "insan", "kefiye", "kaftan", "kilic", "#f4ecd6", "#2f7d4f", "#c8402e", "#c98a5e", 1, "kubbe", 9, 3, 1.15, .25, 6, "#2f9d5f"],
+  ["pers", "Persler", "İsfahan", "col", [.35, .25], "insan", "tac", "kaftan", "mizrak", "#6b3d7a", "#d9a441", "#2c4f9e", "#d49c74", 1, "kubbe", 10, 3, 1, .3, 7, "#8a50b0"],
+  ["roma", "Romalılar", "Roma", "merkez", [-.4, .25], "insan", "roma", "zirh", "kilickalkan", "#b8342a", "#c9b27a", "#9aa0a8", "#e0aa80", 0, "sutun", 12, 3, .95, .15, 7, "#b8342a"],
+  ["bizans", "Bizanslılar", "Mistra", "merkez", [-.2, -.05], "insan", "migfer", "zirh", "mizrak", "#6b2f6b", "#d9a441", "#9aa0a8", "#e2b08a", 1, "kubbe", 11, 3, 1, .25, 7, "#7a3a7a"],
+  ["rus", "Ruslar", "Kiev", "kuzey", [.15, -.65], "insan", "rus", "kaftan", "balta", "#a83232", "#e8dcc0", "#4a6a3a", "#ecc09c", 1, "sogan", 12, 3, .95, .2, 7, "#d05a5a"],
+  ["viking", "Vikingler", "Kattegat", "kuzey", [-.2, -.65], "insan", "boynuz", "tunik", "balta", "#5a6f8a", "#a0703a", "#c8a050", "#f0c8a0", 1, "ahsap", 12, 4, 1, .1, 8, "#4a6fa0"],
+  ["hacli", "Haçlılar", "Akka", "merkez", [-.5, -.05], "insan", "kova", "zirh", "kilickalkan", "#f1ece0", "#c8302e", "#b8bcc4", "#ecc09c", 0, "gotik", 13, 3, .9, .15, 8, "#d8d0c0"],
+  ["sparta", "Spartalılar", "Sparta", "merkez", [-.15, .25], "insan", "korint", "zirh", "mizrakkalkan", "#a82a2a", "#d9a441", "#b08840", "#d8a078", 1, "sutun", 12, 4, 1, .05, 8, "#d06a2a"],
+  ["cin", "Çinliler", "Çang-an", "dogu", [.6, -.05], "insan", "cin", "kaftan", "mizrak", "#c8302e", "#e8c040", "#2b2219", "#ecc89a", 0, "pagoda", 9, 3, 1, .35, 5, "#e0b030"],
+  ["japon", "Japonlar", "Kyoto", "dogu", [.86, .06], "insan", "kabuto", "zirh", "kilic", "#2b2a40", "#c8302e", "#d9a441", "#ecc89a", 0, "pagoda", 11, 4, 1.05, .3, 8, "#3a3a5a"],
+  ["hint", "Hintliler", "Delhi", "dogu", [.6, .25], "insan", "turban", "kaftan", "mizrak", "#e8a030", "#c83a6a", "#2f7d4f", "#b87a52", 1, "kubbe", 9, 3, 1, .3, 5, "#e07a30"],
+  ["misir", "Mısırlılar", "Teb", "col", [0, .55], "insan", "nemes", "tunik", "mizrak", "#f4ecd6", "#2c6fae", "#d9a441", "#b8784a", 0, "piramit", 9, 3, 1, .35, 5, "#d8c060"],
+  ["mali", "Mali Ülkesi", "Timbuktu", "col", [.25, .78], "insan", "sarik", "tunik", "mizrak", "#e8d8b0", "#c87a2a", "#2f5f9e", "#6b4228", 1, "kil", 10, 3, 1.05, .3, 5, "#b8702a"],
+  ["zulu", "Zulular", "Ulundi", "savan", [-.05, .8], "insan", "tuy", "pestamal", "mizrakkalkan", "#e8e0d0", "#2b2219", "#c8302e", "#4a2e1e", 0, "kulube", 10, 4, 1.2, .1, 5, "#6a4020"],
+  ["habes", "Habeşler", "Aksum", "col", [.45, .5], "insan", "sarik", "kaftan", "kilic", "#f4ecd6", "#2f7d4f", "#e8c040", "#6b4630", 1, "kil", 10, 3, 1.05, .25, 6, "#7aa02a"],
+  ["ork", "Orklar", "Kara Kaya", "karanlik", [-.7, .25], "ork", "sivri", "zirh", "balta", "#5a4a3a", "#8a2a2a", "#5a5a5a", "#6b8a3a", 0, "diken", 14, 4, 1, .1, 7, "#4a5a2a"],
+  ["elf", "Elfler", "Ay Ormanı", "orman", [-.4, -.35], "elf", "kukuleta", "tunik", "yay", "#3a7a4a", "#d9c070", "#7aa0c0", "#f0d8c0", 0, "agac", 9, 3, 1.2, .7, 7, "#5ab060"],
+  ["goblin", "Goblinler", "Pas Mağarası", "karanlik", [-.82, -.05], "goblin", "yok", "tunik", "kilic", "#6a5a3a", "#8a3a2a", "#4a4a2a", "#8aa040", 0, "diken", 6, 2, 1.25, .2, 3, "#9ab040"],
+  ["cuce", "Cüceler", "Demirdağ", "kuzey", [-.1, -.35], "cuce", "migfer", "zirh", "balta", "#4a5a8a", "#c08030", "#9aa0a8", "#e0a888", 1, "dag", 15, 3, .8, .15, 8, "#607090"],
+  ["seytan", "Şeytanlar", "Cehennem Kapısı", "karanlik", [-.5, .62], "seytan", "yok", "zirh", "yaba", "#2b2219", "#c8302e", "#e8a030", "#c8302e", 0, "diken", 12, 4, 1.1, .15, 8, "#8a1a1a"],
+  ["hortlak", "Hortlaklar", "Kemik Kalesi", "karanlik", [-.28, .55], "hortlak", "kukuleta", "kaftan", "kilic", "#5a5a4a", "#3a3a30", "#8a8a70", "#a8b890", 0, "kemik", 8, 3, .9, .2, 3, "#7a8a6a"],
+  ["vampir", "Vampirler", "Kızıl Şato", "karanlik", [-.76, .5], "vampir", "yok", "pelerin", "kilic", "#2b2219", "#8a1a2a", "#c8c8d0", "#e8e0e8", 0, "gotik", 12, 4, 1.1, .1, 9, "#5a1a3a"],
+  ["dev", "Devler", "Dev Kayalığı", "kuzey", [.45, -.65], "dev", "yok", "pestamal", "gurz", "#8a6a4a", "#5a4a3a", "#3a3a3a", "#c89070", 1, "dag", 60, 12, .75, 0, 60, "#8a7a6a"],
+  ["trol", "Troller", "Sis Bataklığı", "kuzey", [-.5, -.62], "trol", "yok", "pestamal", "gurz", "#4a5a3a", "#2b2219", "#6a6a4a", "#6a9a90", 0, "kulube", 40, 9, .8, 0, 35, "#4a8a80"],
+  ["kurt", "Kurtadamlar", "Kurt Ormanı", "orman", [-.7, -.3], "kurt", "yok", "kurk", "pence", "#6a6a70", "#4a4a50", "#a0a0a8", "#7a7a80", 0, "agac", 13, 4, 1.35, 0, 8, "#5a5a6a"],
+  ["cinler", "Cinler", "Sisli Vadi", "col", [.1, .25], "cin", "cinbas", "duman", "kilic", "#3a5aa8", "#e8c040", "#8a3aa8", "#5a7ad8", 0, "kubbe", 10, 4, 1.2, .3, 8, "#3a6ad8"],
+].map(r => ({ k: r[0], ad: r[1], sehir: r[2], zone: r[3], pos: r[4], body: r[5], hat: r[6], garb: r[7], wpn: r[8], c1: r[9], c2: r[10], c3: r[11], skin: r[12], beard: r[13], castle: r[14], hp: r[15], atk: r[16], spd: r[17], arch: r[18], cost: r[19], renk: r[20] }));
+RACES.forEach((R, i) => { R.i = i; R.pow = Math.pow(R.hp * R.atk, .75); });
+const BODY = { insan: { sz: 1 }, ork: { sz: 1.12 }, elf: { sz: 1.06 }, goblin: { sz: .74 }, cuce: { sz: .8 }, seytan: { sz: 1.08 }, hortlak: { sz: 1 }, vampir: { sz: 1.05 }, dev: { sz: 2.1 }, trol: { sz: 1.75 }, kurt: { sz: 1.15 }, cin: { sz: 1.08 } };
+
+/* ---------- minyatür asker çizimi (yan profil, sağa bakar) ---------- */
+// o: { x, y, s, dir, ph, walk, atk (0..1 vuruş), dead (0..1), alpha, draw (0..1 yay) }
+function drawFig(g, R, o) {
+  const B = BODY[R.body], k = (o.s || 1) * B.sz, dir = o.dir || 1;
+  g.save(); g.translate(o.x, o.y); g.globalAlpha = o.alpha ?? 1;
+  if (o.dead) g.rotate(-dir * Math.min(1, o.dead) * 1.45);
+  g.scale(dir * k, k);
+  g.lineJoin = "round"; g.lineCap = "round"; g.strokeStyle = INK; g.lineWidth = 1.05;
+  const sw = o.walk ? Math.sin(o.ph) : 0, bob = o.walk ? -Math.abs(Math.cos(o.ph)) * 1.2 : 0, atk = o.atk || 0;
+  const skin = R.skin, hair = R.body === "hortlak" ? "#d8d8c8" : R.body === "vampir" ? "#1a1418" : "#2b1d12";
+  const F = (c, path) => { g.fillStyle = c; g.beginPath(); path(); g.fill(); g.stroke(); };
+  // kuyruk (şeytan)
+  if (R.body === "seytan") { g.lineWidth = 1.6; g.beginPath(); g.moveTo(-4, -15); g.quadraticCurveTo(-17, -9 + sw * 3, -14, -25); g.stroke(); g.lineWidth = 1.05; F("#c8302e", () => { g.moveTo(-14, -29); g.lineTo(-17, -23); g.lineTo(-11, -23); g.closePath(); }); }
+  // pelerin (arkada)
+  if (R.garb === "pelerin") F(R.c1, () => { g.moveTo(-4, -31 + bob); g.quadraticCurveTo(-13, -18, -15 - sw * 1.5, -2); g.lineTo(2, -3); g.lineTo(3, -30 + bob); g.closePath(); });
+  if (R.garb === "pelerin") { g.fillStyle = R.c2; g.beginPath(); g.moveTo(-5, -28 + bob); g.quadraticCurveTo(-11, -17, -12.5 - sw * 1.5, -4); g.lineTo(-10, -4); g.quadraticCurveTo(-8, -17, -3, -28 + bob); g.fill(); }
+  // bacaklar / ayaklar
+  const bare = R.garb === "pestamal" || R.body === "kurt";
+  if (R.garb === "duman") {
+    g.globalAlpha *= .9; F(shade(skin, .15), () => { g.moveTo(-6, -15); g.quadraticCurveTo(-8, -6, 0 + sw * 2, -4); g.quadraticCurveTo(6, -2, 3, 1); g.quadraticCurveTo(-2, -1, -4, -6); g.quadraticCurveTo(4, -9, 6, -15); g.closePath(); }); g.globalAlpha = o.alpha ?? 1;
+  } else {
+    const legC = bare ? skin : R.c2, boot = bare ? shade(skin, -.25) : "#3a2418";
+    [[-1, -sw], [1, sw]].forEach(([s, w], n) => {
+      const fx = w * 4.2 + s * .6;
+      if (R.garb !== "kaftan") { g.strokeStyle = INK; g.lineWidth = 4.4; g.beginPath(); g.moveTo(s * 1.4, -15 + bob); g.lineTo(fx, -1.5); g.stroke(); g.strokeStyle = n ? legC : shade(legC, -.15); g.lineWidth = 2.9; g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; }
+      F(n ? boot : shade(boot, -.2), () => { R.body === "kurt" ? (g.moveTo(fx - 1.5, -2), g.lineTo(fx + 4.5, -.5), g.lineTo(fx - 1, .5)) : g.ellipse(fx + 1.2, -1, 3.1, 1.6, 0, 0, 7); });
+    });
+  }
+  g.translate(0, bob);
+  // giysi
+  const robe = () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.quadraticCurveTo(8, -18, 10.5 + sw * .8, -2.5); g.lineTo(-8.5 + sw * .8, -2.5); g.quadraticCurveTo(-7, -18, -5.5, -30); g.closePath(); };
+  const tunic = () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.lineTo(7.8, -12.5); g.lineTo(-7, -12.5); g.closePath(); };
+  const dots = (path, c, step) => { g.save(); g.beginPath(); path(); g.clip(); g.fillStyle = c; for (let yy = -32; yy < 0; yy += step) for (let xx = -12 + ((yy / step) & 1) * step / 2; xx < 14; xx += step) { g.beginPath(); g.arc(xx, yy, .62, 0, 7); g.fill(); } g.restore(); };
+  if (R.garb === "kaftan" || R.garb === "pelerin" && false) {
+    F(R.c1, robe); dots(robe, R.c2, 3.6);
+    if (R.body === "hortlak") { g.fillStyle = "#b8b098"; for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(-8 + i * 4, -2.5); g.lineTo(-6 + i * 4, .5); g.lineTo(-4 + i * 4, -2.5); g.fill(); } }
+    g.strokeStyle = R.c3; g.lineWidth = 1.9; g.beginPath(); g.moveTo(6, -29.5); g.quadraticCurveTo(8, -18, 10 + sw * .8, -3); g.stroke(); g.beginPath(); g.moveTo(-8.2 + sw * .8, -3.2); g.lineTo(10.2 + sw * .8, -3.2); g.stroke();
+    g.strokeStyle = INK; g.lineWidth = 1.05; g.beginPath(); robe(); g.stroke();
+  } else if (R.garb === "pestamal") {
+    F(skin, () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.lineTo(6.5, -14); g.lineTo(-6, -14); g.closePath(); });
+    F(R.c1, () => { g.moveTo(-6.5, -16); g.lineTo(7, -16); g.lineTo(5 + sw, -8); g.lineTo(-5 + sw, -8); g.closePath(); });
+  } else if (R.garb === "kurk") {
+    F(skin, tunic); g.strokeStyle = shade(skin, -.35); for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(-4 + i * 2, -26 + (i % 2) * 4); g.lineTo(-5 + i * 2, -22 + (i % 2) * 4); g.stroke(); } g.strokeStyle = INK;
+  } else if (R.garb === "duman") {
+    F(R.c1, () => { g.moveTo(-5.5, -30); g.lineTo(6, -30); g.lineTo(6.5, -14); g.lineTo(-6, -14); g.closePath(); }); dots(tunic, R.c2, 3.4);
+  } else { // tunik, zırh, pelerin altı
+    F(R.c1, tunic); if (R.garb === "tunik") { dots(tunic, R.c2, 3.4); g.strokeStyle = R.c3; g.lineWidth = 1.8; g.beginPath(); g.moveTo(-6.8, -13.4); g.lineTo(7.6, -13.4); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; }
+    if (R.garb === "zirh") { F(R.c3, () => { g.moveTo(-4.8, -29.5); g.lineTo(5.6, -29.5); g.lineTo(6.2, -18.5); g.lineTo(-5, -18.5); g.closePath(); }); g.strokeStyle = shade(R.c3, -.3); for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(-4.4, -26 + i * 2.6); g.lineTo(5.8, -26 + i * 2.6); g.stroke(); } g.strokeStyle = INK; g.fillStyle = R.c2; for (let i = 0; i < 5; i++) { g.fillRect(-6.2 + i * 2.8, -13, 2.1, 3.6); g.strokeRect(-6.2 + i * 2.8, -13, 2.1, 3.6); } }
+  }
+  if (R.garb !== "pestamal" && R.garb !== "kurk") { g.fillStyle = R.c2; g.fillRect(-6.2, -19.6, 13.4, 2.3); g.strokeRect(-6.2, -19.6, 13.4, 2.3); }
+  // kollar ve silah
+  const sleeve = R.garb === "pestamal" || R.garb === "kurk" ? skin : R.garb === "zirh" ? R.c1 : R.c1;
+  const arm = (x1, y1, x2, y2, back) => { g.strokeStyle = INK; g.lineWidth = 3.9; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.strokeStyle = back ? shade(sleeve, -.18) : sleeve; g.lineWidth = 2.6; g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; F(skin, () => g.arc(x2, y2, 1.45, 0, 7)); };
+  const W = R.wpn;
+  if (W === "yay") {
+    const dr = o.draw || 0, hx = 10.5, hy = -26;
+    arm(-1, -28, 2 - dr * 4.5, -26.5, true);
+    g.strokeStyle = "#6a3a1a"; g.lineWidth = 1.7; g.beginPath(); g.moveTo(hx - 1, -37); g.quadraticCurveTo(hx + 6, -26, hx - 1, -15); g.stroke();
+    g.strokeStyle = "#e8e0c8"; g.lineWidth = .6; g.beginPath(); g.moveTo(hx - 1, -37); g.lineTo(2 - dr * 4.5, -26.5); g.lineTo(hx - 1, -15); g.stroke();
+    if (dr > .15) { g.strokeStyle = "#5a3a1a"; g.lineWidth = .9; g.beginPath(); g.moveTo(2 - dr * 4.5, -26.5); g.lineTo(hx + 4, -26.5); g.stroke(); }
+    g.strokeStyle = INK; g.lineWidth = 1.05; arm(1.5, -28, hx, hy, false);
+  } else if (W === "mizrak" || W === "mizrakkalkan" || W === "yaba") {
+    const th = atk * 7;
+    arm(-1, -28, -1 + th * .4, -23, true);
+    g.strokeStyle = "#6a4422"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-14 + th, -21); g.lineTo(26 + th, -27.5); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05;
+    if (W === "yaba") { g.strokeStyle = "#c8302e"; g.lineWidth = 1.3; g.beginPath(); g.moveTo(25 + th, -30.5); g.lineTo(25 + th, -24.5); [-30.5, -27.5, -24.5].forEach(yy => { g.moveTo(25 + th, yy); g.lineTo(30 + th, yy - .4); }); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; }
+    else F("#d8d4c8", () => { g.moveTo(26 + th, -29.3); g.lineTo(31 + th, -28.3); g.lineTo(26 + th, -25.8); g.closePath(); });
+    if (W === "mizrakkalkan") F(R.k === "zulu" ? "#f4ecd6" : R.c2, () => g.ellipse(7, -21, R.k === "zulu" ? 4.6 : 6.6, R.k === "zulu" ? 9 : 6.6, 0, 0, 7));
+    if (W === "mizrakkalkan" && R.k === "zulu") { g.fillStyle = INK; g.beginPath(); g.ellipse(7, -23, 2.4, 4, 0, 0, 7); g.fill(); }
+    else if (W === "mizrakkalkan") { g.fillStyle = R.c3; g.beginPath(); g.arc(7, -21, 2, 0, 7); g.fill(); }
+    arm(1.5, -28, 6 + th * .5, -24, false);
+  } else if (W === "pence") {
+    const a = atk;
+    arm(-1, -28, 8 + a * 4, -24 - a * 3, true); arm(1.5, -28, 10 + a * 5, -22 + a * 2, false);
+    g.strokeStyle = "#f4ecd6"; g.lineWidth = .8; [[8 + a * 4, -24 - a * 3], [10 + a * 5, -22 + a * 2]].forEach(([x, y]) => { for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2.6, y + i * 1.2 - .5); g.stroke(); } }); g.strokeStyle = INK; g.lineWidth = 1.05;
+  } else { // kılıç, balta, gürz, kılıç+kalkan
+    const u = o.atk != null && o.atk > 0 ? o.atk : .28, A = lerp(.75, -2.0, u), hx = 1.5 + Math.cos(A) * 9.5, hy = -27.5 + Math.sin(A) * 9.5;
+    if (W === "kilickalkan") { arm(-1, -28, 6, -22, true); F(R.c2, () => R.k === "roma" ? g.rect(3, -30, 8, 15) : g.ellipse(7.5, -22, 5.4, 6.6, 0, 0, 7)); g.fillStyle = R.c3; g.beginPath(); g.arc(7.5, -22, 1.8, 0, 7); g.fill(); if (R.k === "hacli") { g.fillStyle = "#c8302e"; g.fillRect(6.7, -27, 1.6, 10); g.fillRect(4, -23.5, 7, 1.6); } }
+    else arm(-1, -28, 4, -21, true);
+    const wa = A - 1.05; g.save(); g.translate(hx, hy); g.rotate(wa);
+    if (W === "balta") { g.strokeStyle = "#6a4422"; g.lineWidth = 1.7; g.beginPath(); g.moveTo(-3, 0); g.lineTo(13, 0); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; F("#c8ccd4", () => { g.moveTo(9, 0); g.quadraticCurveTo(12, -6, 15.5, -5); g.quadraticCurveTo(14.5, 0, 15.5, 5); g.quadraticCurveTo(12, 6, 9, 0); }); }
+    else if (W === "gurz") { g.strokeStyle = "#5a3a1a"; g.lineWidth = 2.6; g.beginPath(); g.moveTo(-3, 0); g.lineTo(11, 0); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; F("#6a4a2a", () => g.ellipse(14, 0, 4.6, 3.4, 0, 0, 7)); g.fillStyle = "#3a2a1a"; [[13, -2], [16, 1], [12, 2]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, .7, 0, 7); g.fill(); }); }
+    else { F("#e8e4dc", () => { g.moveTo(1, -1); g.quadraticCurveTo(10, -2.2, 17, -4.4); g.quadraticCurveTo(10, .6, 1, 1); g.closePath(); }); g.fillStyle = "#d9a441"; g.fillRect(-.6, -2.4, 1.4, 4.8); g.strokeStyle = "#5a3a1a"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-3.5, 0); g.lineTo(-.6, 0); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.05; }
+    g.restore();
+    arm(1.5, -28, hx, hy, false);
+  }
+  // baş
+  const hx = 1.5, hy = -34.5, hr = R.body === "dev" || R.body === "trol" ? 4.2 : 4.6;
+  F(skin, () => g.rect(-.4, -31.5, 3.6, 3));
+  if (R.body === "kurt") {
+    F(skin, () => { g.moveTo(-3, -38); g.quadraticCurveTo(2, -40, 5, -36.5); g.lineTo(10, -34.5); g.lineTo(9.5, -32.5); g.lineTo(2, -31); g.quadraticCurveTo(-4, -31, -3, -38); });
+    F(skin, () => { g.moveTo(-1.5, -38); g.lineTo(-.5, -43); g.lineTo(2, -38.6); g.closePath(); });
+    g.fillStyle = "#f0d040"; g.beginPath(); g.arc(4, -35.6, .9, 0, 7); g.fill(); g.fillStyle = INK; g.beginPath(); g.arc(9.6, -34, .8, 0, 7); g.fill();
+  } else {
+    if (R.body === "elf" || R.body === "goblin") F(skin, () => { g.moveTo(-1, -35.5); g.lineTo(R.body === "goblin" ? -9 : -7, R.body === "goblin" ? -38 : -41); g.lineTo(1, -37.5); g.closePath(); });
+    F(skin, () => { g.arc(hx, hy, hr, 0, 7); });
+    F(skin, () => { g.moveTo(5.6, -35.5); g.lineTo(R.body === "trol" || R.body === "goblin" ? 9 : 7.2, -33.6); g.lineTo(5.6, -32.6); });
+    g.fillStyle = R.body === "hortlak" ? INK : R.body === "seytan" || R.body === "vampir" ? "#ffd040" : INK;
+    g.beginPath(); g.arc(3.8, -35.4, R.body === "hortlak" ? 1.2 : .72, 0, 7); g.fill();
+    g.strokeStyle = INK; g.lineWidth = .8; g.beginPath(); g.moveTo(2.4, -37.6); g.lineTo(5, -37.2); g.stroke(); g.lineWidth = 1.05;
+    if (R.body === "ork") { g.fillStyle = "#f4ecd6"; g.beginPath(); g.moveTo(4.2, -31.8); g.lineTo(5, -34.4); g.lineTo(5.6, -31.8); g.fill(); }
+    if (R.body === "vampir") { g.fillStyle = "#fff"; g.beginPath(); g.moveTo(4.6, -31.6); g.lineTo(5, -30.4); g.lineTo(5.4, -31.6); g.fill(); }
+    if (R.beard) { const big = R.body === "cuce" || R.body === "dev"; F(hair, () => { g.moveTo(-1.5, -33); g.quadraticCurveTo(1, -30.5, 6, -31.8); g.quadraticCurveTo(big ? 6 : 4.4, big ? -21 : -28, big ? 1 : 1.5, big ? -19 : -27.5); g.quadraticCurveTo(-1, -29, -1.5, -33); }); }
+    else if (R.body === "insan" && R.hat !== "kova" && R.hat !== "korint") { g.fillStyle = hair; g.beginPath(); g.moveTo(2, -32.4); g.quadraticCurveTo(4.5, -33.2, 6.4, -32.2); g.lineTo(5.6, -31.6); g.quadraticCurveTo(4, -32.2, 2.2, -31.8); g.fill(); }
+  }
+  drawHat(g, R, hx, hy, hr, sw);
+  g.restore();
+}
+function drawHat(g, R, hx, hy, hr, sw) {
+  const F = (c, path) => { g.fillStyle = c; g.beginPath(); path(); g.fill(); g.stroke(); };
+  const top = hy - hr, W = "#f4efe2";
+  switch (R.hat) {
+    case "bork": F(W, () => { g.moveTo(-3.2, top + 2); g.lineTo(5.6, top + 2); g.lineTo(4.6, top - 13); g.quadraticCurveTo(1.2, top - 16, -2.6, top - 13); g.closePath(); }); F(W, () => { g.moveTo(-2.6, top - 9); g.quadraticCurveTo(-9.5, top - 5, -8.5, top + 6); g.lineTo(-3.2, top + 2); g.closePath(); }); g.fillStyle = "#d9a441"; g.fillRect(-3.4, top - .4, 9.2, 2.4); g.strokeRect(-3.4, top - .4, 9.2, 2.4); break;
+    case "sarik": F(W, () => g.ellipse(hx - .2, top + 1, 5.9, 3.6, 0, 0, 7)); g.strokeStyle = "#b8ab90"; g.beginPath(); g.moveTo(-4, top + 1.5); g.quadraticCurveTo(1, top - 1.5, 5.5, top + 1.8); g.stroke(); g.strokeStyle = INK; F(R.c3, () => g.ellipse(hx - .2, top - 2.2, 2.6, 1.8, 0, 0, 7)); break;
+    case "turban": F(R.c3, () => g.ellipse(hx, top + .4, 6.6, 4.3, 0, 0, 7)); g.fillStyle = "#f0d040"; g.beginPath(); g.arc(hx + 4.4, top + .2, 1.2, 0, 7); g.fill(); g.strokeStyle = "#f4ecd6"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(hx + 4.4, top - 1); g.quadraticCurveTo(hx + 5, top - 7, hx + 1, top - 8); g.stroke(); g.lineWidth = 1.05; g.strokeStyle = INK; break;
+    case "kalpak": F("#3a2a22", () => g.rect(-3.4, top - 6, 9.6, 8)); g.strokeStyle = "#5a4a40"; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(-2.5 + i * 2.4, top - 5); g.lineTo(-2 + i * 2.4, top + 1); g.stroke(); } g.strokeStyle = INK; break;
+    case "mogol": F("#5a3a22", () => g.ellipse(hx, top + 2, 6.4, 2, 0, 0, 7)); F(R.c1, () => { g.moveTo(-3, top + 1.4); g.lineTo(6, top + 1.4); g.lineTo(1.4, top - 7); g.closePath(); }); F("#d9a441", () => g.arc(1.4, top - 7.6, 1.1, 0, 7)); break;
+    case "kefiye": F(W, () => { g.moveTo(-4.2, top + 1.2); g.quadraticCurveTo(hx, top - 3.4, 6.2, top + 1.4); g.lineTo(6, top + 3.6); g.lineTo(-1, top + 3); g.lineTo(-6.5, hy + 8); g.lineTo(-7, hy - 1); g.closePath(); }); g.strokeStyle = "#c8302e"; g.lineWidth = .6; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(-5.5 + i * .6, hy + 6 - i * 3); g.lineTo(-2 + i * 2.5, top + 2); g.stroke(); } g.lineWidth = 1.6; g.strokeStyle = INK; g.beginPath(); g.ellipse(hx, top + 1.4, 5.4, 1.3, 0, 0, 7); g.stroke(); g.lineWidth = 1.05; break;
+    case "tac": F(R.c1, () => g.ellipse(hx, top + 1.5, 4.8, 2.8, 0, Math.PI, 0)); F("#e8c040", () => { g.moveTo(-3.6, top + 1.6); for (let i = 0; i <= 4; i++) { g.lineTo(-3.6 + i * 2.2, top - (i % 2 ? 1 : 4.2)); } g.lineTo(5.2, top + 1.6); g.closePath(); }); break;
+    case "roma": F("#b8963a", () => g.arc(hx, hy - .5, hr + .6, Math.PI * 1.05, Math.PI * 2.05)); g.strokeStyle = "#b8342a"; g.lineWidth = 2.6; g.beginPath(); g.moveTo(-4, top - .5); g.quadraticCurveTo(1, top - 6.5, 6, top - .5); g.stroke(); g.lineWidth = 1.05; g.strokeStyle = INK; F("#b8963a", () => g.rect(-.6, hy - 2, 2.2, 5)); break;
+    case "migfer": F("#9aa0a8", () => { g.moveTo(-3.9, top + 2.6); g.lineTo(6.2, top + 2.6); g.lineTo(1.2, top - 7); g.closePath(); }); g.beginPath(); g.moveTo(5.4, top + 2.6); g.lineTo(5.4, top + 6.2); g.stroke(); break;
+    case "rus": F("#b8bcc4", () => { g.moveTo(-3.8, top + 2.6); g.quadraticCurveTo(-4.6, top - 2.4, 1.2, top - 8); g.quadraticCurveTo(6.8, top - 2.4, 6, top + 2.6); g.closePath(); }); g.beginPath(); g.moveTo(1.2, top - 8); g.lineTo(1.2, top - 11); g.stroke(); break;
+    case "boynuz": F("#9aa0a8", () => g.arc(hx, hy - .2, hr + .5, Math.PI, 0)); F("#f4ecd6", () => { g.moveTo(-3.6, top + 1); g.quadraticCurveTo(-8, top - 2, -7, top - 7); g.quadraticCurveTo(-5.5, top - 2, -2, top); }); F("#f4ecd6", () => { g.moveTo(5, top + 1); g.quadraticCurveTo(9.5, top - 2, 8.5, top - 7); g.quadraticCurveTo(7, top - 2, 3.6, top); }); break;
+    case "kova": F("#b8bcc4", () => g.rect(-4, top - 1.5, 10.6, 10.5)); g.fillStyle = INK; g.fillRect(1, hy - 1.6, 5.6, 1.1); g.fillRect(4.2, hy + 1, .9, 3); break;
+    case "korint": F("#b8963a", () => { g.moveTo(-4, top - .5); g.lineTo(6.4, top - .5); g.lineTo(6.6, hy + 4.4); g.lineTo(3.4, hy + 4.4); g.lineTo(3.4, hy); g.lineTo(-4.2, hy + 4); g.closePath(); }); g.fillStyle = INK; g.fillRect(3.6, hy - 1.8, 3, 1); F("#a82a2a", () => { g.moveTo(6, top - .5); g.quadraticCurveTo(1, top - 9, -8, top + 2); g.quadraticCurveTo(0, top - 4, 6, top - .5); }); break;
+    case "cin": F("#d9b860", () => { g.moveTo(-7, top + 2.2); g.lineTo(9.6, top + 2.2); g.lineTo(1.3, top - 5.4); g.closePath(); }); g.fillStyle = "#c8302e"; g.beginPath(); g.arc(1.3, top - 5.6, 1.1, 0, 7); g.fill(); break;
+    case "kabuto": F("#2b2a40", () => g.arc(hx, hy - .4, hr + .8, Math.PI, 0)); F("#2b2a40", () => { g.moveTo(-4.6, hy - .8); g.lineTo(-7.6, hy + 3.2); g.lineTo(-3.4, hy + 2.2); g.closePath(); }); g.strokeStyle = "#e8c040"; g.lineWidth = 1.3; g.beginPath(); g.moveTo(3, top + .4); g.lineTo(-.5, top - 5.5); g.moveTo(3, top + .4); g.lineTo(7, top - 5); g.stroke(); g.lineWidth = 1.05; g.strokeStyle = INK; break;
+    case "nemes": F(R.c3, () => { g.moveTo(-4.4, top + 1.2); g.quadraticCurveTo(hx, top - 3, 6.2, top + 1.6); g.lineTo(5, hy - 1); g.lineTo(-1, hy - .5); g.lineTo(-3.6, hy + 7.4); g.lineTo(-6.8, hy + 6.6); g.closePath(); }); g.strokeStyle = R.c2; g.lineWidth = .9; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(-6.2 + i * .5, hy + 5.6 - i * 2.6); g.lineTo(-3.6 + i * 1.4, hy + 6.6 - i * 2.8); g.stroke(); } g.lineWidth = 1.05; g.strokeStyle = INK; break;
+    case "tuy": g.fillStyle = R.c3; g.fillRect(-3.4, top + .8, 9.4, 2); g.strokeRect(-3.4, top + .8, 9.4, 2); [[-1.6, -6], [1, -8], [3.4, -6.4]].forEach(([x, h]) => F("#f4ecd6", () => g.ellipse(x, top + h * .55, 1.2, -h * .55, x * .06, 0, 7))); break;
+    case "sivri": F("#4a4a50", () => g.arc(hx, hy - .4, hr + .7, Math.PI, 0)); [[-2.6, -4.6], [1.4, -7], [5.4, -4.6]].forEach(([x, h]) => F("#7a7a80", () => { g.moveTo(x - 1.2, top + .6); g.lineTo(x, top + h); g.lineTo(x + 1.2, top + .6); g.closePath(); })); break;
+    case "kukuleta": F(R.c1, () => { g.moveTo(5.6, top + .4); g.quadraticCurveTo(hx, top - 3.4, -3.6, top + .4); g.lineTo(-8.6, top + 1.5); g.lineTo(-4.6, hy + 2); g.lineTo(-4.6, hy + 6); g.lineTo(-1, hy + 3); g.quadraticCurveTo(-1, top + 2, 5.6, top + 1.6); g.closePath(); }); break;
+    case "cinbas": F("#1a1418", () => g.ellipse(hx - 1.6, top - 1.2, 2.2, 3, -.4, 0, 7)); g.strokeStyle = "#e8c040"; g.lineWidth = 1.2; g.beginPath(); g.arc(hx - 1.2, top + .8, 1.6, 0, 7); g.stroke(); g.lineWidth = 1.05; g.strokeStyle = INK; break;
+    case "yok":
+      if (R.body === "seytan") { F("#f4ecd6", () => { g.moveTo(-1.5, top + 1.5); g.quadraticCurveTo(-4, top - 3, -2, top - 6); g.quadraticCurveTo(-1.6, top - 2.6, 1.2, top + .8); }); F("#f4ecd6", () => { g.moveTo(3, top + 1); g.quadraticCurveTo(4.4, top - 3.6, 7.6, top - 4.8); g.quadraticCurveTo(5.2, top - 1.8, 5, top + 1.6); }); }
+      else if (R.body === "goblin" || R.body === "ork") { g.fillStyle = "#2b1d12"; g.beginPath(); g.arc(hx - 1.2, top + 1.4, 2, Math.PI, 0); g.fill(); }
+      else if (R.body === "vampir") { g.fillStyle = "#1a1418"; g.beginPath(); g.moveTo(-3.2, hy); g.quadraticCurveTo(-3.4, top - 1, hx + 1, top - .2); g.quadraticCurveTo(5, top, 5.4, top + 1.6); g.lineTo(2.6, top + 1.2); g.lineTo(-1, hy + 2); g.closePath(); g.fill(); }
+      else if (R.body === "dev" || R.body === "trol" || R.body === "hortlak") { g.fillStyle = R.body === "dev" ? "#5a3a22" : R.body === "trol" ? "#3a4a30" : "#d8d8c8"; g.beginPath(); g.arc(hx - .6, hy - .8, hr, Math.PI * .9, Math.PI * 1.85); g.lineTo(hx - .6, hy - .8); g.fill(); }
+      break;
+  }
+}
+/* ---------- kaleler (her ırkın kendi mimarisi) ---------- */
+const STONE = { merkez: "#efe3c4", kuzey: "#e4e2e8", bozkir: "#e6d3a4", dogu: "#ead9b4", col: "#ecd39a", savan: "#d8b07a", orman: "#c8c0a0", karanlik: "#6a5a60" };
+function flag(g, x, y, c, h) {
+  g.strokeStyle = INK; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - h); g.stroke();
+  g.fillStyle = c; g.beginPath(); g.moveTo(x, y - h); g.quadraticCurveTo(x + 9, y - h - 2, x + 15, y - h + 3); g.quadraticCurveTo(x + 9, y - h + 4, x, y - h + 8); g.closePath(); g.fill(); g.stroke();
+}
+// x,y: tabanın ortası; ölçek s; own: sahibin rengi
+function drawCastle(g, R, x, y, s, own) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.lineJoin = "round"; g.strokeStyle = INK; g.lineWidth = 1.2;
+  const st = STONE[R.zone], F = (c, p) => { g.fillStyle = c; g.beginPath(); p(); g.fill(); g.stroke(); };
+  const wall = (c) => { F(c, () => g.rect(-30, -16, 60, 16)); g.fillStyle = c; for (let i = -30; i < 30; i += 6) { g.fillRect(i, -19, 3.6, 3); g.strokeRect(i, -19, 3.6, 3); } F("#3a2418", () => { g.moveTo(-5, 0); g.lineTo(-5, -8); g.quadraticCurveTo(0, -13, 5, -8); g.lineTo(5, 0); g.closePath(); }); };
+  const tower = (tx, c, h, roof) => { F(c, () => g.rect(tx - 5, -h, 10, h)); if (roof) F(roof, () => { g.moveTo(tx - 7, -h); g.lineTo(tx, -h - 11); g.lineTo(tx + 7, -h); g.closePath(); }); else { g.fillStyle = c; for (let i = -5; i < 5; i += 3.4) { g.fillRect(tx + i, -h - 3, 2.2, 3); g.strokeRect(tx + i, -h - 3, 2.2, 3); } } };
+  switch (R.castle) {
+    case "kubbe": // cami kubbesi ve minareler
+      wall(st); F(st, () => g.rect(-16, -30, 32, 14)); F("#4a6ac0", () => g.arc(0, -30, 13, Math.PI, 0)); g.fillStyle = "#d9a441"; g.fillRect(-.8, -48, 1.6, 6);
+      [-24, 24].forEach(mx => { F("#f4efe2", () => g.rect(mx - 2.4, -46, 4.8, 30)); F("#4a6ac0", () => { g.moveTo(mx - 3, -46); g.lineTo(mx, -56); g.lineTo(mx + 3, -46); g.closePath(); }); g.fillStyle = INK; g.fillRect(mx - 3, -38, 6, 1.2); });
+      for (let i = -12; i <= 12; i += 6) { g.fillStyle = "#2c4f9e"; g.fillRect(i - 1.2, -27, 2.4, 6); } break;
+    case "sutun": // sütunlu tapınak
+      wall(st); F(st, () => g.rect(-20, -21, 40, 4)); for (let i = -17; i <= 17; i += 6.8) F("#f8f2e2", () => g.rect(i - 1.6, -37, 3.2, 16)); F(st, () => g.rect(-21, -40, 42, 3)); F(R.c1, () => { g.moveTo(-22, -40); g.lineTo(0, -50); g.lineTo(22, -40); g.closePath(); }); break;
+    case "sogan": // soğan kubbeler
+      wall(st); [[-14, 26, "#c8402e"], [0, 36, "#e0b030"], [14, 26, "#2f7d4f"]].forEach(([tx, h, c]) => { F(st, () => g.rect(tx - 5, -h, 10, h - 16)); F(c, () => { g.moveTo(tx - 6, -h); g.quadraticCurveTo(tx - 8, -h - 6, tx, -h - 13); g.quadraticCurveTo(tx + 8, -h - 6, tx + 6, -h); g.closePath(); }); g.beginPath(); g.moveTo(tx, -h - 13); g.lineTo(tx, -h - 17); g.stroke(); }); break;
+    case "ahsap": // ahşap uzun ev
+      F("#8a5a2a", () => g.rect(-28, -14, 56, 14)); g.strokeStyle = "#5a3a1a"; for (let i = -26; i < 28; i += 4) { g.beginPath(); g.moveTo(i, -14); g.lineTo(i, 0); g.stroke(); } g.strokeStyle = INK;
+      F("#c8a050", () => { g.moveTo(-32, -14); g.lineTo(0, -34); g.lineTo(32, -14); g.closePath(); }); F("#8a5a2a", () => { g.moveTo(-26, -24); g.quadraticCurveTo(-34, -32, -28, -38); g.lineTo(-24, -28); g.closePath(); }); F("#8a5a2a", () => { g.moveTo(26, -24); g.quadraticCurveTo(34, -32, 28, -38); g.lineTo(24, -28); g.closePath(); }); break;
+    case "gotik": { const c = R.zone === "karanlik" ? "#4a3a48" : st, rf = R.zone === "karanlik" ? "#8a1a2a" : "#2c4f9e"; wall(c); tower(-22, c, 34, rf); tower(22, c, 34, rf); F(c, () => g.rect(-9, -42, 18, 26)); F(rf, () => { g.moveTo(-11, -42); g.lineTo(0, -60); g.lineTo(11, -42); g.closePath(); }); g.fillStyle = R.zone === "karanlik" ? "#ffd040" : "#2c4f9e"; g.fillRect(-1.5, -36, 3, 6); break; }
+    case "pagoda": wall(st); [[0, 22, 14], [0, 32, 11], [0, 41, 8]].forEach(([tx, h, w]) => { F("#c8402e", () => g.rect(-w + 4, -h, 2 * w - 8, h - 16 + (h > 22 ? 0 : 0))); F("#2b2a40", () => { g.moveTo(-w - 4, -h + 1); g.quadraticCurveTo(0, -h - 5, w + 4, -h + 1); g.lineTo(w, -h + 3); g.lineTo(-w, -h + 3); g.closePath(); }); }); break;
+    case "piramit": F("#e8c878", () => { g.moveTo(-30, 0); g.lineTo(-4, -40); g.lineTo(22, 0); g.closePath(); }); F("#d4b060", () => { g.moveTo(-4, -40); g.lineTo(22, 0); g.lineTo(8, 0); g.closePath(); }); F("#ecd39a", () => g.rect(20, -16, 14, 16)); F("#e8c878", () => { g.moveTo(26, -16); g.lineTo(27.5, -42); g.lineTo(29, -16); g.closePath(); }); break;
+    case "kil": F("#c88a50", () => g.rect(-26, -18, 52, 18)); [-18, 0, 18].forEach(tx => { F("#c88a50", () => { g.moveTo(tx - 6, -16); g.lineTo(tx - 4, -36); g.lineTo(tx + 4, -36); g.lineTo(tx + 6, -16); g.closePath(); }); g.strokeStyle = "#6a3a1a"; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(tx - 6, -22 - k * 5); g.lineTo(tx + 6, -22 - k * 5); g.stroke(); } g.strokeStyle = INK; }); F("#3a2418", () => g.rect(-4, -10, 8, 10)); break;
+    case "kulube": [[-18, 0, 12], [0, -4, 15], [18, 0, 12]].forEach(([hx, hy, r]) => { F("#c8a060", () => { g.moveTo(hx - r, hy); g.quadraticCurveTo(hx - r, hy - r * 1.6, hx, hy - r * 1.7); g.quadraticCurveTo(hx + r, hy - r * 1.6, hx + r, hy); g.closePath(); }); F("#3a2418", () => g.arc(hx, hy, r * .3, Math.PI, 0)); }); g.strokeStyle = "#6a4a2a"; for (let i = -30; i <= 30; i += 4) { g.beginPath(); g.moveTo(i, 2); g.lineTo(i, -6); g.stroke(); } g.strokeStyle = INK; break;
+    case "cadir": [[-16, 0, 13, "#f4efe2"], [14, 0, 11, "#e8dcc0"], [0, -6, 15, "#f4efe2"]].forEach(([hx, hy, r, c]) => { F(c, () => { g.moveTo(hx - r, hy); g.lineTo(hx - r, hy - r * .7); g.quadraticCurveTo(hx, hy - r * 1.5, hx + r, hy - r * .7); g.lineTo(hx + r, hy); g.closePath(); }); g.strokeStyle = R.c1; g.lineWidth = 2; g.beginPath(); g.moveTo(hx - r, hy - r * .55); g.lineTo(hx + r, hy - r * .55); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.2; }); break;
+    case "diken": { const c = R.k === "seytan" ? "#5a1a1a" : "#4a4440"; F(c, () => { g.moveTo(-30, 0); g.lineTo(-26, -20); g.lineTo(-14, -14); g.lineTo(-10, -38); g.lineTo(0, -24); g.lineTo(10, -42); g.lineTo(16, -18); g.lineTo(28, -22); g.lineTo(30, 0); g.closePath(); }); g.fillStyle = R.k === "seytan" ? "#ff8a20" : "#e8c040"; [[-10, -22], [6, -26], [20, -10]].forEach(([wx, wy]) => g.fillRect(wx, wy, 3, 4)); F("#1a1010", () => { g.moveTo(-5, 0); g.lineTo(-5, -8); g.lineTo(0, -12); g.lineTo(5, -8); g.lineTo(5, 0); g.closePath(); }); break; }
+    case "agac": F("#6a4a2a", () => { g.moveTo(-8, 0); g.quadraticCurveTo(-4, -20, -6, -34); g.lineTo(6, -34); g.quadraticCurveTo(4, -20, 8, 0); g.closePath(); }); F(R.k === "kurt" ? "#3a5a3a" : "#4a9a4a", () => g.ellipse(0, -42, 26, 16, 0, 0, 7)); F(R.k === "kurt" ? "#2a4a2a" : "#5ab05a", () => g.ellipse(-12, -48, 12, 9, 0, 0, 7)); F(R.k === "kurt" ? "#2a4a2a" : "#5ab05a", () => g.ellipse(12, -46, 12, 9, 0, 0, 7)); g.fillStyle = "#ffd040"; [[-10, -40], [8, -38], [0, -48]].forEach(([wx, wy]) => { g.beginPath(); g.arc(wx, wy, 1.8, 0, 7); g.fill(); }); break;
+    case "kemik": F("#b8b098", () => g.rect(-26, -16, 52, 16)); [-18, 18].forEach(tx => F("#d8d0b8", () => { g.moveTo(tx - 5, -16); g.lineTo(tx - 3, -38); g.lineTo(tx + 3, -38); g.lineTo(tx + 5, -16); g.closePath(); })); F("#e8e0c8", () => g.arc(0, -30, 9, 0, 7)); g.fillStyle = INK; [[-3.5, -31], [3.5, -31]].forEach(([ex, ey]) => { g.beginPath(); g.arc(ex, ey, 2.2, 0, 7); g.fill(); }); g.fillRect(-3, -25, 6, 1.4); F("#1a1410", () => g.rect(-4, -9, 8, 9)); break;
+    case "dag": F("#8a8090", () => { g.moveTo(-34, 0); g.lineTo(-14, -40); g.lineTo(-4, -30); g.lineTo(8, -48); g.lineTo(34, 0); g.closePath(); }); F("#f4f2f8", () => { g.moveTo(8, -48); g.lineTo(2, -38); g.lineTo(8, -40); g.lineTo(14, -37); g.closePath(); }); F("#c08030", () => g.rect(-8, -16, 16, 16)); F("#3a2418", () => { g.moveTo(-5, 0); g.lineTo(-5, -9); g.quadraticCurveTo(0, -14, 5, -9); g.lineTo(5, 0); g.closePath(); }); break;
+  }
+  flag(g, 0, R.castle === "kubbe" ? -48 : R.castle === "gotik" ? -60 : -44, own, 14);
+  g.restore();
+}
+function drawMine(g, m, x, y, s, own) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.strokeStyle = INK; g.lineWidth = 1.1; g.lineJoin = "round";
+  g.fillStyle = "#a08870"; g.beginPath(); g.moveTo(-16, 0); g.quadraticCurveTo(-14, -16, 0, -18); g.quadraticCurveTo(14, -16, 16, 0); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = "#2a1a10"; g.beginPath(); g.moveTo(-5, 0); g.lineTo(-5, -7); g.quadraticCurveTo(0, -11, 5, -7); g.lineTo(5, 0); g.closePath(); g.fill(); g.stroke();
+  g.strokeStyle = "#6a4422"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-6.5, 0); g.lineTo(-6.5, -8); g.moveTo(6.5, 0); g.lineTo(6.5, -8); g.moveTo(-7, -8.5); g.lineTo(7, -8.5); g.stroke();
+  g.fillStyle = m.tip === "altin" ? "#f0c030" : m.tip === "gumus" ? "#dfe4ec" : "#8a8a96"; [[-10, -6], [10, -8], [8, -3]].forEach(([px, py]) => { g.beginPath(); g.arc(px, py, 2, 0, 7); g.fill(); });
+  if (own) flag(g, 12, -12, own, 12);
+  g.restore();
+}
+function drawTents(g, x, y, s, own) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.strokeStyle = INK; g.lineWidth = 1.1;
+  [[-10, 2, 9], [8, 3, 8], [0, -4, 10]].forEach(([tx, ty, r]) => { g.fillStyle = "#f4efe2"; g.beginPath(); g.moveTo(tx - r, ty); g.lineTo(tx, ty - r * 1.3); g.lineTo(tx + r, ty); g.closePath(); g.fill(); g.stroke(); g.strokeStyle = own; g.lineWidth = 2; g.beginPath(); g.moveTo(tx - r * .6, ty - r * .5); g.lineTo(tx + r * .6, ty - r * .5); g.stroke(); g.strokeStyle = INK; g.lineWidth = 1.1; });
+  g.restore();
+}
+
+/* ---------- ada ---------- */
+const WW = 2200, WH = 1500, SEED = 7341, CELL = 2, TCELL = 6;
+let mapCv = null, landM = null, gw = 0, gh = 0, cityOf = null, tw = 0, th = 0, terrCv = null, decor = [];
+const ZCOL = { merkez: [168, 196, 110], kuzey: [222, 226, 232], bozkir: [208, 196, 128], dogu: [176, 196, 120], col: [232, 206, 140], savan: [214, 184, 110], orman: [102, 150, 88], karanlik: [128, 112, 116] };
+function cityPos(R) { return { x: WW / 2 + R.pos[0] * WW * .42, y: WH / 2 + R.pos[1] * WH * .42 }; }
+function heightAt(x, y) {
+  const ex = (x - WW / 2) / (WW * .47), ey = (y - WH / 2) / (WH * .47), r = Math.hypot(ex, ey);
+  let h = .62 - r * .78 + (fbm(x / 330, y / 330, SEED) - .5) * .7;
+  for (const R of RACES) { const p = R._p, d = Math.hypot(p.x - x, p.y - y); if (d < 170) h += .4 * (1 - d / 170); }
+  return h;
+}
+function isLand(x, y) { const i = Math.floor(x / CELL), j = Math.floor(y / CELL); return i >= 0 && j >= 0 && i < gw && j < gh && landM[j * gw + i] > 0; }
+function genWorld() {
+  rnd = mulberry(SEED);
+  RACES.forEach(R => R._p = cityPos(R));
+  gw = WW / CELL; gh = WH / CELL; landM = new Uint8Array(gw * gh);
+  const near = new Uint8Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const x = i * CELL, y = j * CELL, h = heightAt(x, y); if (h <= 0) continue;
+    landM[j * gw + i] = 1;
+    let b = 0, bd = 1e12; for (let k = 0; k < RACES.length; k++) { const p = RACES[k]._p, dd = (p.x - x) ** 2 + (p.y - y) ** 2; if (dd < bd) { bd = dd; b = k; } }
+    near[j * gw + i] = b;
+  }
+  // yalnızca ana ada kalsın (küçük adacıklar süs olarak durabilir)
+  mapCv = document.createElement("canvas"); mapCv.width = WW; mapCv.height = WH; const g = mapCv.getContext("2d");
+  const sea = g.createLinearGradient(0, 0, 0, WH); sea.addColorStop(0, "#2a5aa8"); sea.addColorStop(1, "#1e4890"); g.fillStyle = sea; g.fillRect(0, 0, WW, WH);
+  // minyatür dalga kıvrımları
+  g.strokeStyle = "rgba(230,240,255,.55)"; g.lineWidth = 2;
+  for (let k = 0; k < 520; k++) { const x = rnd() * WW, y = rnd() * WH; if (isLand(x, y) || isLand(x + 20, y) || isLand(x - 20, y)) continue; g.beginPath(); g.arc(x, y, 5, Math.PI, Math.PI * 1.9); g.arc(x + 9, y, 4, Math.PI * 1.1, Math.PI * 2.1); g.stroke(); }
+  // kara resmi: bölge rengi + doku
+  const lc = document.createElement("canvas"); lc.width = gw; lc.height = gh; const lg = lc.getContext("2d"), img = lg.createImageData(gw, gh), d = img.data;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const n = j * gw + i; if (!landM[n]) continue;
+    const c = ZCOL[RACES[near[n]].zone], v = (vnoise(i / 7, j / 7, 5) - .5) * 26 + (vnoise(i / 40, j / 40, 9) - .5) * 30;
+    const edge = !landM[n - 1] || !landM[n + 1] || !landM[n - gw] || !landM[n + gw];
+    d[n * 4] = edge ? 70 : c[0] + v; d[n * 4 + 1] = edge ? 50 : c[1] + v; d[n * 4 + 2] = edge ? 30 : c[2] + v * .7; d[n * 4 + 3] = 255;
+  }
+  lg.putImageData(img, 0, 0);
+  g.save(); g.shadowColor = "#a8dcef"; g.shadowBlur = 34; g.imageSmoothingEnabled = true; g.drawImage(lc, 0, 0, WW, WH); g.restore();
+  g.drawImage(lc, 0, 0, WW, WH);
+  // süsler: dağlar, ağaçlar, ekin tarlaları (minyatür)
+  decor = [];
+  const far = (x, y, r) => RACES.every(R => Math.hypot(R._p.x - x, R._p.y - y) > r);
+  for (let k = 0; k < 2600 && decor.length < 520; k++) {
+    const x = 30 + rnd() * (WW - 60), y = 30 + rnd() * (WH - 60);
+    if (!isLand(x, y) || !isLand(x, y + 18) || !isLand(x + 16, y) || !isLand(x - 16, y) || !far(x, y, 70)) continue;
+    const zone = RACES[near[Math.floor(y / CELL) * gw + Math.floor(x / CELL)]].zone, m = fbm(x / 260, y / 260, 44);
+    decor.push({ x, y, t: m > .58 ? "dag" : zone, r: rnd() });
+  }
+  decor.sort((a, b) => a.y - b.y).forEach(o => drawDecor(g, o));
+  g.save(); g.strokeStyle = "rgba(201,162,39,.9)"; g.lineWidth = 10; g.strokeRect(5, 5, WW - 10, WH - 10); g.strokeStyle = "#1d3a86"; g.lineWidth = 4; g.strokeRect(14, 14, WW - 28, WH - 28); g.restore();
+  // bölge haritası (her kara hücresinin en yakın şehri)
+  tw = Math.ceil(WW / TCELL); th = Math.ceil(WH / TCELL); cityOf = new Int8Array(tw * th).fill(-1);
+  for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) { const x = i * TCELL + TCELL / 2, y = j * TCELL + TCELL / 2; if (isLand(x, y)) cityOf[j * tw + i] = near[Math.floor(y / CELL) * gw + Math.floor(x / CELL)]; }
+  terrCv = document.createElement("canvas"); terrCv.width = tw; terrCv.height = th;
+}
+function drawDecor(g, o) {
+  const { x, y, t, r } = o; g.save(); g.translate(x, y); g.strokeStyle = INK; g.lineWidth = 1.1;
+  if (t === "dag") { const s = .8 + r * .7, c = ["#c8a8c8", "#a8b8d8", "#d8b890", "#b8c8a8"][Math.floor(r * 4)]; g.fillStyle = c; g.beginPath(); g.moveTo(-16 * s, 0); g.quadraticCurveTo(-12 * s, -20 * s, -4 * s, -26 * s); g.quadraticCurveTo(0, -34 * s, 6 * s, -24 * s); g.quadraticCurveTo(14 * s, -16 * s, 16 * s, 0); g.closePath(); g.fill(); g.stroke(); g.strokeStyle = shade(c, -.3); g.beginPath(); g.moveTo(-6 * s, -18 * s); g.quadraticCurveTo(-2 * s, -12 * s, -6 * s, -4 * s); g.moveTo(5 * s, -16 * s); g.quadraticCurveTo(9 * s, -10 * s, 6 * s, -2 * s); g.stroke(); }
+  else if (t === "kuzey") { g.fillStyle = "#3a6a4a"; g.beginPath(); g.moveTo(-6, 0); g.lineTo(0, -20); g.lineTo(6, 0); g.closePath(); g.fill(); g.stroke(); g.fillStyle = "#fff"; g.beginPath(); g.moveTo(-3, -9); g.lineTo(0, -20); g.lineTo(3, -9); g.closePath(); g.fill(); }
+  else if (t === "col" || t === "savan") { if (r < .5) { g.strokeStyle = "#7a5a2a"; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(3, -10, 1, -20); g.stroke(); g.lineWidth = 1.1; g.strokeStyle = INK; g.fillStyle = "#4a8a3a"; for (let k = 0; k < 5; k++) { g.beginPath(); g.ellipse(1 + Math.cos(k * 1.3) * 5, -20 + Math.sin(k * 1.3) * 2, 6, 2, k * 1.3, 0, 7); g.fill(); g.stroke(); } } else { g.fillStyle = "#c8a868"; g.beginPath(); g.ellipse(0, 0, 10, 3, 0, 0, 7); g.fill(); } }
+  else if (t === "karanlik") { g.strokeStyle = "#3a2a2a"; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -16); g.moveTo(0, -9); g.lineTo(-6, -15); g.moveTo(0, -12); g.lineTo(5, -18); g.stroke(); }
+  else if (r < .45) { g.fillStyle = t === "orman" ? "#1f4a2a" : "#2a6a3a"; g.beginPath(); g.ellipse(0, -11, 4, 12, 0, 0, 7); g.fill(); g.stroke(); g.strokeStyle = "rgba(255,255,255,.25)"; g.beginPath(); g.moveTo(0, -20); g.lineTo(0, -2); g.stroke(); }
+  else { g.fillStyle = "#6a4a2a"; g.fillRect(-1.2, -8, 2.4, 8); g.fillStyle = r < .7 ? "#5a9a4a" : "#e8b8c8"; g.beginPath(); g.arc(0, -12, 7, 0, 7); g.fill(); g.stroke(); if (r >= .7) { g.fillStyle = "#c86a8a"; [[-3, -13], [2, -10], [1, -15]].forEach(([a, b]) => { g.beginPath(); g.arc(a, b, 1, 0, 7); g.fill(); }); } }
+  g.restore();
+}
+function paintTerritory() {
+  const g = terrCv.getContext("2d"), img = g.createImageData(tw, th), d = img.data;
+  const rgb = RACES.map(R => { const n = parseInt(R.renk.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; });
+  for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) {
+    const n = j * tw + i, c = cityOf[n]; if (c < 0) continue;
+    const o = S.cities[c].owner, col = rgb[o];
+    const nb = [cityOf[n - 1], cityOf[n + 1], cityOf[n - tw], cityOf[n + tw]];
+    const border = nb.some(v => v >= 0 && S.cities[v].owner !== o), inner = nb.some(v => v >= 0 && v !== c);
+    d[n * 4] = border ? col[0] * .55 : col[0]; d[n * 4 + 1] = border ? col[1] * .55 : col[1]; d[n * 4 + 2] = border ? col[2] * .55 : col[2];
+    d[n * 4 + 3] = border ? 200 : inner ? 90 : 34;
+  }
+  g.putImageData(img, 0, 0);
+}
+/* ---------- oyun durumu ---------- */
+const SAVE_KEY = "otuz-diyar-v1";
+let S = null, mines0 = [];
+function genMines() {
+  rnd = mulberry(SEED + 99); const out = [], tips = ["altin", "gumus", "demir"];
+  for (let k = 0; k < 6000 && out.length < 30; k++) {
+    const x = 60 + rnd() * (WW - 120), y = 60 + rnd() * (WH - 120);
+    if (![[0, 0], [28, 0], [-28, 0], [0, 28], [0, -28]].every(([a, b]) => isLand(x + a, y + b))) continue;
+    if (RACES.some(R => Math.hypot(R._p.x - x, R._p.y - y) < 120) || out.some(m => Math.hypot(m.x - x, m.y - y) < 130)) continue;
+    const tip = tips[out.length % 3]; out.push({ x, y, tip, val: tip === "altin" ? 4 : tip === "gumus" ? 3 : 2 });
+  }
+  return out;
+}
+const MINE_AD = { altin: "Altın Ocağı", gumus: "Gümüş Ocağı", demir: "Demir Ocağı" };
+function newGame(P) {
+  S = {
+    v: 1, P, t: 0, speed: 1, nextId: 1, gold: RACES.map(() => 250), ai: RACES.map(() => 2 + Math.random() * 4),
+    cities: RACES.map((R, i) => ({ i, race: i, owner: i, x: R._p.x, y: R._p.y, gar: Math.round(200 / R.cost * (i === P ? 1.3 : 1)) })),
+    mines: mines0.map(m => ({ ...m, owner: -1 })), armies: [], over: false,
+  };
+  S.gold[P] = 400;
+}
+const pw = o => RACES[o].pow;
+const owned = o => S.cities.filter(c => c.owner === o);
+const alive = o => S.cities.some(c => c.owner === o);
+function income(o) { return owned(o).length * 2 + S.mines.filter(m => m.owner === o).reduce((a, m) => a + m.val, 0); }
+
+/* ---------- güncelleme ---------- */
+let battleOpen = null, fx = [];
+function update(dt) {
+  if (S.over) return;
+  S.t += dt;
+  for (let o = 0; o < RACES.length; o++) S.gold[o] += income(o) * dt * .5;
+  for (const c of S.cities) { const R = RACES[c.owner], cap = 520 / R.cost; if (c.gar < cap) c.gar = Math.min(cap, c.gar + dt * .16 * 6 / R.cost); }
+  // ordular
+  for (const a of S.armies.slice()) {
+    if (!S.armies.includes(a)) continue;
+    if (a.st !== "yol") continue;
+    if (a.tgt && a.tgt.k === "army") { const e = S.armies.find(b => b.id === a.tgt.id); if (!e) { a.st = "ordugah"; a.tgt = null; continue; } a.tx = e.x; a.ty = e.y; }
+    const sp = 24 * RACES[a.owner].spd, dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
+    a.ph = (a.ph || 0) + dt * 7;
+    if (d > 2) { const s = Math.min(d, sp * dt); a.x += dx / d * s; a.y += dy / d * s; a.face = dx < 0 ? -1 : 1; }
+    // karşılaşma
+    const foe = S.armies.find(b => b !== a && b.owner !== a.owner && Math.hypot(b.x - a.x, b.y - a.y) < 24);
+    if (foe) { startBattle({ att: a, defArmy: foe }); if (battleOpen) return; continue; }
+    if (d <= 3) arrive(a);
+    if (battleOpen) return;
+  }
+  // yapay zekâ
+  for (let o = 0; o < RACES.length; o++) {
+    if (o === S.P || !alive(o)) continue;
+    S.ai[o] -= dt; if (S.ai[o] > 0) continue; S.ai[o] = 7 + Math.random() * 6; think(o);
+    if (battleOpen) return;
+  }
+  fx = fx.filter(f => (f.t += dt) < 2.4);
+}
+function arrive(a) {
+  const t = a.tgt;
+  if (!t) { a.st = "ordugah"; return; }
+  if (t.k === "city") {
+    const c = S.cities[t.i];
+    if (c.owner === a.owner) { c.gar += a.n; removeArmy(a); return; }
+    startBattle({ att: a, defCity: c });
+  } else if (t.k === "mine") {
+    const m = S.mines[t.i], guard = S.armies.find(b => b.st === "nobet" && b.mine === t.i && b !== a);
+    if (guard && guard.owner !== a.owner) { startBattle({ att: a, defArmy: guard }); return; }
+    if (guard) { guard.n += a.n; removeArmy(a); return; }
+    if (m.owner !== a.owner && (m.owner === S.P || a.owner === S.P)) note(a.owner === S.P ? `${MINE_AD[m.tip]} senin oldu` : `${RACES[a.owner].ad} ${MINE_AD[m.tip].toLocaleLowerCase("tr")}nı aldı`);
+    m.owner = a.owner; a.st = "nobet"; a.mine = t.i; a.x = m.x + 18; a.y = m.y + 6; a.tgt = null;
+  } else { a.st = "ordugah"; a.tgt = null; }
+}
+function removeArmy(a) { const i = S.armies.indexOf(a); if (i >= 0) S.armies.splice(i, 1); if (sel && sel.k === "army" && sel.id === a.id) sel = null; }
+function sendArmy(o, city, n, tgt, tx, ty) {
+  n = Math.floor(n); if (n < 1) return null;
+  city.gar -= n;
+  const a = { id: S.nextId++, owner: o, n, x: city.x + 4, y: city.y + 14, tx, ty, tgt, st: "yol", ph: 0, face: tx < city.x ? -1 : 1 };
+  S.armies.push(a); return a;
+}
+function think(o) {
+  const R = RACES[o], cs = owned(o);
+  if (S.gold[o] > R.cost * 25) { const c = cs.reduce((a, b) => a.gar < b.gar ? a : b), n = Math.floor(S.gold[o] * .35 / R.cost); c.gar += n; S.gold[o] -= n * R.cost; }
+  const src = cs.reduce((a, b) => a.gar * 1 > b.gar ? a : b), power = src.gar * pw(o);
+  if (power < 300) return;
+  const busy = new Set(S.armies.filter(a => a.owner === o && a.tgt).map(a => a.tgt.k + a.tgt.i));
+  const near = (p, r) => Math.hypot(p.x - src.x, p.y - src.y) < r;
+  // 1) sahipsiz maden
+  const free = S.mines.map((m, i) => ({ m, i })).filter(({ m, i }) => m.owner < 0 && near(m, 520) && !busy.has("mine" + i)).sort((p, q) => dist(p.m, src) - dist(q.m, src))[0];
+  if (free && Math.random() < .7) { sendArmy(o, src, Math.max(4, src.gar * .3), { k: "mine", i: free.i }, free.m.x, free.m.y); return; }
+  // 2) zayıf komşu şehir
+  const grace = S.t < 240;
+  const tgts = S.cities.filter(c => c.owner !== o && near(c, 600) && !(grace && c.owner === S.P)).map(c => ({ c, def: c.gar * pw(c.owner) * 1.3 })).sort((p, q) => p.def - q.def);
+  if (tgts[0] && power * .7 > tgts[0].def * 2 && Math.random() < .35 && !busy.has("city" + tgts[0].c.i)) { const c = tgts[0].c; sendArmy(o, src, src.gar * .7, { k: "city", i: c.i }, c.x, c.y); return; }
+  // 3) düşman madeni
+  const em = S.mines.map((m, i) => ({ m, i })).filter(({ m, i }) => m.owner >= 0 && m.owner !== o && near(m, 520) && !(grace && m.owner === S.P)).map(x => { const gd = S.armies.find(b => b.st === "nobet" && b.mine === x.i); return { ...x, def: gd ? gd.n * pw(gd.owner) : 0 }; }).sort((p, q) => p.def - q.def)[0];
+  if (em && power * .5 > em.def * 1.3 && !busy.has("mine" + em.i)) { sendArmy(o, src, src.gar * .5, { k: "mine", i: em.i }, em.m.x, em.m.y); return; }
+  // 4) sınıra ordugâh kur
+  if (Math.random() < .18 && S.armies.filter(a => a.owner === o).length < 3) {
+    const en = S.cities.filter(c => c.owner !== o).sort((p, q) => dist(p, src) - dist(q, src))[0];
+    if (en) { const tx = lerp(src.x, en.x, .45), ty = lerp(src.y, en.y, .45); if (isLand(tx, ty)) sendArmy(o, src, src.gar * .25, null, tx, ty); }
+  }
+}
+/* ---------- muharebe kurulumu ve sonucu ---------- */
+function startBattle(b) {
+  const a = b.att, defOwner = b.defCity ? b.defCity.owner : b.defArmy.owner, defN = b.defCity ? Math.max(1, Math.round(b.defCity.gar)) : b.defArmy.n;
+  b.A = { owner: a.owner, n: a.n }; b.D = { owner: defOwner, n: defN, bonus: b.defCity ? 1.3 : 1 };
+  b.x = b.defCity ? b.defCity.x : b.defArmy.x; b.y = b.defCity ? b.defCity.y : b.defArmy.y;
+  if (a.owner === S.P || defOwner === S.P) { battleOpen = b; openBattle(b); return; }
+  const r = autoResolve(b.A, b.D); applyBattle(b, r[0], r[1]);
+}
+function autoResolve(A, D) {
+  const pa = A.n * pw(A.owner) * (.85 + Math.random() * .3), pd = D.n * pw(D.owner) * D.bonus * (.85 + Math.random() * .3);
+  if (pa > pd) return [Math.max(1, Math.round(A.n * (1 - Math.pow(pd / pa, 1.25) * .85))), 0];
+  return [0, Math.max(1, Math.round(D.n * (1 - Math.pow(pa / pd, 1.25) * .85)))];
+}
+function applyBattle(b, aLeft, dLeft) {
+  const a = b.att; fx.push({ x: b.x, y: b.y, t: 0 });
+  if (aLeft <= 0) removeArmy(a); else a.n = aLeft;
+  if (b.defCity) {
+    const c = b.defCity, R = RACES[c.race];
+    if (dLeft > 0) c.gar = dLeft;
+    else {
+      const prev = c.owner; c.owner = a.owner; c.gar = aLeft; removeArmy(a); paintTerritory();
+      if (a.owner === S.P) note(`${R.sehir} fethedildi! ${RACES[prev].ad} yenildi.`);
+      else if (prev === S.P) note(`${RACES[a.owner].ad} ${R.sehir} şehrini aldı!`);
+      if (!alive(prev)) eliminate(prev);
+    }
+  } else if (b.defArmy) {
+    const d = b.defArmy; if (dLeft <= 0) { if (d.st === "nobet" && S.mines[d.mine]) {} removeArmy(d); } else d.n = dLeft;
+  }
+  checkEnd(); renderPanel();
+}
+function eliminate(o) {
+  S.armies = S.armies.filter(a => a.owner !== o); S.mines.forEach(m => { if (m.owner === o) m.owner = -1; });
+  if (o !== S.P) note(`${RACES[o].ad} tarih sahnesinden çekildi.`);
+}
+function checkEnd() {
+  if (S.over) return;
+  if (!alive(S.P)) { S.over = "lose"; showEnd(); }
+  else if (S.cities.every(c => c.owner === S.P)) { S.over = "win"; showEnd(); }
+}
+function showEnd() {
+  const p = $("panel"); p.replaceChildren();
+  const h = el("h3", null, S.over === "win" ? "Ada senin! Otuz diyarın hepsi bayrağının altında." : "Son kalen de düştü.");
+  p.append(h, el("p", null, S.over === "win" ? `${Math.ceil(S.t / 6)} günde bütün adayı fethettin.` : `${RACES[S.P].ad} ${Math.ceil(S.t / 6)}. günde yenildi.`));
+  const acts = el("div", "acts"); acts.append(btn("Yeni oyun", "red", () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} showStart(); })); p.appendChild(acts);
+}
+
+/* ---------- harita görünümü ---------- */
+const cv = $("map"), g = cv.getContext("2d");
+let cam = { x: WW / 2, y: WH / 2, z: .5 }, dpr = 1, VW = 400, VH = 600, sel = null, mode = null;
+function resizeMap() { dpr = Math.min(2, window.devicePixelRatio || 1); VW = cv.clientWidth; VH = cv.clientHeight; cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr); clampCam(); }
+function minZ() { return Math.min(VW / WW, VH / WH) * .98; }
+function clampCam() { cam.z = clamp(cam.z, minZ(), 1.6); const hw = VW / 2 / cam.z, hh = VH / 2 / cam.z; cam.x = hw * 2 >= WW ? WW / 2 : clamp(cam.x, hw, WW - hw); cam.y = hh * 2 >= WH ? WH / 2 : clamp(cam.y, hh, WH - hh); }
+const toScreen = (x, y) => [(x - cam.x) * cam.z + VW / 2, (y - cam.y) * cam.z + VH / 2];
+const toWorld = (sx, sy) => [(sx - VW / 2) / cam.z + cam.x, (sy - VH / 2) / cam.z + cam.y];
+function drawMap(T) {
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = "#1e4890"; g.fillRect(0, 0, VW, VH);
+  g.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (VW / 2 - cam.x * cam.z), dpr * (VH / 2 - cam.y * cam.z));
+  g.imageSmoothingEnabled = true; g.drawImage(mapCv, 0, 0); g.drawImage(terrCv, 0, 0, WW, WH);
+  // madenler
+  S.mines.forEach((m, i) => drawMine(g, m, m.x, m.y, 1.2, m.owner >= 0 ? RACES[m.owner].renk : null));
+  // hedef çizgileri (oyuncunun orduları)
+  g.setLineDash([8, 7]); g.lineWidth = 2.4;
+  S.armies.forEach(a => { if (a.owner !== S.P || a.st !== "yol") return; g.strokeStyle = "rgba(255,246,216,.9)"; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(a.tx, a.ty); g.stroke(); });
+  g.setLineDash([]);
+  // şehirler
+  S.cities.forEach(c => drawCastle(g, RACES[c.race], c.x, c.y, 1.15, RACES[c.owner].renk));
+  // ordular ve ordugâhlar
+  S.armies.slice().sort((p, q) => p.y - q.y).forEach(a => {
+    const R = RACES[a.owner];
+    if (a.st !== "yol") drawTents(g, a.x - 14, a.y - 4, .9, R.renk);
+    const n = Math.min(3, Math.max(1, Math.ceil(a.n / 15))), s = R.body === "dev" ? .32 : R.body === "trol" ? .38 : .62;
+    for (let k = n - 1; k >= 0; k--) drawFig(g, R, { x: a.x - k * 9 * (a.face || 1), y: a.y + k * 3, s, dir: a.face || 1, ph: (a.ph || 0) + k, walk: a.st === "yol" });
+    flag(g, a.x + 6 * (a.face || 1), a.y - 4, R.renk, 34);
+  });
+  // savaş izleri
+  fx.forEach(f => { const k = 1 - f.t / 2.4; g.save(); g.globalAlpha = k; g.translate(f.x, f.y - 30); g.strokeStyle = "#fff6d8"; g.lineWidth = 3; g.beginPath(); g.moveTo(-9, -9); g.lineTo(9, 9); g.moveTo(9, -9); g.lineTo(-9, 9); g.stroke(); g.restore(); });
+  // seçim halkası
+  const sp = selPos(); if (sp) { g.strokeStyle = "#ffe27a"; g.lineWidth = 3 / cam.z; g.beginPath(); g.ellipse(sp.x, sp.y + 2, sp.r, sp.r * .45, 0, 0, 7); g.stroke(); }
+  // ekran uzayında yazılar
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.textAlign = "center"; g.lineJoin = "round";
+  const fs = clamp(13 * cam.z / .5, 10, 15);
+  S.cities.forEach(c => {
+    const [sx, sy] = toScreen(c.x, c.y); if (sx < -80 || sx > VW + 80 || sy < -40 || sy > VH + 80) return;
+    if (cam.z < .3 && c.owner !== S.P) return;
+    const R = RACES[c.race], O = RACES[c.owner];
+    g.font = `800 ${fs}px "Alegreya SC", Georgia, serif`; const nm = R.sehir, w = g.measureText(nm).width + 26;
+    g.fillStyle = "rgba(241,226,182,.95)"; g.strokeStyle = O.renk; g.lineWidth = 2; rr(g, sx - w / 2, sy + 6, w, fs + 8, 6); g.fill(); g.stroke();
+    g.fillStyle = INK; g.fillText(nm, sx + 7, sy + fs + 9);
+    g.fillStyle = O.renk; g.fillRect(sx - w / 2 + 6, sy + 10, 8, fs); g.strokeStyle = INK; g.lineWidth = 1; g.strokeRect(sx - w / 2 + 6, sy + 10, 8, fs);
+    if (cam.z > .42) { g.font = `700 ${fs - 2}px "Alegreya", Georgia, serif`; g.fillStyle = "#fff6d8"; g.strokeStyle = "rgba(20,20,40,.8)"; g.lineWidth = 3; const tx = `${O.ad} · ${Math.round(c.gar)} asker`; g.strokeText(tx, sx, sy + fs * 2 + 13); g.fillText(tx, sx, sy + fs * 2 + 13); }
+  });
+  S.armies.forEach(a => {
+    const [sx, sy] = toScreen(a.x, a.y); if (sx < -40 || sx > VW + 40 || sy < -40 || sy > VH + 40) return;
+    if (cam.z < .3 && a.owner !== S.P) return;
+    g.font = `800 ${fs - 1}px "Alegreya", Georgia, serif`; const tx = String(Math.round(a.n)), w = g.measureText(tx).width + 10;
+    g.fillStyle = RACES[a.owner].renk; g.strokeStyle = INK; g.lineWidth = 1.2; rr(g, sx - w / 2, sy + 4, w, fs + 2, 5); g.fill(); g.stroke();
+    g.fillStyle = "#fff"; g.fillText(tx, sx, sy + fs + 1.5);
+  });
+}
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function selPos() {
+  if (!sel) return null;
+  if (sel.k === "city") { const c = S.cities[sel.i]; return { x: c.x, y: c.y, r: 46 }; }
+  if (sel.k === "mine") { const m = S.mines[sel.i]; return { x: m.x, y: m.y, r: 26 }; }
+  const a = S.armies.find(b => b.id === sel.id); return a ? { x: a.x, y: a.y, r: 24 } : null;
+}
+function hitTest(wx, wy) {
+  const rr = 1 / Math.max(.4, cam.z);
+  const a = S.armies.filter(b => Math.hypot(b.x - wx, b.y - 12 - wy) < 22 * rr).sort((p, q) => Math.hypot(p.x - wx, p.y - wy) - Math.hypot(q.x - wx, q.y - wy))[0];
+  if (a) return { k: "army", id: a.id };
+  const c = S.cities.find(c => Math.hypot(c.x - wx, c.y - 22 - wy) < 42 * Math.max(1, rr * .8)); if (c) return { k: "city", i: c.i };
+  const mi = S.mines.findIndex(m => Math.hypot(m.x - wx, m.y - 10 - wy) < 24 * Math.max(1, rr * .8)); if (mi >= 0) return { k: "mine", i: mi };
+  return null;
+}
+/* girdi: kaydır, yakınlaştır, dokun */
+const ptrs = new Map(); let drag = null;
+cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, z: cam.z, d: pinchD(), moved: false }; });
+cv.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (!drag) return;
+  if (ptrs.size === 2 && drag.d) { cam.z = drag.z * pinchD() / drag.d; drag.moved = true; clampCam(); return; }
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 6) drag.moved = true;
+  cam.x = drag.cx - dx / cam.z; cam.y = drag.cy - dy / cam.z; clampCam();
+});
+function pinchD() { const p = [...ptrs.values()]; return p.length < 2 ? 0 : Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); }
+const endP = e => {
+  const d = drag; ptrs.delete(e.pointerId); if (ptrs.size === 0) drag = null; else if (drag) { const p = [...ptrs.values()][0]; drag = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, z: cam.z, d: 0, moved: true }; }
+  if (e.type === "pointerup" && d && !d.moved && ptrs.size === 0) { const r = cv.getBoundingClientRect(); onTap(...toWorld(e.clientX - r.left, e.clientY - r.top)); }
+};
+cv.addEventListener("pointerup", endP); cv.addEventListener("pointercancel", endP);
+cv.addEventListener("wheel", e => { e.preventDefault(); cam.z *= e.deltaY > 0 ? .9 : 1.1; clampCam(); }, { passive: false });
+function onTap(wx, wy) {
+  if (S.over) return;
+  const h = hitTest(wx, wy);
+  if (mode) { chooseTarget(h, wx, wy); return; }
+  sel = h; renderPanel();
+}
+function chooseTarget(h, wx, wy) {
+  let tgt = null, tx = wx, ty = wy;
+  if (h && h.k === "city") { const c = S.cities[h.i]; tgt = { k: "city", i: h.i }; tx = c.x; ty = c.y; }
+  else if (h && h.k === "mine") { const m = S.mines[h.i]; tgt = { k: "mine", i: h.i }; tx = m.x; ty = m.y; }
+  else if (h && h.k === "army") { const a = S.armies.find(b => b.id === h.id); if (a.owner === S.P) { toast("Kendi ordunu hedef seçemezsin"); return; } tgt = { k: "army", id: a.id, i: a.id }; tx = a.x; ty = a.y; }
+  else if (!isLand(wx, wy)) { toast("Ordu denize yürüyemez. Karada bir yer seç."); return; }
+  if (mode.city != null) {
+    const c = S.cities[mode.city], n = Math.min(Math.floor(c.gar), mode.n); if (n < 1) { toast("Kalede yeterli asker yok"); mode = null; renderPanel(); return; }
+    if (tgt && tgt.k === "city" && tgt.i === c.i) { toast("Ordu zaten bu kalede"); return; }
+    const a = sendArmy(S.P, c, n, tgt, tx, ty); sel = { k: "army", id: a.id };
+    toast(tgt ? (tgt.k === "city" ? (S.cities[tgt.i].owner === S.P ? "Ordu kaleye gidiyor" : `${RACES[S.cities[tgt.i].race].sehir} üzerine yürüyüş!`) : tgt.k === "mine" ? "Ordu madene gidiyor" : "Ordu düşmanın peşinde") : "Ordu ordugâh kurmaya gidiyor");
+  } else {
+    const a = S.armies.find(b => b.id === mode.army); if (a) { a.tgt = tgt; a.tx = tx; a.ty = ty; a.st = "yol"; a.mine = undefined; toast("Ordu yola çıktı"); }
+  }
+  mode = null; renderPanel();
+}
+
+/* ---------- panel ---------- */
+function el(t, c, txt) { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
+function btn(txt, c, fn, dis) { const b = el("button", "btn " + (c || ""), txt); b.type = "button"; b.disabled = !!dis; b.addEventListener("click", fn); return b; }
+function title(o, txt) { const h = el("h3"); const d = el("span", "dot"); d.style.background = RACES[o].renk; h.append(d, el("span", null, txt)); return h; }
+function renderPanel() {
+  const p = $("panel"); if (S.over) return; p.replaceChildren();
+  if (mode) {
+    p.append(el("h3", null, "Hedef seç"), el("p", null, "Haritada bir düşman kalesine, maden ocağına ya da düşman ordusuna dokun. Boş araziye dokunursan ordu orada ordugâh kurar."));
+    const acts = el("div", "acts"); acts.append(btn("Vazgeç", "ghost", () => { mode = null; renderPanel(); })); p.appendChild(acts); return;
+  }
+  if (!sel) {
+    const me = RACES[S.P], cs = owned(S.P);
+    p.append(title(S.P, `${me.ad} · ${cs.length} kale`), el("p", null, `Kalene dokun, asker topla ve ordu çıkar. Maden ocakları hazineni büyütür. Gelir: saniyede ${Math.round(income(S.P) * .5 * 10) / 10} altın.`));
+    const acts = el("div", "acts"); acts.append(btn("Kaleme git", "", () => { const c = cs[0]; if (c) { cam.x = c.x; cam.y = c.y; cam.z = Math.max(cam.z, .6); clampCam(); sel = { k: "city", i: c.i }; renderPanel(); } })); p.appendChild(acts); return;
+  }
+  if (sel.k === "city") {
+    const c = S.cities[sel.i], R = RACES[c.race], O = RACES[c.owner], mine = c.owner === S.P;
+    p.append(title(c.owner, `${R.sehir} kalesi`), el("p", null, `${R.ad} diyarı · sahibi ${O.ad} · ${Math.round(c.gar)} asker (${O.ad.toLocaleLowerCase("tr")})`));
+    const acts = el("div", "acts");
+    if (mine) {
+      const cost = O.cost * 10;
+      acts.append(btn(`+10 asker · ${cost} altın`, "green", () => { if (S.gold[S.P] < cost) return toast("Hazinede yeterli altın yok"); S.gold[S.P] -= cost; c.gar += 10; renderPanel(); }, S.gold[S.P] < cost));
+      [[.25, "Çeyreğini"], [.5, "Yarısını"], [.8, "Çoğunu"]].forEach(([f, l]) => { const n = Math.floor(c.gar * f); acts.append(btn(`${l} çıkar (${n})`, "red", () => { mode = { city: c.i, n }; renderPanel(); }, n < 1)); });
+    } else p.appendChild(el("p", "hint", "Saldırmak için kendi kalenden ordu çıkar ve bu kaleyi hedef seç. Kale savunması %30 güçlüdür."));
+    p.appendChild(acts);
+  } else if (sel.k === "mine") {
+    const m = S.mines[sel.i], gd = S.armies.find(b => b.st === "nobet" && b.mine === sel.i);
+    p.append(el("h3", null, `${MINE_AD[m.tip]} · saniyede +${m.val / 2} altın`), el("p", null, m.owner < 0 ? "Sahipsiz. Bir ordu gönderen alır." : `Sahibi: ${RACES[m.owner].ad}${gd ? ` · nöbette ${gd.n} asker` : " · nöbetçi yok"}`));
+    p.appendChild(el("p", "hint", "Kendi kalenden ordu çıkarıp bu madeni hedef seç."));
+  } else {
+    const a = S.armies.find(b => b.id === sel.id); if (!a) { sel = null; return renderPanel(); }
+    const R = RACES[a.owner], durum = a.st === "yol" ? "yolda" : a.st === "nobet" ? "maden nöbetinde" : "ordugâhta";
+    p.append(title(a.owner, `${R.ad} ordusu · ${a.n} asker`), el("p", null, `Durum: ${durum}.`));
+    if (a.owner === S.P) {
+      const acts = el("div", "acts");
+      acts.append(btn("Yeni hedef seç", "red", () => { mode = { army: a.id }; renderPanel(); }));
+      acts.append(btn("Kaleye dön", "", () => { const c = owned(S.P).sort((p2, q) => dist(p2, a) - dist(q, a))[0]; if (c) { a.tgt = { k: "city", i: c.i }; a.tx = c.x; a.ty = c.y; a.st = "yol"; a.mine = undefined; renderPanel(); } }));
+      p.appendChild(acts);
+    }
+  }
+}
+let toastT = 0; function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; toastT = 2.6; }
+function note(m) { toast(m); }
+function renderTop() {
+  const me = RACES[S.P];
+  const troops = owned(S.P).reduce((x, c) => x + Math.round(c.gar), 0) + S.armies.filter(a => a.owner === S.P).reduce((x, a) => x + a.n, 0);
+  $("myName").textContent = `${me.ad} · ${me.sehir}`; $("myDay").textContent = `Gün ${Math.floor(S.t / 6) + 1} · ${troops} asker`;
+  $("myGold").textContent = Math.floor(S.gold[S.P]).toLocaleString("tr-TR"); $("myCities").textContent = `${owned(S.P).length}/30`;
+  const left = RACES.filter((R, i) => alive(i)).length; $("legend").textContent = `Ayakta kalan diyar: ${left}`;
+}
+function drawCrest() {
+  const c = $("crest"), x = c.getContext("2d"), R = RACES[S.P]; x.clearRect(0, 0, 68, 80);
+  x.fillStyle = R.renk; x.strokeStyle = "#c9a227"; x.lineWidth = 4; x.beginPath(); x.moveTo(6, 6); x.lineTo(62, 6); x.lineTo(62, 44); x.quadraticCurveTo(62, 68, 34, 76); x.quadraticCurveTo(6, 68, 6, 44); x.closePath(); x.fill(); x.stroke();
+  x.save(); x.beginPath(); x.moveTo(8, 8); x.lineTo(60, 8); x.lineTo(60, 44); x.quadraticCurveTo(60, 66, 34, 73); x.quadraticCurveTo(8, 66, 8, 44); x.closePath(); x.clip(); x.fillStyle = "rgba(255,246,216,.85)"; x.fillRect(8, 8, 52, 70); drawFig(x, R, { x: 30, y: 74, s: 1.35 / BODY[R.body].sz, dir: 1 }); x.restore();
+}
+$("speedBtn").addEventListener("click", () => { S.speed = S.speed === 1 ? 2 : S.speed === 2 ? 4 : 1; $("speedBtn").textContent = S.speed + "×"; });
+
+/* ---------- kayıt ---------- */
+function saveGame() { if (!S || S.over) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+function loadGame() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); return s && s.v === 1 && s.cities && s.cities.length === 30 ? s : null; } catch (e) { return null; } }
+
+function panelKey() {
+  if (!sel) return "none" + owned(S.P).length;
+  if (sel.k === "city") { const c = S.cities[sel.i]; return `c${sel.i}|${c.owner}|${Math.floor(c.gar / 4)}|${S.gold[S.P] >= RACES[c.owner].cost * 10}`; }
+  if (sel.k === "mine") { const m = S.mines[sel.i]; return `m${sel.i}|${m.owner}|${(S.armies.find(b => b.st === "nobet" && b.mine === sel.i) || {}).n}`; }
+  const a = S.armies.find(b => b.id === sel.id); return a ? `a${a.id}|${a.n}|${a.st}` : "gone";
+}
+/* ---------- meydan muharebesi ---------- */
+const AW = 1800, AH = 600, ROWS = 5;
+const rowY = r => 372 + r * 42, rowS = r => .84 + r * .07;
+const acv = $("arena"), ag = acv.getContext("2d");
+let B = null;
+function openBattle(b) {
+  // oyuncu hep solda
+  const pLeft = b.A.owner === S.P, L = pLeft ? b.A : b.D, Rt = pLeft ? b.D : b.A;
+  B = { b, pLeft, sides: [L, Rt], units: [], arrows: [], t: 0, speed: 1, camX: AW / 2, pan: 0, done: false, siege: !!b.defCity, bg: b.defCity ? RACES[b.defCity.race] : RACES[b.D.owner] };
+  [L, Rt].forEach((sd, side) => {
+    const R = RACES[sd.owner], big = R.body === "dev" || R.body === "trol";
+    const m = clamp(Math.round(big ? sd.n : sd.n), Math.min(sd.n, 3), big ? 12 : 40), rep = sd.n / m;
+    const rows = m < 8 ? 2 : m < 16 ? 3 : m < 26 ? 4 : ROWS, cols = Math.ceil(m / rows), gap = big ? 70 : 34;
+    const nArch = Math.round(m * R.arch); let k = 0;
+    const bonus = sd === b.D ? sd.bonus : 1;
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows && k < m; r++, k++) {
+      const arch = k >= m - nArch, row = ROWS - rows + r, dir = side ? -1 : 1;
+      const x = side ? AW / 2 + 230 + c * gap : AW / 2 - 230 - c * gap;
+      B.units.push({ side, R, x: x + (Math.random() - .5) * 8, r: row, tr: row, hp: R.hp * rep * bonus, mhp: R.hp * rep * bonus, atk: R.atk * rep, rep, arch, dir, cd: Math.random(), ph: Math.random() * 6, atkT: 0, drawT: 0, dead: 0, big });
+    }
+    sd.m = m; sd.rep = rep;
+  });
+  const side = (o, n) => { const d = el("span", "dot"); d.style.cssText = `width:12px;height:12px;border-radius:3px;border:1px solid #2b1d12;background:${RACES[o].renk};flex:none`; const e = el("em"); e.textContent = n; return [d, el("span", null, RACES[o].ad), e]; };
+  $("bL").replaceChildren(...side(L.owner, L.n)); $("bR").replaceChildren(...side(Rt.owner, Rt.n));
+  $("bTitle").textContent = B.siege ? `${RACES[b.defCity.race].sehir} kuşatması` : "Meydan muharebesi";
+  $("bRes").hidden = true; $("bSpeed").textContent = "Hız 1×"; $("bSkip").disabled = false;
+  $("battle").hidden = false; resizeArena();
+}
+function resizeArena() { const d = Math.min(2, window.devicePixelRatio || 1); acv.width = Math.round(acv.clientWidth * d); acv.height = Math.round(acv.clientHeight * d); }
+function stepBattle(dt) {
+  if (!B || B.done) return;
+  B.t += dt; const U = B.units;
+  for (const u of U) {
+    if (u.hp <= 0) { u.dead = Math.min(1, u.dead + dt * 2); continue; }
+    u.cd -= dt; u.atkT = Math.max(0, u.atkT - dt * 3); u.drawT = Math.max(0, u.drawT - dt * 1.6);
+    const foes = U.filter(v => v.side !== u.side && v.hp > 0); if (!foes.length) continue;
+    if (!u.tg || u.tg.hp <= 0 || Math.random() < dt * .8) u.tg = foes.reduce((a, v) => { const c = Math.abs(v.x - u.x) + Math.abs(v.r - u.r) * 70; return c < a[0] ? [c, v] : a; }, [1e9, null])[1];
+    const t = u.tg, dx = t.x - u.x, adx = Math.abs(dx), reach = (u.big ? 46 : 30) + (t.big ? 18 : 0) + (u.R.wpn.startsWith("mizrak") || u.R.wpn === "yaba" ? 10 : 0);
+    if (u.arch && adx > 60) {
+      if (adx < 720) { if (u.cd <= 0) { u.cd = 1.7 + Math.random() * .7; u.drawT = 1; const T = .7 + adx / 1100; B.arrows.push({ x: u.x + u.dir * 10, y: rowY(u.r) - 26 * rowS(u.r), tx: t.x, ty: rowY(t.r) - 20, t: 0, T, tg: t, dmg: u.atk * .8, side: u.side }); } u.walk = false; continue; }
+    }
+    // satır değiştirme
+    if (Math.abs(t.r - u.r) > .05 && adx < 160) u.r += Math.sign(t.r - u.r) * Math.min(Math.abs(t.r - u.r), dt * 1.4);
+    if (adx > reach || Math.abs(t.r - u.r) > .45) {
+      const sp = 46 * u.R.spd * (u.big ? .8 : 1), nx = u.x + Math.sign(dx) * sp * dt;
+      const block = U.some(v => v !== u && v.side === u.side && v.hp > 0 && Math.abs(v.r - u.r) < .5 && Math.sign(v.x - u.x) === Math.sign(dx) && Math.abs(v.x - nx) < (u.big || v.big ? 40 : 21));
+      if (!block) { u.x = nx; u.walk = true; u.ph += dt * 9 * u.R.spd; } else u.walk = false;
+    } else {
+      u.walk = false;
+      if (u.cd <= 0) { u.cd = 1 + Math.random() * .5; u.atkT = 1; t.hp -= u.atk * (.75 + Math.random() * .5); }
+    }
+  }
+  B.arrows = B.arrows.filter(a => { a.t += dt; if (a.t < a.T) return true; if (a.tg.hp > 0) a.tg.hp -= a.dmg * (.7 + Math.random() * .6); return false; });
+  const live = [0, 1].map(s => U.filter(u => u.side === s && u.hp > 0).length);
+  B.sides.forEach((sd, s) => { const e = (s ? $("bR") : $("bL")).querySelector("em"); if (e) e.textContent = Math.max(0, Math.round(U.filter(u => u.side === s && u.hp > 0).reduce((a, u) => a + u.rep * u.hp / u.mhp, 0))); });
+  if (!live[0] || !live[1] || B.t > 150) finishBattle(live);
+}
+function finishBattle(live) {
+  B.done = true;
+  const U = B.units, hpLeft = s => U.filter(u => u.side === s && u.hp > 0).reduce((a, u) => a + u.hp, 0);
+  let win = live[0] && live[1] ? (hpLeft(0) >= hpLeft(1) ? 0 : 1) : live[0] ? 0 : 1;
+  const left = [0, 1].map(s => s !== win ? 0 : Math.max(1, Math.round(U.filter(u => u.side === s && u.hp > 0).reduce((a, u) => a + u.rep * Math.max(.35, u.hp / u.mhp), 0))));
+  B.left = left; B.win = win;
+  const meWin = win === 0, me = B.sides[0], foe = B.sides[1], res = $("bRes"); res.replaceChildren();
+  res.append(el("h2", null, meWin ? "Zafer!" : "Yenilgi"),
+    el("p", null, `${RACES[me.owner].ad}: ${me.n} askerden ${left[0]} kaldı.`),
+    el("p", null, `${RACES[foe.owner].ad}: ${foe.n} askerden ${left[1]} kaldı.`),
+    el("p", "hint", meWin ? (B.siege && !B.pLeft ? "Kaleni korudun." : B.siege ? `${RACES[B.b.defCity.race].sehir} artık senin.` : "Meydan senin.") : (B.siege && !B.pLeft ? "Kale düştü." : "Ordun dağıldı.")),
+    btn("Haritaya dön", "red", closeBattle));
+  res.hidden = false; $("bSkip").disabled = true;
+}
+function closeBattle() {
+  const b = B.b, aLeft = B.pLeft ? B.left[0] : B.left[1], dLeft = B.pLeft ? B.left[1] : B.left[0];
+  $("battle").hidden = true; B = null; battleOpen = null; applyBattle(b, aLeft, dLeft); saveGame();
+}
+$("bSpeed").addEventListener("click", () => { if (!B) return; B.speed = B.speed === 1 ? 2 : B.speed === 2 ? 4 : 1; $("bSpeed").textContent = `Hız ${B.speed}×`; });
+$("bSkip").addEventListener("click", () => { if (!B || B.done) return; for (let i = 0; i < 6000 && !B.done; i++) stepBattle(.05); });
+// meydanı sürükleyerek kaydır
+{ let d = null; acv.addEventListener("pointerdown", e => { d = { x: e.clientX, p: B ? B.pan : 0 }; acv.setPointerCapture(e.pointerId); }); acv.addEventListener("pointermove", e => { if (d && B) B.pan = d.p - (e.clientX - d.x) / (B.sc || .5); }); const up = () => d = null; acv.addEventListener("pointerup", up); acv.addEventListener("pointercancel", up); }
+
+let arenaBg = null, arenaBgKey = "";
+function paintArenaBg(R) {
+  const c = document.createElement("canvas"); c.width = AW; c.height = AH; const x = c.getContext("2d");
+  // yaldız gökyüzü ve kıvrımlı bulutlar
+  const sk = x.createLinearGradient(0, 0, 0, 300); sk.addColorStop(0, "#d8b040"); sk.addColorStop(1, "#ecd486"); x.fillStyle = sk; x.fillRect(0, 0, AW, 330);
+  x.strokeStyle = "rgba(160,110,20,.35)"; x.lineWidth = 2; for (let k = 0; k < 140; k++) { const px = (k * 197) % AW, py = 20 + (k * 71) % 250; x.beginPath(); x.arc(px, py, 6, Math.PI, Math.PI * 1.8); x.arc(px + 11, py, 5, Math.PI * 1.1, Math.PI * 2); x.stroke(); }
+  for (let k = 0; k < 9; k++) { const cx = 80 + k * 210, cy = 60 + (k % 3) * 26; x.fillStyle = "#3a5ab0"; x.strokeStyle = "#f4efe2"; x.lineWidth = 3; x.beginPath(); for (let j = 0; j < 4; j++) x.arc(cx + j * 14, cy - (j % 2) * 6, 9, Math.PI, 0); x.fill(); x.stroke(); }
+  // ufukta diyarın şehri
+  x.save(); x.globalAlpha = .92; for (let k = 0; k < 4; k++) drawCastle(x, R, 220 + k * 460 + (k % 2) * 60, 322, k % 2 ? 2.2 : 2.8, R.renk); x.restore();
+  // ağaç sırası
+  for (let k = 0; k < 26; k++) { const px = 30 + k * 70, py = 336; if (k % 2) { x.fillStyle = "#2f6b47"; x.strokeStyle = INK; x.lineWidth = 1.4; x.beginPath(); x.ellipse(px, py - 26, 9, 30, 0, 0, 7); x.fill(); x.stroke(); } else { x.fillStyle = "#6a4a2a"; x.fillRect(px - 2, py - 16, 4, 16); x.fillStyle = "#e8b8c8"; x.beginPath(); x.arc(px, py - 26, 15, 0, 7); x.fill(); x.stroke(); x.fillStyle = "#c86a8a"; for (let j = 0; j < 6; j++) { x.beginPath(); x.arc(px - 9 + j * 3.6, py - 30 + (j % 3) * 5, 1.6, 0, 7); x.fill(); } } }
+  // meydan zemini
+  const gr = x.createLinearGradient(0, 330, 0, AH); gr.addColorStop(0, "#d9c088"); gr.addColorStop(1, "#c8a868"); x.fillStyle = gr; x.fillRect(0, 336, AW, AH - 336);
+  x.strokeStyle = "#5a3a1a"; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 338); x.lineTo(AW, 338); x.stroke();
+  x.strokeStyle = "rgba(90,110,50,.55)"; x.lineWidth = 1.4; for (let k = 0; k < 260; k++) { const px = (k * 131) % AW, py = 350 + (k * 53) % 230; x.beginPath(); x.moveTo(px, py); x.lineTo(px - 2, py - 5); x.moveTo(px + 2, py); x.lineTo(px + 3, py - 5); x.stroke(); }
+  // ön çiçek bordürü
+  x.fillStyle = "#2f6b47"; x.fillRect(0, AH - 26, AW, 26); for (let k = 0; k < 90; k++) { const px = 10 + k * 20; x.fillStyle = ["#c8402e", "#f4efe2", "#e8c040", "#c46a7d"][k % 4]; x.beginPath(); x.arc(px, AH - 13, 4, 0, 7); x.fill(); }
+  return c;
+}
+function drawArena() {
+  if (!B) return;
+  const W = acv.width, H = acv.height, sc = Math.min(H / AH, W / 560), vw = W / sc, vh = H / sc, oy = Math.max(0, vh - AH); B.sc = sc / (acv.width / acv.clientWidth);
+  const key = B.bg.k; if (arenaBgKey !== key) { arenaBg = paintArenaBg(B.bg); arenaBgKey = key; }
+  const liveU = B.units.filter(u => u.hp > 0), mx = liveU.length ? liveU.reduce((a, u) => a + u.x, 0) / liveU.length : AW / 2;
+  B.camX += (clamp(mx + B.pan, vw / 2, AW - vw / 2) - B.camX) * .08;
+  const ox = vw >= AW ? (vw - AW) / 2 : -(B.camX - vw / 2);
+  ag.setTransform(sc, 0, 0, sc, ox * sc, oy * sc);
+  { const sk = ag.createLinearGradient(0, -oy, 0, 10); sk.addColorStop(0, "#c89a30"); sk.addColorStop(1, "#d8b040"); ag.fillStyle = sk; ag.fillRect(-ox, -oy, vw, oy + 10); }
+  ag.drawImage(arenaBg, 0, 0);
+  ag.fillStyle = "#c8a868"; ag.fillRect(-ox, -2, Math.max(0, -ox), 0);
+  const list = B.units.filter(u => u.dead < 1 || u.hp > 0).sort((p, q) => p.r - q.r || p.x - q.x);
+  for (const u of list) {
+    const y = rowY(u.r), s = rowS(u.r) * (u.big ? 1.25 : 1.5);
+    ag.fillStyle = "rgba(60,40,10,.25)"; ag.beginPath(); ag.ellipse(u.x, y + 1, 12 * s * BODY[u.R.body].sz, 3 * s, 0, 0, 7); ag.fill();
+    drawFig(ag, u.R, { x: u.x, y, s, dir: u.dir, ph: u.ph, walk: u.walk && u.hp > 0, atk: u.atkT, draw: u.drawT, dead: u.hp <= 0 ? Math.max(.01, u.dead) : 0, alpha: u.hp <= 0 ? .55 + .45 * (1 - u.dead) : 1 });
+    if (u.hp > 0 && u.hp < u.mhp) { ag.fillStyle = "rgba(43,29,18,.6)"; ag.fillRect(u.x - 9, y - 70 * s / 1.5 - 4, 18, 3); ag.fillStyle = u.side ? "#c8402e" : "#2f9d5f"; ag.fillRect(u.x - 9, y - 70 * s / 1.5 - 4, 18 * u.hp / u.mhp, 3); }
+  }
+  ag.strokeStyle = "#3a2418"; ag.lineWidth = 1.6;
+  for (const a of B.arrows) { const k = a.t / a.T, x = lerp(a.x, a.tx, k), y = lerp(a.y, a.ty, k) - Math.sin(k * Math.PI) * 90, k2 = Math.min(1, k + .04), x2 = lerp(a.x, a.tx, k2), y2 = lerp(a.y, a.ty, k2) - Math.sin(k2 * Math.PI) * 90, an = Math.atan2(y2 - y, x2 - x); ag.beginPath(); ag.moveTo(x - Math.cos(an) * 12, y - Math.sin(an) * 12); ag.lineTo(x, y); ag.stroke(); }
+}
+
+/* ---------- açılış ---------- */
+let chosen = -1;
+function showStart() {
+  S = null; $("start").hidden = false; const box = $("raceList"); box.replaceChildren();
+  Object.entries(ZONES).forEach(([z, zn]) => {
+    const rs = RACES.filter(R => R.zone === z); if (!rs.length) return;
+    box.appendChild(el("div", "zone", zn)); const grid = el("div", "races");
+    rs.forEach(R => {
+      const b = el("button", "race"); b.type = "button"; b.setAttribute("aria-pressed", "false");
+      const c = document.createElement("canvas"); c.width = 140; c.height = 168; b.append(c, el("b", null, R.ad), el("small", null, R.sehir));
+      const x = c.getContext("2d"), big = BODY[R.body].sz; drawFig(x, R, { x: 64, y: 160, s: (big > 1.3 ? 2.9 : 3.3) / Math.max(1, big), dir: 1 });
+      b.addEventListener("click", () => { chosen = R.i; box.querySelectorAll(".race").forEach(e => e.setAttribute("aria-pressed", String(e === b))); const go = $("goBtn"); go.disabled = false; go.textContent = `${R.ad} ile başla`; });
+      grid.appendChild(b);
+    });
+    box.appendChild(grid);
+  });
+  $("contBtn").hidden = !loadGame();
+}
+function begin(st) {
+  S = st; $("start").hidden = true; sel = null; mode = null; B = null; battleOpen = null; $("battle").hidden = true;
+  paintTerritory(); drawCrest(); resizeMap();
+  const c = owned(S.P)[0] || S.cities[S.P]; cam = { x: c.x, y: c.y, z: .62 }; clampCam();
+  $("speedBtn").textContent = S.speed + "×"; renderPanel(); renderTop();
+}
+$("goBtn").addEventListener("click", () => { if (chosen < 0) return; newGame(chosen); begin(S); saveGame(); });
+$("contBtn").addEventListener("click", () => { const s = loadGame(); if (s) begin(s); });
+
+/* ---------- döngü ---------- */
+let last = performance.now(), saveT = 0, panelT = 0, lastKey = "";
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (toastT > 0 && (toastT -= dt) <= 0) $("toast").hidden = true;
+  if (!S) return;
+  if (B) { for (let i = 0; i < B.speed; i++) stepBattle(dt); drawArena(); return; }
+  if (!S.over) for (let i = 0; i < S.speed; i++) { update(dt); if (battleOpen) break; }
+  drawMap(now / 1000);
+  if ((panelT -= dt) <= 0) { panelT = .5; renderTop(); const k = panelKey(); if (!mode && !S.over && k !== lastKey) { lastKey = k; renderPanel(); } }
+  if ((saveT += dt) > 6) { saveT = 0; saveGame(); }
+}
+window.addEventListener("resize", () => { if (S) resizeMap(); if (B) resizeArena(); });
+new ResizeObserver(() => { if (S) resizeMap(); }).observe(cv);
+genWorld(); mines0 = genMines(); showStart(); requestAnimationFrame(frame);
+window.OtuzDiyar = { state: () => S, battle: () => B, newGame: i => { newGame(i); begin(S); } };
+</script>
+
+</body>
+</html>
